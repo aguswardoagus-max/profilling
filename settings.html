@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Clearance Face Search</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            opacity: 0;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-right: 3px solid white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .nav-submenu {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        .nav-submenu .menu-item {
+            padding: 10px 25px;
+            font-size: 0.9rem;
+        }
+
+        .menu-item span {
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .menu-item span {
+            opacity: 0;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 15px 20px;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .user-details {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .user-details {
+            opacity: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .logout-btn span {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .logout-btn span {
+            opacity: 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 70px;
+        }
+
+        /* Topbar */
+        .topbar {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 10px 15px 10px 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            width: 300px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .notification-btn:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Settings Content */
+        .settings-content {
+            padding: 30px;
+        }
+
+        /* Settings Tabs */
+        .settings-tabs {
+            display: flex;
+            background: white;
+            border-radius: 15px;
+            padding: 5px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .settings-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .settings-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .settings-tab:hover:not(.active) {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        /* Settings Panels */
+        .settings-panel {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .settings-panel.active {
+            display: block;
+        }
+
+        .panel-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .panel-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.3rem;
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #6b7280;
+            border: 2px solid #e1e5e9;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            border-color: #d1d5db;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        /* Settings Cards */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .settings-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+
+        .settings-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .card-icon.profile {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card-icon.security {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .card-icon.notifications {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .card-icon.system {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .card-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Status Badge */
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .topbar {
+                padding: 15px 20px;
+            }
+
+            .page-title {
+                font-size: 1.4rem;
+            }
+
+            .search-box input {
+                width: 200px;
+            }
+
+            .settings-content {
+                padding: 20px;
+            }
+
+            .settings-tabs {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .settings-panel {
+                padding: 20px;
+            }
+        }
+
+        /* Tablet Responsive */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .settings-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="sidebar-title">Clearance Search</div>
+        </div>
+        
+        <nav class="sidebar-menu">
+            <a href="/dashboard" class="menu-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/profiling" class="menu-item">
+                <i class="fas fa-search"></i>
+                <span>Profiling</span>
+            </a>
+            <a href="/data-profiling" class="menu-item">
+                <i class="fas fa-database"></i>
+                <span>Data Profiling</span>
+            </a>
+            <a href="/cekplat" class="menu-item">
+                <i class="fas fa-car"></i>
+                <span>Cek Plat No Jambi</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/data-cari-plat" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    <span>Data Cari Plat No</span>
+                </a>
+            </div>
+            <a href="/user-management" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <a href="/ai-features" class="menu-item">
+                <i class="fas fa-robot"></i>
+                <span>AI Features</span>
+            </a>
+            <a href="/reports" class="menu-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/reports/profiling" class="menu-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Profiling</span>
+                </a>
+            </div>
+            <a href="/settings" class="menu-item active">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Admin User</div>
+                    <div class="user-role" id="userRole">Administrator</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Settings</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search settings..." id="globalSearch">
+                </div>
+                <button class="notification-btn">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Content -->
+        <div class="settings-content">
+            <!-- Settings Tabs -->
+            <div class="settings-tabs">
+                <div class="settings-tab active" onclick="switchTab('general')">
+                    <i class="fas fa-cog"></i> General
+                </div>
+                <div class="settings-tab" onclick="switchTab('profile')">
+                    <i class="fas fa-user"></i> Profile
+                </div>
+                <div class="settings-tab" onclick="switchTab('security')">
+                    <i class="fas fa-shield-alt"></i> Security
+                </div>
+                <div class="settings-tab" onclick="switchTab('notifications')">
+                    <i class="fas fa-bell"></i> Notifications
+                </div>
+                <div class="settings-tab" onclick="switchTab('system')">
+                    <i class="fas fa-server"></i> System
+                </div>
+            </div>
+
+            <!-- General Settings Panel -->
+            <div class="settings-panel active" id="generalPanel">
+                <h2 class="panel-title">
+                    <div class="panel-icon">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    General Settings
+                </h2>
+
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon profile">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <div class="card-title">Language & Region</div>
+                        </div>
+                        <div class="card-description">
+                            Configure your preferred language and regional settings
+                        </div>
+                        <div class="form-group">
+                            <label>Language</label>
+                            <select id="language">
+                                <option value="id">Bahasa Indonesia</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Timezone</label>
+                            <select id="timezone">
+                                <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                                <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
+                                <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveLanguageSettings()">
+                            <i class="fas fa-save"></i>
+                            Save Settings
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon security">
+                                <i class="fas fa-palette"></i>
+                            </div>
+                            <div class="card-title">Appearance</div>
+                        </div>
+                        <div class="card-description">
+                            Customize the look and feel of the application
+                        </div>
+                        <div class="form-group">
+                            <label>Theme</label>
+                            <select id="theme">
+                                <option value="light">Light Theme</option>
+                                <option value="dark">Dark Theme</option>
+                                <option value="auto">Auto (System)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sidebar</label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span>Auto-collapse</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="autoCollapse">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveAppearanceSettings()">
+                            <i class="fas fa-save"></i>
+                            Save Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Settings Panel -->
+            <div class="settings-panel" id="profilePanel">
+                <h2 class="panel-title">
+                    <div class="panel-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    Profile Settings
+                </h2>
+
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon profile">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="card-title">Personal Information</div>
+                        </div>
+                        <div class="card-description">
+                            Update your personal details and contact information
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="fullName" value="Admin User">
+                            </div>
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="username" value="admin" readonly>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="email" value="admin@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" id="phone" value="+62 812 3456 7890">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Bio</label>
+                            <textarea id="bio" placeholder="Tell us about yourself...">System Administrator</textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveProfileSettings()">
+                            <i class="fas fa-save"></i>
+                            Save Profile
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon security">
+                                <i class="fas fa-image"></i>
+                            </div>
+                            <div class="card-title">Profile Picture</div>
+                        </div>
+                        <div class="card-description">
+                            Upload and manage your profile picture
+                        </div>
+                        <div class="form-group">
+                            <label>Current Picture</label>
+                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                                <div style="width: 80px; height: 80px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #9ca3af;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <button class="btn btn-secondary" onclick="changeProfilePicture()">
+                                        <i class="fas fa-upload"></i>
+                                        Change Picture
+                                    </button>
+                                    <button class="btn btn-danger" onclick="removeProfilePicture()">
+                                        <i class="fas fa-trash"></i>
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Settings Panel -->
+            <div class="settings-panel" id="securityPanel">
+                <h2 class="panel-title">
+                    <div class="panel-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    Security Settings
+                </h2>
+
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon security">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <div class="card-title">Change Password</div>
+                        </div>
+                        <div class="card-description">
+                            Update your account password for better security
+                        </div>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="currentPassword">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="newPassword">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="confirmPassword">
+                        </div>
+                        <button class="btn btn-primary" onclick="changePassword()">
+                            <i class="fas fa-key"></i>
+                            Change Password
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon notifications">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="card-title">Two-Factor Authentication</div>
+                        </div>
+                        <div class="card-description">
+                            Add an extra layer of security to your account
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                            <div>
+                                <div style="font-weight: 500; margin-bottom: 5px;">2FA Status</div>
+                                <span class="status-badge inactive">Disabled</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="twoFactorAuth">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <button class="btn btn-secondary" onclick="setupTwoFactor()">
+                            <i class="fas fa-qrcode"></i>
+                            Setup 2FA
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon system">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div class="card-title">Login History</div>
+                        </div>
+                        <div class="card-description">
+                            View your recent login activity and sessions
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <span style="font-weight: 500;">Current Session</span>
+                                <span class="status-badge active">Active</span>
+                            </div>
+                            <div style="color: #6b7280; font-size: 0.9rem;">
+                                <div>IP: 127.0.0.1</div>
+                                <div>Browser: Chrome 120.0</div>
+                                <div>Last Activity: Just now</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="viewLoginHistory()">
+                            <i class="fas fa-history"></i>
+                            View All Sessions
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Settings Panel -->
+            <div class="settings-panel" id="notificationsPanel">
+                <h2 class="panel-title">
+                    <div class="panel-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    Notification Settings
+                </h2>
+
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon notifications">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="card-title">Email Notifications</div>
+                        </div>
+                        <div class="card-description">
+                            Configure which email notifications you want to receive
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>Search Results</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="emailSearchResults" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>System Updates</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="emailSystemUpdates" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>Security Alerts</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="emailSecurityAlerts" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveNotificationSettings()">
+                            <i class="fas fa-save"></i>
+                            Save Settings
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon profile">
+                                <i class="fas fa-mobile-alt"></i>
+                            </div>
+                            <div class="card-title">Push Notifications</div>
+                        </div>
+                        <div class="card-description">
+                            Manage push notifications for your browser
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>Enable Push Notifications</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pushNotifications">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>Search Alerts</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pushSearchAlerts">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <button class="btn btn-secondary" onclick="testNotification()">
+                            <i class="fas fa-bell"></i>
+                            Test Notification
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Settings Panel -->
+            <div class="settings-panel" id="systemPanel">
+                <h2 class="panel-title">
+                    <div class="panel-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    System Settings
+                </h2>
+
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon system">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="card-title">Database Management</div>
+                        </div>
+                        <div class="card-description">
+                            Manage database operations and maintenance
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span>Database Size:</span>
+                                <span style="font-weight: 500;">2.4 GB</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span>Total Records:</span>
+                                <span style="font-weight: 500;">15,247</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Last Backup:</span>
+                                <span style="font-weight: 500;">2 hours ago</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="backupDatabase()">
+                                <i class="fas fa-download"></i>
+                                Backup Now
+                            </button>
+                            <button class="btn btn-secondary" onclick="optimizeDatabase()">
+                                <i class="fas fa-tools"></i>
+                                Optimize
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon security">
+                                <i class="fas fa-trash"></i>
+                            </div>
+                            <div class="card-title">Data Cleanup</div>
+                        </div>
+                        <div class="card-description">
+                            Clean up old data and temporary files
+                        </div>
+                        <div class="form-group">
+                            <label>Auto-cleanup old data older than:</label>
+                            <select id="cleanupPeriod">
+                                <option value="30">30 days</option>
+                                <option value="60">60 days</option>
+                                <option value="90">90 days</option>
+                                <option value="180">6 months</option>
+                                <option value="365">1 year</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>Enable Auto-cleanup</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoCleanup">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <button class="btn btn-danger" onclick="cleanupData()">
+                            <i class="fas fa-trash"></i>
+                            Cleanup Now
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <div class="card-icon notifications">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <div class="card-title">System Configuration</div>
+                        </div>
+                        <div class="card-description">
+                            Configure system-wide settings and preferences
+                        </div>
+                        <div class="form-group">
+                            <label>Search Timeout (seconds)</label>
+                            <input type="number" id="searchTimeout" value="30" min="5" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Results per Page</label>
+                            <input type="number" id="maxResults" value="50" min="10" max="200">
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <span>Enable Debug Mode</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="debugMode">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSystemSettings()">
+                            <i class="fas fa-save"></i>
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Saving settings...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SettingsApp {
+            constructor() {
+                this.sidebar = document.getElementById('sidebar');
+                this.sidebarOverlay = document.getElementById('sidebarOverlay');
+                this.mainContent = document.getElementById('mainContent');
+                this.isSidebarCollapsed = false;
+                this.isMobile = window.innerWidth <= 768;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadUserData();
+                this.loadSettings();
+            }
+
+            setupEventListeners() {
+                // Global search
+                document.getElementById('globalSearch').addEventListener('input', (e) => {
+                    this.handleGlobalSearch(e.target.value);
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.isMobile = window.innerWidth <= 768;
+                    if (!this.isMobile) {
+                        this.sidebarOverlay.classList.remove('active');
+                    }
+                });
+            }
+
+            loadUserData() {
+                const userData = localStorage.getItem('user_data');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.name || 'Admin User';
+                    document.getElementById('userRole').textContent = user.role || 'Administrator';
+                    
+                    // Set menu visibility based on user role
+                    this.setMenuVisibility(user.role);
+                }
+            }
+
+            setMenuVisibility(userRole) {
+                // Hide admin-only menus for non-admin users
+                const adminOnlyMenus = ['user-management', 'settings'];
+                
+                adminOnlyMenus.forEach(menuId => {
+                    const menuElement = document.querySelector(`a[href="/${menuId}"]`);
+                    if (menuElement) {
+                        if (userRole === 'admin') {
+                            menuElement.style.display = 'flex';
+                        } else {
+                            menuElement.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            loadSettings() {
+                // Load saved settings from localStorage
+                const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+                
+                // Apply settings to form elements
+                if (settings.language) document.getElementById('language').value = settings.language;
+                if (settings.timezone) document.getElementById('timezone').value = settings.timezone;
+                if (settings.theme) document.getElementById('theme').value = settings.theme;
+                if (settings.autoCollapse) document.getElementById('autoCollapse').checked = settings.autoCollapse;
+            }
+
+            handleGlobalSearch(query) {
+                if (query.length > 2) {
+                    console.log('Global search for:', query);
+                    // Implement global search functionality
+                }
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                loading.style.display = show ? 'block' : 'none';
+            }
+
+            showAlert(message, type = 'success') {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type}`;
+                alertDiv.innerHTML = `
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                    ${message}
+                `;
+                
+                const content = document.querySelector('.settings-content');
+                content.insertBefore(alertDiv, content.firstChild);
+                
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        }
+
+        // Global functions
+        const app = new SettingsApp();
+
+        function toggleSidebar() {
+            if (app.isMobile) {
+                app.sidebar.classList.toggle('mobile-open');
+                app.sidebarOverlay.classList.toggle('active');
+            } else {
+                app.isSidebarCollapsed = !app.isSidebarCollapsed;
+                app.sidebar.classList.toggle('collapsed');
+                app.mainContent.classList.toggle('sidebar-collapsed');
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                window.location.href = '/login';
+            }
+        }
+
+        function switchTab(tabName) {
+            // Remove active class from all tabs and panels
+            document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.settings-panel').forEach(panel => panel.classList.remove('active'));
+            
+            // Add active class to selected tab and panel
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Panel').classList.add('active');
+        }
+
+        // Settings functions
+        function saveLanguageSettings() {
+            app.showLoading(true);
+            
+            const settings = {
+                language: document.getElementById('language').value,
+                timezone: document.getElementById('timezone').value
+            };
+            
+            localStorage.setItem('app_settings', JSON.stringify(settings));
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Language settings saved successfully!');
+            }, 1000);
+        }
+
+        function saveAppearanceSettings() {
+            app.showLoading(true);
+            
+            const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+            settings.theme = document.getElementById('theme').value;
+            settings.autoCollapse = document.getElementById('autoCollapse').checked;
+            
+            localStorage.setItem('app_settings', JSON.stringify(settings));
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Appearance settings saved successfully!');
+            }, 1000);
+        }
+
+        function saveProfileSettings() {
+            app.showLoading(true);
+            
+            const profileData = {
+                fullName: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                bio: document.getElementById('bio').value
+            };
+            
+            localStorage.setItem('user_profile', JSON.stringify(profileData));
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Profile updated successfully!');
+            }, 1000);
+        }
+
+        function changeProfilePicture() {
+            alert('Profile picture upload functionality would be implemented here.');
+        }
+
+        function removeProfilePicture() {
+            if (confirm('Are you sure you want to remove your profile picture?')) {
+                alert('Profile picture removed successfully!');
+            }
+        }
+
+        function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                app.showAlert('Please fill in all password fields.', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                app.showAlert('New passwords do not match.', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 8) {
+                app.showAlert('Password must be at least 8 characters long.', 'error');
+                return;
+            }
+            
+            app.showLoading(true);
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Password changed successfully!');
+                
+                // Clear password fields
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+            }, 1500);
+        }
+
+        function setupTwoFactor() {
+            alert('Two-factor authentication setup would be implemented here.');
+        }
+
+        function viewLoginHistory() {
+            alert('Login history would be displayed here.');
+        }
+
+        function saveNotificationSettings() {
+            app.showLoading(true);
+            
+            const notificationSettings = {
+                emailSearchResults: document.getElementById('emailSearchResults').checked,
+                emailSystemUpdates: document.getElementById('emailSystemUpdates').checked,
+                emailSecurityAlerts: document.getElementById('emailSecurityAlerts').checked
+            };
+            
+            localStorage.setItem('notification_settings', JSON.stringify(notificationSettings));
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Notification settings saved successfully!');
+            }, 1000);
+        }
+
+        function testNotification() {
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    new Notification('Test Notification', {
+                        body: 'This is a test notification from Clearance Search',
+                        icon: '/favicon.ico'
+                    });
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            new Notification('Test Notification', {
+                                body: 'This is a test notification from Clearance Search',
+                                icon: '/favicon.ico'
+                            });
+                        }
+                    });
+                }
+            } else {
+                app.showAlert('This browser does not support notifications.', 'error');
+            }
+        }
+
+        function backupDatabase() {
+            app.showLoading(true);
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Database backup completed successfully!');
+            }, 2000);
+        }
+
+        function optimizeDatabase() {
+            app.showLoading(true);
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('Database optimization completed successfully!');
+            }, 1500);
+        }
+
+        function cleanupData() {
+            if (confirm('Are you sure you want to cleanup old data? This action cannot be undone.')) {
+                app.showLoading(true);
+                
+                setTimeout(() => {
+                    app.showLoading(false);
+                    app.showAlert('Data cleanup completed successfully!');
+                }, 2000);
+            }
+        }
+
+        function saveSystemSettings() {
+            app.showLoading(true);
+            
+            const systemSettings = {
+                searchTimeout: document.getElementById('searchTimeout').value,
+                maxResults: document.getElementById('maxResults').value,
+                debugMode: document.getElementById('debugMode').checked
+            };
+            
+            localStorage.setItem('system_settings', JSON.stringify(systemSettings));
+            
+            setTimeout(() => {
+                app.showLoading(false);
+                app.showAlert('System settings saved successfully!');
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

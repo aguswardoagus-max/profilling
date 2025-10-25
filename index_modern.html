@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clearance Face Search - Professional System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        /* Main Card */
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        /* Search Form */
+        .search-section {
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
+            padding: 40px;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #6c757d;
+            border: 2px solid #e1e5e9;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.6);
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Results */
+        .results-section {
+            padding: 40px;
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .results-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .results-count {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Result Card */
+        .result-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            overflow: hidden;
+            border: 1px solid #e1e5e9;
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .result-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .result-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .result-info h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .result-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .result-content {
+            padding: 30px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .info-section {
+            background: #f8f9ff;
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-section h4 {
+            color: #667eea;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #6c757d;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        /* Face Photo Section */
+        .face-section {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .face-photo {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 5px solid white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin: 0 auto 20px;
+            display: block;
+        }
+
+        .face-placeholder {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 4rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* Family Members */
+        .family-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .family-member {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e1e5e9;
+            transition: all 0.3s ease;
+        }
+
+        .family-member:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .member-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .member-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .member-info h5 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 3px;
+        }
+
+        .member-relation {
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        /* Phone Numbers */
+        .phone-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .phone-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .phone-number {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .phone-operator {
+            background: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        /* Messages */
+        .message {
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white !important;
+            }
+            
+            .header {
+                color: #333 !important;
+                margin-bottom: 20px;
+            }
+            
+            .main-card {
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+            }
+            
+            .search-section {
+                display: none !important;
+            }
+            
+            .result-card {
+                break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+                margin-bottom: 20px;
+            }
+            
+            .btn {
+                display: none !important;
+            }
+            
+            .face-photo, .face-placeholder {
+                width: 150px !important;
+                height: 150px !important;
+            }
+        }
+
+        /* Search Type Selector */
+        .search-type-selector {
+            margin-bottom: 30px;
+        }
+
+        .search-type-selector h3 {
+            color: #374151;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .search-type-tabs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .search-tab {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 15px 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+        }
+
+        .search-tab:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .search-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-tab i {
+            font-size: 1.5rem;
+        }
+
+        .search-tab span {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Search Forms */
+        .search-form {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .search-form.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Face Upload Section */
+        .face-upload-section {
+            margin-bottom: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8f0ff;
+            transform: scale(1.02);
+        }
+
+        .upload-content i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-content h4 {
+            color: #374151;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .upload-content p {
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .upload-hint {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+
+        .face-preview {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 12px;
+            border: 1px solid #e1e5e9;
+        }
+
+        .face-preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        /* Threshold Slider */
+        .threshold-slider {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .threshold-slider input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #e1e5e9;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .threshold-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+        }
+
+        .threshold-slider input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+        }
+
+        #thresholdValue {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* Select Styling */
+        select {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-buttons {
+                flex-direction: column;
+            }
+            
+            .search-type-tabs {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .search-tab {
+                width: 100%;
+                max-width: 200px;
+            }
+            
+            .results-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .result-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .threshold-slider {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-search"></i> Clearance Face Search</h1>
+            <p>Professional Identity Verification System</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="main-card">
+            <!-- Search Section -->
+            <div class="search-section">
+                <!-- Search Type Selector -->
+                <div class="search-type-selector">
+                    <h3><i class="fas fa-search"></i> Pilih Jenis Pencarian</h3>
+                    <div class="search-type-tabs">
+                        <button class="search-tab active" data-type="identity" onclick="switchSearchType('identity')">
+                            <i class="fas fa-id-card"></i>
+                            <span>Identitas</span>
+                        </button>
+                        <button class="search-tab" data-type="phone" onclick="switchSearchType('phone')">
+                            <i class="fas fa-phone"></i>
+                            <span>Nomor HP</span>
+                        </button>
+                        <button class="search-tab" data-type="face" onclick="switchSearchType('face')">
+                            <i class="fas fa-camera"></i>
+                            <span>Face Detection</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Identity Search Form -->
+                <div class="search-form active" id="identityForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="name"><i class="fas fa-user-circle"></i> Full Name</label>
+                            <input type="text" id="name" placeholder="Enter full name (optional)">
+                        </div>
+                        <div class="form-group">
+                            <label for="nik"><i class="fas fa-id-card"></i> NIK</label>
+                            <input type="text" id="nik" placeholder="Enter NIK number" value="1505041107830002">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phone Search Form -->
+                <div class="search-form" id="phoneForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="phoneNumber"><i class="fas fa-phone"></i> Nomor HP</label>
+                            <input type="text" id="phoneNumber" placeholder="Contoh: 6285755349653">
+                        </div>
+                        <div class="form-group">
+                            <label for="phoneOperator"><i class="fas fa-network-wired"></i> Operator (Optional)</label>
+                            <select id="phoneOperator">
+                                <option value="">Semua Operator</option>
+                                <option value="TELKOMSEL">Telkomsel</option>
+                                <option value="INDOSAT">Indosat</option>
+                                <option value="XL">XL</option>
+                                <option value="TRI">3 (Tri)</option>
+                                <option value="SMARTFREN">Smartfren</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Face Search Form -->
+                <div class="search-form" id="faceForm">
+                    <div class="face-upload-section">
+                        <div class="upload-area" id="faceUploadArea">
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h4>Upload Foto Wajah</h4>
+                                <p>Drag & drop atau klik untuk memilih foto</p>
+                                <p class="upload-hint">Format: JPG, PNG, JPEG (Max: 5MB)</p>
+                            </div>
+                            <input type="file" id="faceFile" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="face-preview" id="facePreview" style="display: none;">
+                            <img id="previewImage" alt="Preview">
+                            <button class="btn btn-secondary" onclick="removeFaceImage()">
+                                <i class="fas fa-times"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="faceThreshold"><i class="fas fa-sliders-h"></i> Tingkat Kemiripan</label>
+                        <div class="threshold-slider">
+                            <input type="range" id="faceThreshold" min="0.1" max="1.0" step="0.1" value="0.5">
+                            <span id="thresholdValue">0.5</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hidden credentials (auto-filled from .env) -->
+                <input type="hidden" id="username" value="">
+                <input type="hidden" id="password" value="">
+                
+                <div class="search-buttons">
+                    <button class="btn btn-primary" onclick="handleSubmit()">
+                        <i class="fas fa-search"></i> <span id="searchButtonText">Search Identity</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearForm()">
+                        <i class="fas fa-eraser"></i> Clear Form
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Searching identity database...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection">
+                <div class="results-header">
+                    <h2 class="results-title">Search Results</h2>
+                    <div class="results-count" id="resultsCount">0 results</div>
+                </div>
+                <div id="resultsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ClearanceSearchApp {
+            constructor() {
+                this.loading = document.getElementById('loading');
+                this.resultsSection = document.getElementById('resultsSection');
+                this.resultsContent = document.getElementById('resultsContent');
+                this.resultsCount = document.getElementById('resultsCount');
+                this.currentSearchType = 'identity';
+                this.faceFile = null;
+                this.loadConfig();
+                this.setupEventListeners();
+            }
+
+            async loadConfig() {
+                try {
+                    const response = await fetch('/api/config');
+                    const config = await response.json();
+                    
+                    // Auto-fill credentials
+                    document.getElementById('username').value = config.username || '';
+                    document.getElementById('password').value = config.password || '';
+                    
+                    console.log('Configuration loaded:', config);
+                } catch (error) {
+                    console.error('Failed to load configuration:', error);
+                }
+            }
+
+            setupEventListeners() {
+                // Face file upload
+                const faceFileInput = document.getElementById('faceFile');
+                const faceUploadArea = document.getElementById('faceUploadArea');
+                
+                faceFileInput.addEventListener('change', (e) => this.handleFaceFileSelect(e));
+                
+                // Drag and drop for face upload
+                faceUploadArea.addEventListener('click', () => faceFileInput.click());
+                faceUploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    faceUploadArea.classList.add('dragover');
+                });
+                faceUploadArea.addEventListener('dragleave', () => {
+                    faceUploadArea.classList.remove('dragover');
+                });
+                faceUploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    faceUploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFaceFile(files[0]);
+                    }
+                });
+
+                // Threshold slider
+                const thresholdSlider = document.getElementById('faceThreshold');
+                const thresholdValue = document.getElementById('thresholdValue');
+                thresholdSlider.addEventListener('input', (e) => {
+                    thresholdValue.textContent = e.target.value;
+                });
+            }
+
+            handleFaceFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.handleFaceFile(file);
+                }
+            }
+
+            handleFaceFile(file) {
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    this.showMessage('Please select a valid image file', 'error');
+                    return;
+                }
+
+                // Validate file size (5MB max)
+                if (file.size > 5 * 1024 * 1024) {
+                    this.showMessage('File size must be less than 5MB', 'error');
+                    return;
+                }
+
+                this.faceFile = file;
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('facePreview');
+                    const previewImage = document.getElementById('previewImage');
+                    const uploadArea = document.getElementById('faceUploadArea');
+                    
+                    previewImage.src = e.target.result;
+                    preview.style.display = 'block';
+                    uploadArea.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+
+            removeFaceImage() {
+                this.faceFile = null;
+                document.getElementById('facePreview').style.display = 'none';
+                document.getElementById('faceUploadArea').style.display = 'block';
+                document.getElementById('faceFile').value = '';
+            }
+
+            async handleSubmit() {
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+
+                if (!username || !password) {
+                    this.showMessage('Kredensial tidak ditemukan. Pastikan file .env sudah dikonfigurasi dengan benar.', 'error');
+                    return;
+                }
+
+                // Validate based on search type
+                if (!this.validateCurrentSearch()) {
+                    return;
+                }
+
+                this.showLoading(true);
+                this.hideResults();
+
+                try {
+                    const requestData = this.buildRequestData(username, password);
+                    const response = await fetch('/api/search', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    const result = await response.json();
+                    this.displayResults(result);
+
+                } catch (error) {
+                    this.showMessage(`Error: ${error.message}`, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            validateCurrentSearch() {
+                switch (this.currentSearchType) {
+                    case 'identity':
+                        const name = document.getElementById('name').value.trim();
+                        const nik = document.getElementById('nik').value.trim();
+                        if (!name && !nik) {
+                            this.showMessage('Nama atau NIK harus diisi', 'error');
+                            return false;
+                        }
+                        break;
+                    
+                    case 'phone':
+                        const phoneNumber = document.getElementById('phoneNumber').value.trim();
+                        if (!phoneNumber) {
+                            this.showMessage('Nomor HP harus diisi', 'error');
+                            return false;
+                        }
+                        break;
+                    
+                    case 'face':
+                        if (!this.faceFile) {
+                            this.showMessage('Foto wajah harus diupload', 'error');
+                            return false;
+                        }
+                        break;
+                }
+                return true;
+            }
+
+            buildRequestData(username, password) {
+                const baseData = {
+                    username,
+                    password,
+                    search_type: this.currentSearchType,
+                    page: 1
+                };
+
+                switch (this.currentSearchType) {
+                    case 'identity':
+                        return {
+                            ...baseData,
+                            name: document.getElementById('name').value.trim(),
+                            nik: document.getElementById('nik').value.trim()
+                        };
+                    
+                    case 'phone':
+                        return {
+                            ...baseData,
+                            phone_number: document.getElementById('phoneNumber').value.trim(),
+                            phone_operator: document.getElementById('phoneOperator').value.trim()
+                        };
+                    
+                    case 'face':
+                        return {
+                            ...baseData,
+                            face_file: this.faceFile,
+                            face_threshold: parseFloat(document.getElementById('faceThreshold').value)
+                        };
+                    
+                    default:
+                        return baseData;
+                }
+            }
+
+            displayResults(result) {
+                this.resultsCount.textContent = `${result.total_results || 0} results`;
+                this.resultsContent.innerHTML = '';
+
+                // Check if this is a fallback mode response
+                if (result.message && result.message.includes('Server eksternal tidak tersedia')) {
+                    this.resultsContent.innerHTML = `
+                        <div class="message warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Server Eksternal Tidak Tersedia</strong><br>
+                            <small>Sistem sedang menggunakan mode offline. Data pencarian tidak dapat diakses saat ini.</small>
+                        </div>
+                    `;
+                } else if (!result.results || result.results.length === 0) {
+                    this.resultsContent.innerHTML = `
+                        <div class="message info">
+                            <i class="fas fa-info-circle"></i>
+                            Tidak ada hasil yang ditemukan
+                        </div>
+                    `;
+                } else {
+                    result.results.forEach((item, index) => {
+                        const resultElement = this.createResultElement(item, index + 1);
+                        this.resultsContent.appendChild(resultElement);
+                    });
+                }
+
+                this.showResults();
+            }
+
+            createResultElement(item, index) {
+                const div = document.createElement('div');
+                div.className = 'result-card';
+                div.id = `result-${index}`;
+
+                const person = item.person || item;
+                const distance = item.distance;
+
+                // Face photo
+                let faceHtml = '';
+                if (person.face) {
+                    faceHtml = `
+                        <div class="face-section">
+                            <h4><i class="fas fa-camera"></i> Face Photo</h4>
+                            <img src="${person.face}" alt="Face Photo" class="face-photo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="face-placeholder" style="display: none;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <button class="btn btn-success" onclick="savePhoto('${person.face}', '${person.full_name || 'person'}_${person.ktp_number || 'unknown'}_face')">
+                                <i class="fas fa-download"></i> Save Photo
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    faceHtml = `
+                        <div class="face-section">
+                            <h4><i class="fas fa-camera"></i> Face Photo</h4>
+                            <div class="face-placeholder">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <p>No photo available</p>
+                        </div>
+                    `;
+                }
+
+                // Phone numbers
+                let phoneHtml = '';
+                if (person.phone_data && person.phone_data.length > 0) {
+                    phoneHtml = `
+                        <div class="info-section">
+                            <h4><i class="fas fa-phone"></i> Phone Numbers</h4>
+                            <div class="phone-list">
+                                ${person.phone_data.map(phone => `
+                                    <div class="phone-item">
+                                        <span class="phone-number">${phone.number}</span>
+                                        <span class="phone-operator">${phone.operator}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Family data
+                let familyHtml = '';
+                if (person.family_data && person.family_data.anggota_keluarga) {
+                    familyHtml = `
+                        <div class="info-section">
+                            <h4><i class="fas fa-users"></i> Family Members</h4>
+                            <div class="family-grid">
+                                ${person.family_data.anggota_keluarga.map(member => `
+                                    <div class="family-member">
+                                        <div class="member-header">
+                                            <div class="member-avatar" style="background: ${this.getMemberColor(member.jenis_kelamin)};">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <div class="member-info">
+                                                <h5>${member.nama}</h5>
+                                                <span class="member-relation">${member.hubungan}</span>
+                                            </div>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">NIK:</span>
+                                            <span class="info-value">${member.nik}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Birth:</span>
+                                            <span class="info-value">${member.tempat_lahir}, ${member.tanggal_lahir}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Gender:</span>
+                                            <span class="info-value">${member.jenis_kelamin}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Occupation:</span>
+                                            <span class="info-value">${member.pekerjaan}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="result-info">
+                            <h3>${person.full_name || 'Unknown'}</h3>
+                            <p>NIK: ${person.ktp_number || 'N/A'}</p>
+                        </div>
+                    </div>
+                    <div class="result-content">
+                        <div class="info-grid">
+                            <div class="info-section">
+                                <h4><i class="fas fa-id-card"></i> Basic Information</h4>
+                                <div class="info-item">
+                                    <span class="info-label">Full Name:</span>
+                                    <span class="info-value">${person.full_name || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">NIK:</span>
+                                    <span class="info-value">${person.ktp_number || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Birth Date:</span>
+                                    <span class="info-value">${person.date_of_birth || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Birth Place:</span>
+                                    <span class="info-value">${person.birth_place || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Gender:</span>
+                                    <span class="info-value">${person.sex || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Religion:</span>
+                                    <span class="info-value">${person.religion || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Occupation:</span>
+                                    <span class="info-value">${person.occupation || 'N/A'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Address:</span>
+                                    <span class="info-value">${person.address || 'N/A'}</span>
+                                </div>
+                            </div>
+                            ${phoneHtml}
+                        </div>
+                        ${faceHtml}
+                        ${familyHtml}
+                        <div style="text-align: center; margin-top: 30px;">
+                            <button class="btn btn-primary" onclick="printResult(${index})">
+                                <i class="fas fa-print"></i> Print PDF
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                return div;
+            }
+
+            getMemberColor(gender) {
+                return gender === 'Perempuan' ? 'linear-gradient(135deg, #ff69b4 0%, #ff1493 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+
+            showLoading(show) {
+                this.loading.style.display = show ? 'block' : 'none';
+            }
+
+            showResults() {
+                this.resultsSection.style.display = 'block';
+                this.resultsSection.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            hideResults() {
+                this.resultsSection.style.display = 'none';
+            }
+
+            showMessage(message, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+                messageDiv.innerHTML = `
+                    <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                    ${message}
+                `;
+                
+                this.resultsContent.innerHTML = '';
+                this.resultsContent.appendChild(messageDiv);
+                this.showResults();
+            }
+
+            clearForm() {
+                // Clear all form fields based on current search type
+                switch (this.currentSearchType) {
+                    case 'identity':
+                        document.getElementById('name').value = '';
+                        document.getElementById('nik').value = '';
+                        break;
+                    case 'phone':
+                        document.getElementById('phoneNumber').value = '';
+                        document.getElementById('phoneOperator').value = '';
+                        break;
+                    case 'face':
+                        this.removeFaceImage();
+                        document.getElementById('faceThreshold').value = '0.5';
+                        document.getElementById('thresholdValue').textContent = '0.5';
+                        break;
+                }
+                this.hideResults();
+            }
+        }
+
+        // Global functions
+        const app = new ClearanceSearchApp();
+
+        function handleSubmit() {
+            app.handleSubmit();
+        }
+
+        function clearForm() {
+            app.clearForm();
+        }
+
+        function switchSearchType(type) {
+            app.currentSearchType = type;
+            
+            // Update active tab
+            document.querySelectorAll('.search-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+            
+            // Update active form
+            document.querySelectorAll('.search-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            document.getElementById(`${type}Form`).classList.add('active');
+            
+            // Update search button text
+            const buttonTexts = {
+                'identity': 'Search Identity',
+                'phone': 'Search by Phone',
+                'face': 'Search by Face'
+            };
+            document.getElementById('searchButtonText').textContent = buttonTexts[type];
+            
+            // Clear current form
+            app.clearForm();
+        }
+
+        function removeFaceImage() {
+            app.removeFaceImage();
+        }
+
+        function savePhoto(base64Data, filename) {
+            try {
+                let imageData = base64Data;
+                if (base64Data.includes(',')) {
+                    imageData = base64Data.split(',')[1];
+                }
+                
+                const byteCharacters = atob(imageData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], {type: 'image/jpeg'});
+                
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${filename}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                app.showMessage('Photo saved successfully!', 'success');
+            } catch (error) {
+                console.error('Error saving photo:', error);
+                app.showMessage('Failed to save photo: ' + error.message, 'error');
+            }
+        }
+
+        async function printResult(index) {
+            const resultElement = document.getElementById(`result-${index}`);
+            if (!resultElement) return;
+
+            try {
+                // Create a new window for printing
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Clearance Search Report</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            .header { text-align: center; margin-bottom: 30px; }
+                            .header h1 { color: #333; margin-bottom: 10px; }
+                            .result-card { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+                            .result-header { background: #667eea; color: white; padding: 20px; }
+                            .result-content { padding: 20px; }
+                            .info-section { margin-bottom: 20px; }
+                            .info-section h4 { color: #667eea; margin-bottom: 10px; }
+                            .info-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+                            .face-photo { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; }
+                            .family-member { border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+                            .phone-item { display: flex; justify-content: space-between; padding: 5px 0; }
+                            @media print { body { margin: 0; } }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>Clearance Face Search Report</h1>
+                            <p>Generated on: ${new Date().toLocaleString()}</p>
+                        </div>
+                        ${resultElement.outerHTML}
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            } catch (error) {
+                console.error('Error printing:', error);
+                app.showMessage('Failed to print: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

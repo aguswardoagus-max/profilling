@@ -1,0 +1,27 @@
+# Minimal Requirements for Core Functionality
+# Use this if you want to install only essential dependencies
+
+# Core Flask Framework
+flask==2.3.3
+flask-cors==4.0.0
+
+# Database
+mysql-connector-python==8.2.0
+
+# Image Processing (Essential)
+opencv-python==4.8.1.78
+pillow==10.0.1
+numpy<2.0.0
+
+# Web & HTTP
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# Environment
+python-dotenv==1.0.0
+
+# Document Generation
+reportlab==4.0.4
+python-docx==0.8.11
+
+

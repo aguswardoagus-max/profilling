@@ -1,0 +1,2388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Profiling - Clearance Face Search</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            opacity: 0;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: rgba(255,255,255,0.5);
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-left-color: white;
+        }
+
+        .menu-item i {
+            font-size: 1.2rem;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .nav-submenu {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        .nav-submenu .menu-item {
+            padding: 10px 25px;
+            font-size: 0.9rem;
+        }
+
+        .menu-item span {
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .menu-item span {
+            opacity: 0;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 10px 20px;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .user-details {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .user-details {
+            opacity: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .sidebar.collapsed .logout-btn span {
+            opacity: 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+
+        .sidebar.collapsed + .main-content {
+            margin-left: 70px;
+        }
+
+        .topbar {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #667eea;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+        }
+
+        .sidebar-toggle:hover {
+            background: #f8f9ff;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 10px 15px 10px 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            width: 300px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .notification-btn:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Data Profiling Content */
+        .data-profiling-content {
+            padding: 30px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #6b7280;
+            border: 1px solid #e1e5e9;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        /* Filters Section */
+        .filters-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Data Table */
+        .data-table-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 25px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .table-search {
+            position: relative;
+        }
+
+        .table-search input {
+            padding: 10px 15px 10px 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            width: 250px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .table-search input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .table-search i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e1e5e9;
+        }
+
+        .data-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .data-table th.sortable:hover {
+            background: #e9ecef;
+        }
+
+        .data-table th.sortable i {
+            margin-left: 8px;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .data-table th.sortable:hover i {
+            opacity: 0.8;
+        }
+
+        .data-table th.sortable.sorted-asc i,
+        .data-table th.sortable.sorted-desc i {
+            opacity: 1;
+            color: #667eea;
+        }
+
+        .data-table th.sortable.sorted-asc i:before {
+            content: "\f0de";
+        }
+
+        .data-table th.sortable.sorted-desc i:before {
+            content: "\f0dd";
+        }
+
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f1f3f4;
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        /* Person Info Cell */
+        .person-info-cell {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .person-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .person-details {
+            flex: 1;
+        }
+
+        .person-name {
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .person-nik {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        /* Search Type Badge */
+        .search-type-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .search-type-identity {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .search-type-phone {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .search-type-face {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .action-btn.view {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .action-btn.view:hover {
+            background: #bfdbfe;
+        }
+
+        .action-btn.delete {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .action-btn.delete:hover {
+            background: #fecaca;
+        }
+
+        /* Pagination */
+        .pagination {
+            padding: 25px;
+            border-top: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination-info {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .pagination-btn {
+            padding: 8px 12px;
+            border: 1px solid #e1e5e9;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #667eea;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination-btn.active:hover {
+            background: #5a67d8;
+            border-color: #5a67d8;
+        }
+
+        .pagination-options {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-options label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .pagination-select {
+            padding: 6px 10px;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            background: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .topbar {
+                padding: 15px 20px;
+            }
+
+            .topbar-left h1 {
+                font-size: 1.2rem;
+            }
+
+            .search-box {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                color: #374151;
+                cursor: pointer;
+                margin-right: 15px;
+            }
+
+            .page-title {
+                font-size: 1.4rem;
+            }
+
+            .data-profiling-content {
+                padding: 15px;
+                min-height: 100vh;
+            }
+
+            .page-header h2 {
+                font-size: 1.3rem;
+                margin-bottom: 8px;
+            }
+
+            .page-header p {
+                font-size: 0.9rem;
+                line-height: 1.5;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .page-actions {
+                width: 100%;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .page-actions .btn {
+                width: 100%;
+                font-size: 0.9rem;
+                padding: 12px 20px;
+                justify-content: center;
+            }
+
+            .filters-section {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .filters-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .filter-group {
+                margin-bottom: 20px;
+            }
+
+            .filter-group label {
+                font-size: 0.95rem;
+                margin-bottom: 10px;
+                font-weight: 600;
+            }
+
+            .filter-group input,
+            .filter-group select {
+                padding: 14px 16px;
+                font-size: 0.95rem;
+                border-radius: 8px;
+                border: 2px solid #e1e5e9;
+            }
+
+            .filter-group input:focus,
+            .filter-group select:focus {
+                border-color: #667eea;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+
+            .data-table-container {
+                overflow-x: auto;
+            }
+
+            .data-table {
+                font-size: 0.9rem;
+                min-width: 800px;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 12px 8px;
+            }
+
+            .table-header {
+                padding: 20px;
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .table-title {
+                font-size: 1.1rem;
+                text-align: center;
+            }
+
+            .table-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .table-search input {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .person-info-cell {
+                gap: 10px;
+            }
+
+            .person-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .person-name {
+                font-size: 0.9rem;
+            }
+
+            .person-nik {
+                font-size: 0.8rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .action-btn {
+                padding: 8px 10px;
+                font-size: 0.8rem;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .pagination {
+                flex-direction: column;
+                gap: 15px;
+                align-items: center;
+                padding: 20px;
+            }
+
+            .pagination-options {
+                order: 2;
+            }
+
+            .pagination-controls {
+                order: 3;
+            }
+
+            .pagination-info {
+                order: 1;
+                text-align: center;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 2% auto;
+                max-height: 95vh;
+                overflow-y: auto;
+            }
+
+            .modal-header {
+                padding: 20px;
+                border-bottom: 1px solid #e1e5e9;
+            }
+
+            .modal-title {
+                font-size: 1.2rem;
+            }
+
+            .modal-body {
+                padding: 20px;
+            }
+
+            .data-section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .data-section h4 {
+                font-size: 1rem;
+                margin-bottom: 12px;
+            }
+
+            .data-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .data-label {
+                font-size: 0.85rem;
+            }
+
+            .data-value {
+                font-size: 0.9rem;
+            }
+
+            .person-avatar-large {
+                width: 80px;
+                height: 80px;
+                font-size: 2rem;
+            }
+
+            .family-member,
+            .phone-item {
+                padding: 12px;
+                margin-bottom: 8px;
+            }
+
+            .modal-footer {
+                padding: 20px;
+                border-top: 1px solid #e1e5e9;
+            }
+
+            .modal-footer .btn {
+                width: 100%;
+                margin: 5px 0;
+                padding: 12px;
+            }
+
+            .loading {
+                padding: 30px;
+            }
+
+            .spinner {
+                width: 30px;
+                height: 30px;
+                border-width: 3px;
+            }
+
+            .loading p {
+                font-size: 0.9rem;
+            }
+
+            .empty-data {
+                padding: 30px 20px;
+                text-align: center;
+            }
+
+            .empty-data i {
+                font-size: 2.5rem;
+                margin-bottom: 15px;
+            }
+
+            .empty-data h3 {
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }
+
+            .empty-data p {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Tablet Responsive */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .filters-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+            
+            .data-table {
+                font-size: 0.9rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 12px;
+            }
+            
+            .person-avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 90vw;
+            max-height: 90vh;
+            width: 800px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            animation: slideInUp 0.3s ease;
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 25px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .modal-body {
+            padding: 25px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 25px;
+            border-top: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            background: #f8f9fa;
+        }
+
+        /* Data Display Styles */
+        .data-section {
+            margin-bottom: 30px;
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .data-section h4 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .data-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .data-label {
+            font-weight: 600;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .data-value {
+            color: #1a202c;
+            font-size: 1rem;
+            word-break: break-word;
+        }
+
+        .person-avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin: 0 auto 20px;
+        }
+
+        .family-member {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .phone-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid #10b981;
+        }
+
+        .json-display {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .empty-data {
+            text-align: center;
+            color: #6b7280;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        /* Toast Animations */
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="sidebar-title">Clearance Search</div>
+        </div>
+        
+        <nav class="sidebar-menu">
+            <a href="/dashboard" class="menu-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/profiling" class="menu-item">
+                <i class="fas fa-search"></i>
+                <span>Profiling</span>
+            </a>
+            <a href="/data-profiling" class="menu-item active">
+                <i class="fas fa-database"></i>
+                <span>Data Profiling</span>
+            </a>
+            <a href="/cekplat" class="menu-item">
+                <i class="fas fa-car"></i>
+                <span>Cek Plat No Jambi</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/data-cari-plat" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    <span>Data Cari Plat No</span>
+                </a>
+            </div>
+            <a href="/user-management" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <a href="/ai-features" class="menu-item">
+                <i class="fas fa-robot"></i>
+                <span>AI Features</span>
+            </a>
+            <a href="/reports" class="menu-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/reports/profiling" class="menu-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Profiling</span>
+                </a>
+            </div>
+            <a href="/settings" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Admin User</div>
+                    <div class="user-role" id="userRole">Administrator</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Data Profiling</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Quick search..." id="globalSearch">
+                </div>
+                <button class="notification-btn">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Profiling Content -->
+        <div class="data-profiling-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div>
+                    <h2>Profiling Data History</h2>
+                    <p style="color: #6b7280; margin-top: 5px;">View and manage all profiling search results</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-download"></i>
+                        Export Data
+                    </button>
+                    <button class="btn btn-danger" onclick="clearAllData()">
+                        <i class="fas fa-trash"></i>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Search Type</label>
+                        <select id="searchTypeFilter">
+                            <option value="">All Types</option>
+                            <option value="identity">Identity</option>
+                            <option value="phone">Phone</option>
+                            <option value="face">Face Detection</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Date Range</label>
+                        <input type="date" id="dateFrom">
+                    </div>
+                    <div class="filter-group">
+                        <label>To</label>
+                        <input type="date" id="dateTo">
+                    </div>
+                    <div class="filter-group">
+                        <label>User</label>
+                        <select id="userFilter">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn btn-primary" onclick="applyFilters()">
+                            <i class="fas fa-search"></i>
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="data-table-container">
+                <div class="table-header">
+                    <h3 class="table-title">Profiling Data</h3>
+                    <div class="table-actions">
+                        <div class="table-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search data..." id="tableSearch">
+                        </div>
+                    </div>
+                </div>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="person_name">
+                                Person Info <i class="fas fa-sort"></i>
+                            </th>
+                            <th class="sortable" data-sort="search_type">
+                                Search Type <i class="fas fa-sort"></i>
+                            </th>
+                            <th class="sortable" data-sort="username">
+                                User <i class="fas fa-sort"></i>
+                            </th>
+                            <th class="sortable" data-sort="search_date">
+                                Search Date <i class="fas fa-sort"></i>
+                            </th>
+                            <th class="sortable" data-sort="results_count">
+                                Results <i class="fas fa-sort"></i>
+                            </th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="profilingTableBody">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+                
+                <div class="pagination">
+                    <div class="pagination-info">
+                        Showing 1-10 of 0 records
+                    </div>
+                    <div class="pagination-options">
+                        <label for="itemsPerPage">Items per page:</label>
+                        <select id="itemsPerPage" class="pagination-select">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="pagination-btn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading profiling data...</p>
+        </div>
+    </div>
+
+    <!-- View Data Modal -->
+    <div class="modal" id="viewDataModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">View Profiling Data</h3>
+                <button class="modal-close" onclick="closeViewModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body" id="modalBody">
+                <!-- Data will be loaded here -->
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeViewModal()">
+                    <i class="fas fa-times"></i>
+                    Close
+                </button>
+                <button class="btn btn-primary" onclick="exportData()">
+                    <i class="fas fa-download"></i>
+                    Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DataProfilingApp {
+            constructor() {
+                this.sidebar = document.getElementById('sidebar');
+                this.sidebarOverlay = document.getElementById('sidebarOverlay');
+                this.isSidebarCollapsed = false;
+                this.isMobile = window.innerWidth <= 768;
+                this.profilingData = [];
+                this.filteredData = [];
+                this.currentPage = 1;
+                this.itemsPerPage = 10;
+                this.totalPages = 1;
+                this.searchQuery = '';
+                this.sortField = '';
+                this.sortDirection = 'asc';
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.checkAuth();
+                this.loadProfilingData();
+                this.loadUserData();
+            }
+
+            setupEventListeners() {
+                // Global search
+                document.getElementById('globalSearch').addEventListener('input', (e) => {
+                    this.handleGlobalSearch(e.target.value);
+                });
+
+                // Table search
+                document.getElementById('tableSearch').addEventListener('input', (e) => {
+                    this.handleTableSearch(e.target.value);
+                });
+
+                // Items per page selector
+                document.getElementById('itemsPerPage').addEventListener('change', (e) => {
+                    this.itemsPerPage = parseInt(e.target.value);
+                    this.currentPage = 1; // Reset to first page
+                    this.updatePagination();
+                    this.renderProfilingData();
+                });
+
+                // Table sorting
+                document.querySelectorAll('.sortable').forEach(header => {
+                    header.addEventListener('click', (e) => {
+                        const sortField = e.currentTarget.dataset.sort;
+                        this.handleSort(sortField);
+                    });
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.isMobile = window.innerWidth <= 768;
+                    if (!this.isMobile) {
+                        this.sidebarOverlay.classList.remove('active');
+                    }
+                });
+            }
+
+            checkAuth() {
+                const token = localStorage.getItem('session_token');
+                if (!token) {
+                    window.location.href = '/login';
+                    return;
+                }
+            }
+
+            loadUserData() {
+                const userData = localStorage.getItem('user_data');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.name || 'Admin User';
+                    document.getElementById('userRole').textContent = user.role || 'Administrator';
+                    
+                    // Set menu visibility based on user role
+                    this.setMenuVisibility(user.role);
+                }
+            }
+
+            setMenuVisibility(userRole) {
+                // Hide admin-only menus for non-admin users
+                const adminOnlyMenus = ['user-management', 'settings'];
+                
+                adminOnlyMenus.forEach(menuId => {
+                    const menuElement = document.querySelector(`a[href="/${menuId}"]`);
+                    if (menuElement) {
+                        if (userRole === 'admin') {
+                            menuElement.style.display = 'flex';
+                        } else {
+                            menuElement.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            async loadProfilingData() {
+                try {
+                    this.showLoading(true);
+                    
+                    const sessionToken = localStorage.getItem('session_token');
+                    if (!sessionToken) {
+                        window.location.href = '/login';
+                        return;
+                    }
+
+                    const response = await fetch('/api/profiling-data', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${sessionToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.profilingData = result.data || [];
+                        this.filteredData = [...this.profilingData];
+                        this.updatePagination();
+                        this.renderProfilingData();
+                    } else if (response.status === 401) {
+                        localStorage.removeItem('session_token');
+                        localStorage.removeItem('user_data');
+                        window.location.href = '/login';
+                        return;
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading profiling data:', error);
+                    this.showMessage('Error loading profiling data: ' + error.message, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            renderProfilingData() {
+                const tbody = document.getElementById('profilingTableBody');
+                tbody.innerHTML = '';
+
+                if (this.filteredData.length === 0) {
+                    const message = this.searchQuery ? 'No data found matching your search' : 'No Profiling Data Found';
+                    const subMessage = this.searchQuery ? 'Try adjusting your search terms' : 'Start searching in the Profiling page to see data here';
+                    
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #6b7280;">
+                                <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                <h3 style="margin-bottom: 10px;">${message}</h3>
+                                <p>${subMessage}</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // Calculate pagination
+                const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+                const endIndex = startIndex + this.itemsPerPage;
+                const currentPageData = this.filteredData.slice(startIndex, endIndex);
+
+                currentPageData.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    
+                    // Get person data
+                    const personData = item.person_data || {};
+                    const fullName = personData.full_name || personData.name || 'Unknown';
+                    const nik = personData.ktp_number || personData.nik || 'N/A';
+                    const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+                    
+                    // Search type badge
+                    const searchTypeClass = `search-type-${item.search_type}`;
+                    const searchTypeText = item.search_type.charAt(0).toUpperCase() + item.search_type.slice(1);
+                    
+                    // Format date
+                    const searchDate = new Date(item.search_timestamp).toLocaleString('id-ID');
+                    
+                    // Results count
+                    const resultsCount = item.search_results?.results?.length || 0;
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div class="person-info-cell">
+                                <div class="person-avatar">
+                                    ${personData.face ? (() => {
+                                        let faceSrc = personData.face;
+                                        if (!faceSrc.startsWith('data:image/')) {
+                                            if (faceSrc.startsWith('/9j/')) {
+                                                faceSrc = 'data:image/jpeg;base64,' + faceSrc;
+                                            } else if (faceSrc.startsWith('iVBORw0KGgo')) {
+                                                faceSrc = 'data:image/png;base64,' + faceSrc;
+                                            } else {
+                                                faceSrc = 'data:image/jpeg;base64,' + faceSrc;
+                                            }
+                                        }
+                                        return `<img src="${faceSrc}" alt="Photo" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                                    })() : initials}
+                                </div>
+                                <div class="person-details">
+                                    <div class="person-name">${fullName}</div>
+                                    <div class="person-nik">NIK: ${nik}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="search-type-badge ${searchTypeClass}">${searchTypeText}</span>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: #1a202c;">${item.user_name || item.username}</div>
+                        </td>
+                        <td>
+                            <div style="color: #6b7280; font-size: 0.9rem;">${searchDate}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: #1a202c;">${resultsCount} result${resultsCount !== 1 ? 's' : ''}</div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn view" onclick="viewProfilingData(${item.id})" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                    View
+                                </button>
+                                <button class="action-btn delete" onclick="deleteProfilingData(${item.id})" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                loading.style.display = show ? 'block' : 'none';
+            }
+
+            showMessage(message, type) {
+                // Create a simple toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 20px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 600;
+                    z-index: 10000;
+                    max-width: 400px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    animation: slideIn 0.3s ease;
+                `;
+                
+                if (type === 'success') {
+                    toast.style.background = '#10b981';
+                } else if (type === 'error') {
+                    toast.style.background = '#ef4444';
+                } else {
+                    toast.style.background = '#6b7280';
+                }
+                
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }, 5000);
+            }
+
+            handleGlobalSearch(query) {
+                if (query.length > 2) {
+                    console.log('Global search for:', query);
+                    // Implement global search functionality
+                }
+            }
+
+            handleTableSearch(query) {
+                this.searchQuery = query.toLowerCase();
+                this.currentPage = 1; // Reset to first page when searching
+                
+                if (this.searchQuery.trim() === '') {
+                    this.filteredData = [...this.profilingData];
+                } else {
+                    this.filteredData = this.profilingData.filter(item => {
+                        const personName = this.getFieldValue(item, 'person_name').toLowerCase();
+                        const searchType = this.getFieldValue(item, 'search_type').toLowerCase();
+                        const username = this.getFieldValue(item, 'username').toLowerCase();
+                        const searchDate = this.getFieldValue(item, 'search_date').toLowerCase();
+                        const resultsCount = this.getFieldValue(item, 'results_count').toString();
+                        
+                        return (
+                            personName.includes(this.searchQuery) ||
+                            searchType.includes(this.searchQuery) ||
+                            username.includes(this.searchQuery) ||
+                            searchDate.includes(this.searchQuery) ||
+                            resultsCount.includes(this.searchQuery)
+                        );
+                    });
+                }
+                
+                // Re-apply sorting if there's an active sort
+                if (this.sortField) {
+                    this.filteredData.sort((a, b) => {
+                        let aValue = this.getFieldValue(a, this.sortField);
+                        let bValue = this.getFieldValue(b, this.sortField);
+
+                        if (typeof aValue === 'string') {
+                            aValue = aValue.toLowerCase();
+                            bValue = bValue.toLowerCase();
+                        }
+
+                        if (aValue < bValue) {
+                            return this.sortDirection === 'asc' ? -1 : 1;
+                        }
+                        if (aValue > bValue) {
+                            return this.sortDirection === 'asc' ? 1 : -1;
+                        }
+                        return 0;
+                    });
+                }
+                
+                this.updatePagination();
+                this.renderProfilingData();
+            }
+
+            updatePagination() {
+                this.totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+                
+                // Ensure current page is valid
+                if (this.currentPage > this.totalPages) {
+                    this.currentPage = Math.max(1, this.totalPages);
+                }
+                
+                this.renderPagination();
+            }
+
+            renderPagination() {
+                const paginationInfo = document.querySelector('.pagination-info');
+                const paginationControls = document.querySelector('.pagination-controls');
+                
+                if (!paginationInfo || !paginationControls) return;
+                
+                const startIndex = (this.currentPage - 1) * this.itemsPerPage + 1;
+                const endIndex = Math.min(this.currentPage * this.itemsPerPage, this.filteredData.length);
+                const totalItems = this.filteredData.length;
+                
+                paginationInfo.textContent = `Showing ${startIndex}-${endIndex} of ${totalItems} records`;
+                
+                // Clear existing buttons
+                paginationControls.innerHTML = '';
+                
+                // Previous button
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'pagination-btn';
+                prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                prevBtn.disabled = this.currentPage === 1;
+                prevBtn.addEventListener('click', () => this.goToPage(this.currentPage - 1));
+                paginationControls.appendChild(prevBtn);
+                
+                // Page numbers
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(this.totalPages, startPage + maxVisiblePages - 1);
+                
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                // First page
+                if (startPage > 1) {
+                    const firstBtn = document.createElement('button');
+                    firstBtn.className = 'pagination-btn';
+                    firstBtn.textContent = '1';
+                    firstBtn.addEventListener('click', () => this.goToPage(1));
+                    paginationControls.appendChild(firstBtn);
+                    
+                    if (startPage > 2) {
+                        const ellipsis = document.createElement('span');
+                        ellipsis.textContent = '...';
+                        ellipsis.style.padding = '8px 12px';
+                        ellipsis.style.color = '#6b7280';
+                        paginationControls.appendChild(ellipsis);
+                    }
+                }
+                
+                // Page numbers
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = `pagination-btn ${i === this.currentPage ? 'active' : ''}`;
+                    pageBtn.textContent = i;
+                    pageBtn.addEventListener('click', () => this.goToPage(i));
+                    paginationControls.appendChild(pageBtn);
+                }
+                
+                // Last page
+                if (endPage < this.totalPages) {
+                    if (endPage < this.totalPages - 1) {
+                        const ellipsis = document.createElement('span');
+                        ellipsis.textContent = '...';
+                        ellipsis.style.padding = '8px 12px';
+                        ellipsis.style.color = '#6b7280';
+                        paginationControls.appendChild(ellipsis);
+                    }
+                    
+                    const lastBtn = document.createElement('button');
+                    lastBtn.className = 'pagination-btn';
+                    lastBtn.textContent = this.totalPages;
+                    lastBtn.addEventListener('click', () => this.goToPage(this.totalPages));
+                    paginationControls.appendChild(lastBtn);
+                }
+                
+                // Next button
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'pagination-btn';
+                nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                nextBtn.disabled = this.currentPage === this.totalPages;
+                nextBtn.addEventListener('click', () => this.goToPage(this.currentPage + 1));
+                paginationControls.appendChild(nextBtn);
+            }
+
+            goToPage(page) {
+                if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+                    this.currentPage = page;
+                    this.renderProfilingData();
+                    this.renderPagination();
+                }
+            }
+
+            handleSort(field) {
+                // Toggle sort direction if same field, otherwise set to asc
+                if (this.sortField === field) {
+                    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortField = field;
+                    this.sortDirection = 'asc';
+                }
+
+                // Sort the filtered data
+                this.filteredData.sort((a, b) => {
+                    let aValue = this.getFieldValue(a, field);
+                    let bValue = this.getFieldValue(b, field);
+
+                    // Handle different data types
+                    if (typeof aValue === 'string') {
+                        aValue = aValue.toLowerCase();
+                        bValue = bValue.toLowerCase();
+                    }
+
+                    if (aValue < bValue) {
+                        return this.sortDirection === 'asc' ? -1 : 1;
+                    }
+                    if (aValue > bValue) {
+                        return this.sortDirection === 'asc' ? 1 : -1;
+                    }
+                    return 0;
+                });
+
+                // Update sort indicators
+                this.updateSortIndicators();
+                
+                // Reset to first page and re-render
+                this.currentPage = 1;
+                this.updatePagination();
+                this.renderProfilingData();
+            }
+
+            getFieldValue(item, field) {
+                switch (field) {
+                    case 'person_name':
+                        return item.person_data?.full_name || item.person_data?.name || 'Unknown';
+                    case 'search_type':
+                        return item.search_type || '';
+                    case 'username':
+                        return item.username || '';
+                    case 'search_date':
+                        return item.search_date || '';
+                    case 'results_count':
+                        return item.results_count || 0;
+                    default:
+                        return '';
+                }
+            }
+
+            updateSortIndicators() {
+                // Clear all sort indicators
+                document.querySelectorAll('.sortable').forEach(header => {
+                    header.classList.remove('sorted-asc', 'sorted-desc');
+                });
+
+                // Add sort indicator to current field
+                const currentHeader = document.querySelector(`[data-sort="${this.sortField}"]`);
+                if (currentHeader) {
+                    currentHeader.classList.add(`sorted-${this.sortDirection}`);
+                }
+            }
+
+            viewProfilingData(id) {
+                const data = this.profilingData.find(item => item.id === id);
+                if (!data) {
+                    this.showMessage('Data not found', 'error');
+                    return;
+                }
+
+                this.currentViewData = data;
+                this.renderViewModal(data);
+                document.getElementById('viewDataModal').classList.add('active');
+            }
+
+            renderViewModal(data) {
+                const modalTitle = document.getElementById('modalTitle');
+                const modalBody = document.getElementById('modalBody');
+
+                // Set title
+                const personName = data.person_data?.full_name || 'Unknown';
+                const searchType = data.search_type.charAt(0).toUpperCase() + data.search_type.slice(1);
+                modalTitle.textContent = `${searchType} Search - ${personName}`;
+
+                // Render data
+                modalBody.innerHTML = this.generateDataHTML(data);
+            }
+
+            generateDataHTML(data) {
+                const personData = data.person_data || {};
+                const familyData = data.family_data || {};
+                const phoneData = data.phone_data || [];
+                const faceData = data.face_data || {};
+                const searchParams = data.search_params || {};
+
+                const fullName = personData.full_name || personData.name || 'Unknown';
+                const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+
+                let html = `
+                    <!-- Search Info -->
+                    <div class="data-section">
+                        <h4><i class="fas fa-search"></i> Search Information</h4>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <span class="data-label">Search Type</span>
+                                <span class="data-value">${data.search_type.charAt(0).toUpperCase() + data.search_type.slice(1)}</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">Search Date</span>
+                                <span class="data-value">${new Date(data.search_timestamp).toLocaleString()}</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">Searched By</span>
+                                <span class="data-value">${data.user_name || data.username}</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">IP Address</span>
+                                <span class="data-value">${data.ip_address || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Person Information -->
+                    <div class="data-section">
+                        <h4><i class="fas fa-user"></i> Person Information</h4>
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div class="person-avatar-large">
+                                ${personData.face ? (() => {
+                                    let faceSrc = personData.face;
+                                    if (!faceSrc.startsWith('data:image/')) {
+                                        if (faceSrc.startsWith('/9j/')) {
+                                            faceSrc = 'data:image/jpeg;base64,' + faceSrc;
+                                        } else if (faceSrc.startsWith('iVBORw0KGgo')) {
+                                            faceSrc = 'data:image/png;base64,' + faceSrc;
+                                        } else {
+                                            faceSrc = 'data:image/jpeg;base64,' + faceSrc;
+                                        }
+                                    }
+                                    return `<img src="${faceSrc}" alt="Photo" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                                })() : initials}
+                            </div>
+                        </div>
+                        <div class="data-grid">
+                `;
+
+                // Add person data fields
+                const personFields = [
+                    { key: 'full_name', label: 'Full Name' },
+                    { key: 'ktp_number', label: 'NIK' },
+                    { key: 'tanggal_lahir', label: 'Date of Birth' },
+                    { key: 'tempat_lahir', label: 'Place of Birth' },
+                    { key: 'jenis_kelamin', label: 'Gender' },
+                    { key: 'alamat', label: 'Address' },
+                    { key: 'agama', label: 'Religion' },
+                    { key: 'status_perkawinan', label: 'Marital Status' },
+                    { key: 'pekerjaan', label: 'Occupation' }
+                ];
+
+                personFields.forEach(field => {
+                    if (personData[field.key]) {
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">${field.label}</span>
+                                <span class="data-value">${personData[field.key]}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+
+                // Family Data
+                if (familyData.anggota_keluarga && familyData.anggota_keluarga.length > 0) {
+                    html += `
+                        <div class="data-section">
+                            <h4><i class="fas fa-users"></i> Family Information</h4>
+                            <div class="data-grid">
+                                <div class="data-item">
+                                    <span class="data-label">Head of Family</span>
+                                    <span class="data-value">${familyData.kepala_keluarga || 'N/A'}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Family Card Number</span>
+                                    <span class="data-value">${familyData.nkk || 'N/A'}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Family Address</span>
+                                    <span class="data-value">${familyData.alamat_keluarga || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <h5 style="margin: 20px 0 15px 0; color: #374151;">Family Members</h5>
+                    `;
+
+                    familyData.anggota_keluarga.forEach(member => {
+                        html += `
+                            <div class="family-member">
+                                <div class="data-grid">
+                                    <div class="data-item">
+                                        <span class="data-label">Name</span>
+                                        <span class="data-value">${member.nama || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">Relationship</span>
+                                        <span class="data-value">${member.hubungan || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">NIK</span>
+                                        <span class="data-value">${member.nik || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">Date of Birth</span>
+                                        <span class="data-value">${member.tanggal_lahir || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">Place of Birth</span>
+                                        <span class="data-value">${member.tempat_lahir || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">Gender</span>
+                                        <span class="data-value">${member.jenis_kelamin || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `</div>`;
+                }
+
+                // Phone Data
+                if (phoneData && phoneData.length > 0) {
+                    html += `
+                        <div class="data-section">
+                            <h4><i class="fas fa-phone"></i> Phone Information</h4>
+                    `;
+
+                    phoneData.forEach(phone => {
+                        html += `
+                            <div class="phone-item">
+                                <div class="data-grid">
+                                    <div class="data-item">
+                                        <span class="data-label">Phone Number</span>
+                                        <span class="data-value">${phone.number || phone.msisdn || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">Operator</span>
+                                        <span class="data-value">${phone.operator || 'N/A'}</span>
+                                    </div>
+                                    <div class="data-item">
+                                        <span class="data-label">Registration Date</span>
+                                        <span class="data-value">${phone.register_date || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `</div>`;
+                }
+
+                // Face Data
+                if (faceData && Object.keys(faceData).length > 0) {
+                    html += `
+                        <div class="data-section">
+                            <h4><i class="fas fa-camera"></i> Face Detection Information</h4>
+                            <div class="data-grid">
+                    `;
+
+                    if (faceData.threshold) {
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">Threshold</span>
+                                <span class="data-value">${faceData.threshold}</span>
+                            </div>
+                        `;
+                    }
+
+                    if (faceData.match_score) {
+                        html += `
+                            <div class="data-item">
+                                <span class="data-label">Match Score</span>
+                                <span class="data-value">${faceData.match_score}</span>
+                            </div>
+                        `;
+                    }
+
+                    html += `</div></div>`;
+                }
+
+                // Search Parameters
+                if (searchParams && Object.keys(searchParams).length > 0) {
+                    html += `
+                        <div class="data-section">
+                            <h4><i class="fas fa-cog"></i> Search Parameters</h4>
+                            <div class="json-display">${JSON.stringify(searchParams, null, 2)}</div>
+                        </div>
+                    `;
+                }
+
+                // Raw Data (for debugging)
+                html += `
+                    <div class="data-section">
+                        <h4><i class="fas fa-code"></i> Raw Data</h4>
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    </div>
+                `;
+
+                return html;
+            }
+
+            async deleteProfilingData(id) {
+                try {
+                    const sessionToken = localStorage.getItem('session_token');
+                    if (!sessionToken) {
+                        window.location.href = '/login';
+                        return;
+                    }
+
+                    const response = await fetch(`/api/profiling-data/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${sessionToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        this.showMessage('Profiling data deleted successfully!', 'success');
+                        this.loadProfilingData(); // Reload data
+                    } else if (response.status === 401) {
+                        localStorage.removeItem('session_token');
+                        localStorage.removeItem('user_data');
+                        window.location.href = '/login';
+                        return;
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error deleting profiling data:', error);
+                    this.showMessage('Error deleting profiling data: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Global functions
+        function toggleSidebar() {
+            const app = window.dataProfilingApp;
+            if (app.isMobile) {
+                app.sidebar.classList.toggle('mobile-open');
+                app.sidebarOverlay.classList.toggle('active');
+            } else {
+                app.isSidebarCollapsed = !app.isSidebarCollapsed;
+                app.sidebar.classList.toggle('collapsed');
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                window.location.href = '/login';
+            }
+        }
+
+        function applyFilters() {
+            console.log('Applying filters...');
+            // Implement filter functionality
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all profiling data? This action cannot be undone.')) {
+                console.log('Clearing all data...');
+                // Implement clear all functionality
+            }
+        }
+
+        function viewProfilingData(id) {
+            const app = window.dataProfilingApp;
+            if (app) {
+                app.viewProfilingData(id);
+            }
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewDataModal').classList.remove('active');
+        }
+
+        function exportData() {
+            const app = window.dataProfilingApp;
+            if (app && app.currentViewData) {
+                const data = app.currentViewData;
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `profiling_data_${data.id}_${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+                app.showMessage('Data exported successfully!', 'success');
+            }
+        }
+
+        function deleteProfilingData(id) {
+            if (confirm('Are you sure you want to delete this profiling data?')) {
+                const app = window.dataProfilingApp;
+                if (app) {
+                    app.deleteProfilingData(id);
+                }
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            window.dataProfilingApp = new DataProfilingApp();
+        });
+    </script>
+</body>
+</html>

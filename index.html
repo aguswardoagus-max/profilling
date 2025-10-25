@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clearance Face Search</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-search"></i> Clearance Face Search</h1>
+            <p>Sistem pencarian wajah untuk database clearance</p>
+        </header>
+
+        <main class="main-content">
+            <div class="search-form-container">
+                <form id="searchForm" class="search-form">
+                    <div class="form-section">
+                        <h3><i class="fas fa-user"></i> Kredensial Login</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="username">Username:</label>
+                                <input type="text" id="username" name="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Password:</label>
+                                <input type="password" id="password" name="password" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-filter"></i> Filter Pencarian</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">Nama:</label>
+                                <input type="text" id="name" name="name" placeholder="Masukkan nama">
+                            </div>
+                            <div class="form-group">
+                                <label for="nik">NIK:</label>
+                                <input type="text" id="nik" name="nik" placeholder="Masukkan NIK">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="page">Halaman:</label>
+                                <input type="number" id="page" name="page" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3><i class="fas fa-camera"></i> Face Search (Opsional)</h3>
+                        <div class="face-upload-container">
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Klik atau drag & drop gambar wajah di sini</p>
+                                <p class="upload-hint">Format: JPG, PNG (Max 5MB)</p>
+                                <input type="file" id="faceFile" accept="image/*" style="display: none;">
+                            </div>
+                            <div class="image-preview" id="imagePreview" style="display: none;">
+                                <img id="previewImg" alt="Preview">
+                                <button type="button" id="removeImage" class="remove-btn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="face-settings">
+                            <div class="form-group">
+                                <label for="faceThreshold">Face Threshold:</label>
+                                <input type="range" id="faceThreshold" name="face_threshold" 
+                                       min="0.1" max="1.0" step="0.05" value="0.50">
+                                <span id="thresholdValue">0.50</span>
+                                <small>Semakin kecil = lebih ketat</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="saveFace" name="save_face">
+                                    <span class="checkmark"></span>
+                                    Simpan gambar wajah hasil
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="searchBtn" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Mulai Pencarian
+                        </button>
+                        <button type="button" id="clearBtn" class="btn btn-secondary">
+                            <i class="fas fa-eraser"></i> Reset Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="results-container" id="resultsContainer" style="display: none;">
+                <div class="results-header">
+                    <h3><i class="fas fa-list"></i> Hasil Pencarian</h3>
+                    <div class="results-info" id="resultsInfo"></div>
+                </div>
+                <div class="results-content" id="resultsContent"></div>
+            </div>
+
+            <div class="loading-container" id="loadingContainer" style="display: none;">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Memproses pencarian...</p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Clearance Face Search System</p>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

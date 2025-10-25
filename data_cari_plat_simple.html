@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Cari Plat No - Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Cari Plat No - Simple</h1>
+    
+    <div id="loading" class="loading">Loading data...</div>
+    <div id="error" style="color: red; display: none;"></div>
+    
+    <table id="dataTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>No Polisi</th>
+                <th>Nama Pemilik</th>
+                <th>Merk</th>
+                <th>Type</th>
+                <th>Tahun</th>
+                <th>User</th>
+                <th>Tanggal</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+    
+    <script>
+        async function loadData() {
+            const token = localStorage.getItem('session_token');
+            
+            if (!token) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 'No session token found. Please login first.';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/cekplat-data', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                const data = result.data || [];
+                
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.length === 0) {
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = 'No data found.';
+                    return;
+                }
+                
+                // Show table
+                document.getElementById('dataTable').style.display = 'table';
+                
+                // Populate table
+                const tbody = document.getElementById('tableBody');
+                data.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${item.no_polisi || '-'}</td>
+                        <td>${item.nama_pemilik || '-'}</td>
+                        <td>${item.merk_kendaraan || '-'}</td>
+                        <td>${item.type_kendaraan || '-'}</td>
+                        <td>${item.tahun_pembuatan || '-'}</td>
+                        <td>${item.user_name || item.username || '-'}</td>
+                        <td>${new Date(item.search_timestamp).toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        // Load data when page loads
+        window.onload = loadData;
+    </script>
+</body>
+</html>

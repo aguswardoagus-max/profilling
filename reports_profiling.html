@@ -1,0 +1,2714 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports / Profiling - Clearance Face Search</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            opacity: 0;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-right: 3px solid white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .nav-submenu {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        .nav-submenu .menu-item {
+            padding: 10px 25px;
+            font-size: 0.9rem;
+        }
+
+        .menu-item span {
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .menu-item span {
+            opacity: 0;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 15px 20px;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .user-details {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .user-details {
+            opacity: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .logout-btn span {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .logout-btn span {
+            opacity: 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 70px;
+        }
+
+        /* Topbar */
+        .topbar {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 10px 15px 10px 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            width: 300px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        /* AI Info Badge */
+        .ai-info-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-right: 15px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            animation: aiPulse 2s infinite;
+        }
+
+        .ai-info-badge i {
+            font-size: 14px;
+        }
+
+        @keyframes aiPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Content Layout */
+        .content-layout {
+            display: flex;
+            height: calc(100vh - 100px);
+            gap: 20px;
+            padding: 20px;
+        }
+
+        /* Left Panel - Filters */
+        .filters-panel {
+            width: 300px;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow-y: auto;
+        }
+
+        .filters-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-group {
+            margin-bottom: 20px;
+        }
+
+        .filter-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #6b7280;
+            border: 2px solid #e1e5e9;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            border-color: #d1d5db;
+        }
+
+        /* Center Panel - Results */
+        .results-panel {
+            flex: 1;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .results-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .results-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .results-count {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .results-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .results-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .result-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .result-card.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .result-card input[type="checkbox"] {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .result-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .result-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 8px;
+        }
+
+        .result-details {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .result-category {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+
+        /* Right Panel - Preview */
+        .preview-panel {
+            width: 400px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .preview-panel.collapsed {
+            width: 50px;
+        }
+
+        .preview-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .preview-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .preview-toggle:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .preview-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: #9ca3af;
+            padding: 40px 20px;
+        }
+
+        .preview-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .preview-document {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Times New Roman', serif;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        /* Multi-select toolbar */
+        .multi-select-toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border-radius: 15px;
+            padding: 15px 25px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 1000;
+            min-width: 320px;
+            max-width: 90vw;
+        }
+
+        .multi-select-toolbar.show {
+            display: flex;
+        }
+
+        .selected-count {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .toolbar-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .toolbar-row .btn {
+            padding: 10px 12px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .toolbar-row.primary .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+
+        .toolbar-row.primary .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .toolbar-row.secondary .btn {
+            background: #f8f9fa;
+            color: #6b7280;
+            border: 2px solid #e1e5e9;
+        }
+
+        .toolbar-row.secondary .btn:hover {
+            background: #e9ecef;
+            border-color: #d1d5db;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .topbar {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .ai-info-badge {
+                margin-right: 0;
+                margin-bottom: 10px;
+                justify-content: center;
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+
+            .topbar-left {
+                justify-content: space-between;
+            }
+
+            .topbar-right {
+                width: 100%;
+            }
+
+            .search-box input {
+                width: 100%;
+                max-width: none;
+            }
+
+            .content-layout {
+                flex-direction: column;
+                height: auto;
+                padding: 15px;
+                gap: 15px;
+            }
+
+            .filters-panel {
+                width: 100%;
+                order: 2;
+                padding: 20px;
+                margin-bottom: 0;
+            }
+
+            .results-panel {
+                order: 1;
+                min-height: 400px;
+            }
+
+            .preview-panel {
+                width: 100%;
+                order: 3;
+                min-height: 300px;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .result-card {
+                padding: 15px;
+            }
+
+            .result-photo {
+                width: 60px;
+                height: 60px;
+            }
+
+            .result-name {
+                font-size: 1rem;
+            }
+
+            .result-details {
+                font-size: 0.8rem;
+            }
+
+            .multi-select-toolbar {
+                position: fixed;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                transform: none;
+                padding: 15px;
+                min-width: auto;
+                max-width: none;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .selected-count {
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+                margin-right: 0;
+                text-align: center;
+            }
+
+            .toolbar-actions {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+
+            .toolbar-row {
+                gap: 8px;
+                justify-content: center;
+            }
+
+            .toolbar-row .btn {
+                padding: 8px 10px;
+                font-size: 0.8rem;
+                flex: 1;
+            }
+
+            .filters-title {
+                font-size: 1.1rem;
+            }
+
+            .filter-group {
+                margin-bottom: 15px;
+            }
+
+            .filter-label {
+                font-size: 0.85rem;
+            }
+
+            .filter-input {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
+
+            .filter-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .filter-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .results-header {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+
+            .results-actions {
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .results-actions .btn {
+                flex: 1;
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+
+            .preview-header {
+                padding: 15px 20px;
+            }
+
+            .preview-content {
+                padding: 15px;
+            }
+
+            .preview-document {
+                font-size: 11px;
+                padding: 15px;
+            }
+        }
+
+        /* Extra Small Mobile */
+        @media (max-width: 480px) {
+            .topbar {
+                padding: 10px 15px;
+            }
+
+            .content-layout {
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .filters-panel {
+                padding: 15px;
+            }
+
+            .results-header {
+                padding: 10px 15px;
+            }
+
+            .preview-header {
+                padding: 10px 15px;
+            }
+
+            .preview-content {
+                padding: 10px;
+            }
+
+            .result-card {
+                padding: 12px;
+            }
+
+            .result-photo {
+                width: 50px;
+                height: 50px;
+            }
+
+            .result-name {
+                font-size: 0.9rem;
+            }
+
+            .result-details {
+                font-size: 0.75rem;
+            }
+
+            .multi-select-toolbar {
+                bottom: 5px;
+                left: 5px;
+                right: 5px;
+                padding: 12px;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .selected-count {
+                font-size: 0.8rem;
+                margin-bottom: 4px;
+                margin-right: 0;
+                text-align: center;
+            }
+
+            .toolbar-actions {
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+            }
+
+            .toolbar-row {
+                gap: 6px;
+                justify-content: center;
+            }
+
+            .toolbar-row .btn {
+                padding: 6px 8px;
+                font-size: 0.75rem;
+                flex: 1;
+            }
+
+            .filters-title {
+                font-size: 1rem;
+            }
+
+            .filter-group {
+                margin-bottom: 12px;
+            }
+
+            .filter-label {
+                font-size: 0.8rem;
+            }
+
+            .filter-input {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+
+            .results-actions .btn {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+
+            .preview-document {
+                font-size: 10px;
+                padding: 12px;
+            }
+        }
+
+        /* Sidebar Overlay for Mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Touch-friendly interactions for mobile */
+        @media (max-width: 768px) {
+            .btn, .menu-item, .result-card, .export-option {
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+
+            .result-card input[type="checkbox"] {
+                width: 20px;
+                height: 20px;
+                top: 10px;
+                right: 10px;
+            }
+
+            .filter-input, .search-box input {
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+
+            /* Prevent zoom on input focus */
+            input[type="text"], input[type="date"], select {
+                font-size: 16px;
+            }
+
+            /* Better scrolling for mobile */
+            .filters-panel, .results-content, .preview-content {
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Mobile-specific button styles */
+            .btn {
+                border-radius: 8px;
+                font-weight: 500;
+            }
+
+            .btn:active {
+                transform: scale(0.98);
+            }
+
+            /* Better spacing for touch targets */
+            .menu-item {
+                padding: 15px 20px;
+            }
+
+            .nav-submenu .menu-item {
+                padding: 12px 30px;
+            }
+
+            /* Mobile-friendly sidebar */
+            .sidebar {
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+
+            .sidebar-header {
+                padding: 15px 20px;
+            }
+
+            .sidebar-footer {
+                padding: 15px 20px;
+            }
+
+            /* Mobile breadcrumb */
+            .breadcrumb {
+                font-size: 0.8rem;
+                flex-wrap: wrap;
+            }
+
+            /* Mobile search box */
+            .search-box {
+                width: 100%;
+            }
+
+            .search-box input {
+                border-radius: 20px;
+                padding: 12px 15px 12px 45px;
+            }
+
+            .search-box i {
+                left: 18px;
+                font-size: 1rem;
+            }
+        }
+
+        /* Landscape mobile optimization */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .content-layout {
+                flex-direction: row;
+                height: calc(100vh - 120px);
+            }
+
+            .filters-panel {
+                width: 300px;
+                order: 1;
+            }
+
+            .results-panel {
+                flex: 1;
+                order: 2;
+            }
+
+            .preview-panel {
+                width: 300px;
+                order: 3;
+            }
+
+            .multi-select-toolbar {
+                bottom: 5px;
+                left: 5px;
+                right: 5px;
+                padding: 8px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="sidebar-title">Clearance Search</div>
+        </div>
+        
+        <nav class="sidebar-menu">
+            <a href="/dashboard" class="menu-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/profiling" class="menu-item">
+                <i class="fas fa-search"></i>
+                <span>Profiling</span>
+            </a>
+            <a href="/data-profiling" class="menu-item">
+                <i class="fas fa-database"></i>
+                <span>Data Profiling</span>
+            </a>
+            <a href="/cekplat" class="menu-item">
+                <i class="fas fa-car"></i>
+                <span>Cek Plat No Jambi</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/data-cari-plat" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    <span>Data Cari Plat No</span>
+                </a>
+            </div>
+            <a href="/user-management" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <a href="/ai-features" class="menu-item">
+                <i class="fas fa-robot"></i>
+                <span>AI Features</span>
+            </a>
+            <a href="/reports" class="menu-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/reports/profiling" class="menu-item active">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Profiling</span>
+                </a>
+            </div>
+            <a href="/settings" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Admin User</div>
+                    <div class="user-role" id="userRole">Administrator</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="breadcrumb">
+                    <a href="/reports">Reports</a>
+                    <i class="fas fa-chevron-right"></i>
+                    <span>Profiling</span>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="ai-info-badge">
+                    <i class="fas fa-robot"></i>
+                    <span>Powered by AI</span>
+                </div>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search nama, NIK, alamat..." id="globalSearch">
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Layout -->
+        <div class="content-layout">
+            <!-- Left Panel - Filters -->
+            <div class="filters-panel">
+                <h2 class="filters-title">
+                    <i class="fas fa-filter"></i>
+                    Filter & Controls
+                </h2>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Provinsi</label>
+                    <select class="filter-input" id="provinsiFilter">
+                        <option value="">Semua Provinsi</option>
+                        <option value="Jambi">Jambi</option>
+                        <option value="Sumatera Selatan">Sumatera Selatan</option>
+                        <option value="Riau">Riau</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Kabupaten / Kota</label>
+                    <select class="filter-input" id="kabupatenFilter">
+                        <option value="">Semua Kabupaten</option>
+                        <option value="Tanjung Jabung Timur">Tanjung Jabung Timur</option>
+                        <option value="Tanjung Jabung Barat">Tanjung Jabung Barat</option>
+                        <option value="Muaro Jambi">Muaro Jambi</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Kecamatan</label>
+                    <select class="filter-input" id="kecamatanFilter">
+                        <option value="">Semua Kecamatan</option>
+                        <option value="Muara Sabak">Muara Sabak</option>
+                        <option value="Nipah Panjang">Nipah Panjang</option>
+                        <option value="Mendahara">Mendahara</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Kategori Profiling</label>
+                    <select class="filter-input" id="kategoriFilter" multiple>
+                        <option value="Perkebunan">Perkebunan</option>
+                        <option value="Aktor Kunci">Aktor Kunci</option>
+                        <option value="Keuangan">Keuangan</option>
+                        <option value="Logistik">Logistik</option>
+                        <option value="Keamanan">Keamanan</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Subkategori / Tag</label>
+                    <select class="filter-input" id="subkategoriFilter" multiple>
+                        <option value="Sawit Ilegal">Sawit Ilegal</option>
+                        <option value="Pemilik Lahan">Pemilik Lahan</option>
+                        <option value="Tenaga Kerja">Tenaga Kerja</option>
+                        <option value="Supplier">Supplier</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Rentang Tanggal</label>
+                    <input type="date" class="filter-input" id="startDate">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Sampai Tanggal</label>
+                    <input type="date" class="filter-input" id="endDate">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Status Verifikasi</label>
+                    <select class="filter-input" id="statusFilter">
+                        <option value="">Semua Status</option>
+                        <option value="draft">Draft</option>
+                        <option value="verified">Verified</option>
+                        <option value="published">Published</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Urutkan Berdasarkan</label>
+                    <select class="filter-input" id="sortBy">
+                        <option value="tanggal_input">Tanggal Input</option>
+                        <option value="nama">Nama</option>
+                        <option value="kab_kota">Kabupaten</option>
+                        <option value="kategori">Kategori</option>
+                    </select>
+                </div>
+
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="applyFilters()">
+                        <i class="fas fa-search"></i>
+                        Filter
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">
+                        <i class="fas fa-eraser"></i>
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Center Panel - Results -->
+            <div class="results-panel">
+                <div class="results-header">
+                    <div>
+                        <h3 class="results-title">Data Profiling</h3>
+                        <p class="results-count" id="resultsCount">0 records found</p>
+                    </div>
+                    <div class="results-actions">
+                        <button class="btn btn-secondary" onclick="selectAll()">
+                            <i class="fas fa-check-square"></i>
+                            Select All
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearSelection()">
+                            <i class="fas fa-square"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="results-content">
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <p>Loading data...</p>
+                    </div>
+                    <div class="results-grid" id="resultsGrid">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Preview -->
+            <div class="preview-panel" id="previewPanel">
+                <div class="preview-header">
+                    <h3 class="preview-title">Preview Dokumen</h3>
+                    <button class="preview-toggle" onclick="togglePreview()">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="preview-content" id="previewContent">
+                    <div class="preview-placeholder">
+                        <i class="fas fa-file-alt"></i>
+                        <p>Pilih record untuk preview dokumen</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-select Toolbar -->
+        <div class="multi-select-toolbar" id="multiSelectToolbar">
+            <span class="selected-count" id="selectedCount">0 selected</span>
+            <div class="toolbar-actions">
+                <div class="toolbar-row secondary">
+                    <button class="btn" onclick="autoLink()">
+                        <i class="fas fa-link"></i>
+                        Auto-link
+                    </button>
+                    <button class="btn" onclick="groupAsReport()">
+                        <i class="fas fa-layer-group"></i>
+                        Group as Single Report
+                    </button>
+                </div>
+                <div class="toolbar-row primary">
+                    <button class="btn" onclick="previewSelected()">
+                        <i class="fas fa-eye"></i>
+                        Preview Document
+                    </button>
+                    <button class="btn" onclick="exportSelected()">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ProfilingReportsApp {
+            constructor() {
+                this.sidebar = document.getElementById('sidebar');
+                this.sidebarOverlay = document.getElementById('sidebarOverlay');
+                this.mainContent = document.getElementById('mainContent');
+                this.previewPanel = document.getElementById('previewPanel');
+                this.isSidebarCollapsed = false;
+                this.isPreviewCollapsed = false;
+                this.isMobile = window.innerWidth <= 768;
+                this.selectedRecords = new Set();
+                this.currentData = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadUserData();
+                this.loadProfilingData();
+                this.setDefaultDates();
+            }
+
+            setupEventListeners() {
+                // Global search
+                document.getElementById('globalSearch').addEventListener('input', (e) => {
+                    this.handleGlobalSearch(e.target.value);
+                });
+
+                // Filter changes
+                document.getElementById('provinsiFilter').addEventListener('change', () => {
+                    this.updateKabupatenOptions();
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.isMobile = window.innerWidth <= 768;
+                    if (!this.isMobile) {
+                        this.sidebarOverlay.classList.remove('active');
+                    }
+                });
+            }
+
+            setDefaultDates() {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                
+                document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+                document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            }
+
+            loadUserData() {
+                const userData = localStorage.getItem('user_data');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.name || 'Admin User';
+                    document.getElementById('userRole').textContent = user.role || 'Administrator';
+                    
+                    // Set menu visibility based on user role
+                    this.setMenuVisibility(user.role);
+                }
+            }
+
+            setMenuVisibility(userRole) {
+                // Hide admin-only menus for non-admin users
+                const adminOnlyMenus = ['user-management', 'settings'];
+                
+                adminOnlyMenus.forEach(menuId => {
+                    const menuElement = document.querySelector(`a[href="/${menuId}"]`);
+                    if (menuElement) {
+                        if (userRole === 'admin') {
+                            menuElement.style.display = 'flex';
+                        } else {
+                            menuElement.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            async loadProfilingData() {
+                try {
+                    this.showLoading(true);
+                    
+                    const token = localStorage.getItem('session_token');
+                    console.log('Session token:', token ? token.substring(0, 20) + '...' : 'No token found');
+                    
+                    if (!token) {
+                        console.error('No session token found');
+                        return;
+                    }
+
+                    const filters = this.getCurrentFilters();
+                    console.log('Current filters:', filters);
+                    const queryParams = new URLSearchParams(filters);
+                    console.log('Query params:', queryParams.toString());
+                    
+                    const response = await fetch(`/api/profiling/reports?${queryParams}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    console.log('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    console.log('API result:', result);
+                    
+                    if (result.success) {
+                        this.currentData = result.data;
+                        console.log('Loaded data count:', result.data.length);
+                        this.renderResults(result.data);
+                        this.updateResultsCount(result.pagination.total);
+                    } else {
+                        console.error('Failed to load profiling data:', result.error);
+                        this.renderResults([]);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading profiling data:', error);
+                    this.renderResults([]);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            getCurrentFilters() {
+                return {
+                    prov: document.getElementById('provinsiFilter').value,
+                    kab_kota: document.getElementById('kabupatenFilter').value,
+                    kec: document.getElementById('kecamatanFilter').value,
+                    kategori: document.getElementById('kategoriFilter').value,
+                    subkategori: document.getElementById('subkategoriFilter').value,
+                    status_verifikasi: document.getElementById('statusFilter').value,
+                    start_date: document.getElementById('startDate').value,
+                    end_date: document.getElementById('endDate').value,
+                    sort_by: document.getElementById('sortBy').value,
+                    q: document.getElementById('globalSearch').value
+                };
+            }
+
+            renderResults(data) {
+                const resultsGrid = document.getElementById('resultsGrid');
+                
+                if (data.length === 0) {
+                    resultsGrid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #9ca3af;">
+                            <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
+                            <p>Tidak ada data profiling yang ditemukan</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                resultsGrid.innerHTML = data.map(record => `
+                    <div class="result-card" data-id="${record.id}" onclick="app.toggleSelection(${record.id})">
+                        <input type="checkbox" ${this.selectedRecords.has(record.id) ? 'checked' : ''} 
+                               onchange="app.handleCheckboxChange(${record.id}, this.checked)">
+                        <img src="${record.foto_url || '/static/clean_photos/default.jpg'}" 
+                             class="result-photo" alt="Foto Profil">
+                        <div class="result-name">${record.nama || 'Nama tidak tersedia'}</div>
+                        <div class="result-details">
+                            <i class="fas fa-id-card"></i> ${record.nik || 'NIK tidak tersedia'}
+                        </div>
+                        <div class="result-details">
+                            <i class="fas fa-map-marker-alt"></i> ${record.kab_kota || 'Lokasi tidak tersedia'}
+                        </div>
+                        <div class="result-details">
+                            <i class="fas fa-calendar"></i> ${new Date(record.tanggal_input).toLocaleDateString('id-ID')}
+                        </div>
+                        <div class="result-category">${record.kategori || 'Kategori tidak tersedia'}</div>
+                    </div>
+                `).join('');
+            }
+
+            updateResultsCount(count) {
+                document.getElementById('resultsCount').textContent = `${count} records found`;
+            }
+
+            toggleSelection(recordId) {
+                if (this.selectedRecords.has(recordId)) {
+                    this.selectedRecords.delete(recordId);
+                } else {
+                    this.selectedRecords.add(recordId);
+                }
+                this.updateSelectionUI();
+            }
+
+            handleCheckboxChange(recordId, checked) {
+                if (checked) {
+                    this.selectedRecords.add(recordId);
+                } else {
+                    this.selectedRecords.delete(recordId);
+                }
+                this.updateSelectionUI();
+            }
+
+            updateSelectionUI() {
+                // Update checkboxes
+                document.querySelectorAll('.result-card input[type="checkbox"]').forEach(checkbox => {
+                    const recordId = parseInt(checkbox.closest('.result-card').dataset.id);
+                    checkbox.checked = this.selectedRecords.has(recordId);
+                });
+
+                // Update card selection state
+                document.querySelectorAll('.result-card').forEach(card => {
+                    const recordId = parseInt(card.dataset.id);
+                    if (this.selectedRecords.has(recordId)) {
+                        card.classList.add('selected');
+                    } else {
+                        card.classList.remove('selected');
+                    }
+                });
+
+                // Show/hide multi-select toolbar
+                const toolbar = document.getElementById('multiSelectToolbar');
+                const selectedCount = document.getElementById('selectedCount');
+                
+                if (this.selectedRecords.size > 0) {
+                    toolbar.classList.add('show');
+                    selectedCount.textContent = `${this.selectedRecords.size} selected`;
+                } else {
+                    toolbar.classList.remove('show');
+                }
+            }
+
+            selectAll() {
+                this.currentData.forEach(record => {
+                    this.selectedRecords.add(record.id);
+                });
+                this.updateSelectionUI();
+            }
+
+            clearSelection() {
+                this.selectedRecords.clear();
+                this.updateSelectionUI();
+            }
+
+            async previewSelected() {
+                if (this.selectedRecords.size === 0) {
+                    alert('Pilih minimal satu record untuk preview');
+                    return;
+                }
+
+                try {
+                    const token = localStorage.getItem('session_token');
+                    const response = await fetch('/api/profiling/preview', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                         body: JSON.stringify({
+                             ids: Array.from(this.selectedRecords),
+                             template: 'default',
+                             documentTitle: document.getElementById('documentTitle').value,
+                             documentSubtitle: document.getElementById('documentSubtitle').value,
+                             documentLocation: document.getElementById('documentLocation').value
+                         })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showPreview(result.data.html);
+                    } else {
+                        alert('Gagal generate preview: ' + (result.error || 'Unknown error'));
+                    }
+                    
+                } catch (error) {
+                    console.error('Error generating preview:', error);
+                    alert('Error generating preview: ' + error.message);
+                }
+            }
+
+            showPreview(htmlContent) {
+                const previewContent = document.getElementById('previewContent');
+                previewContent.innerHTML = `
+                    <div class="preview-document">
+                        ${htmlContent}
+                    </div>
+                `;
+                
+                // Expand preview panel if collapsed
+                if (this.isPreviewCollapsed) {
+                    this.togglePreview();
+                }
+            }
+
+            showExportModal() {
+                if (this.selectedRecords.size === 0) {
+                    this.showNotification('Pilih minimal satu record untuk export', 'warning');
+                    return;
+                }
+
+                // Update export info
+                document.getElementById('exportInfo').textContent = `${this.selectedRecords.size} record dipilih`;
+                
+                // Show modal
+                document.getElementById('exportModal').style.display = 'block';
+                
+                // Reset selections
+                document.querySelectorAll('.export-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                document.getElementById('btnExport').disabled = true;
+                document.getElementById('exportPreview').textContent = 'Pilih format export untuk melihat preview';
+            }
+
+            closeExportModal() {
+                document.getElementById('exportModal').style.display = 'none';
+            }
+
+            selectExportType(type) {
+                // Remove previous selection
+                document.querySelectorAll('.export-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                
+                // Add selection to clicked option
+                document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+                
+                // Enable export button
+                document.getElementById('btnExport').disabled = false;
+                
+                // Update preview
+                const combine = document.getElementById('combineRecords').checked;
+                const includePhotos = document.getElementById('includePhotos').checked;
+                const includeAI = document.getElementById('includeAI').checked;
+                
+                let preview = `Export ${type.toUpperCase()} dengan ${this.selectedRecords.size} record`;
+                if (combine) {
+                    preview += ' dalam satu dokumen';
+                } else {
+                    preview += ' sebagai file terpisah';
+                }
+                
+                if (includePhotos) preview += ', dengan foto profil';
+                if (includeAI) preview += ', dengan analisis AI';
+                
+                document.getElementById('exportPreview').textContent = preview;
+            }
+
+             // Add event listeners for checkboxes to update preview
+             addExportEventListeners() {
+                 const checkboxes = ['combineRecords', 'includePhotos', 'includeAI'];
+                 checkboxes.forEach(id => {
+                     const checkbox = document.getElementById(id);
+                     if (checkbox) {
+                         checkbox.addEventListener('change', () => {
+                             const selectedType = document.querySelector('.export-option.selected');
+                             if (selectedType) {
+                                 this.selectExportType(selectedType.dataset.type);
+                             }
+                         });
+                     }
+                 });
+
+                 // Add event listeners for text inputs
+                 const textInputs = ['documentTitle', 'documentSubtitle', 'documentLocation'];
+                 textInputs.forEach(id => {
+                     const input = document.getElementById(id);
+                     if (input) {
+                         input.addEventListener('input', () => {
+                             const selectedType = document.querySelector('.export-option.selected');
+                             if (selectedType) {
+                                 this.selectExportType(selectedType.dataset.type);
+                             }
+                         });
+                     }
+                 });
+
+                // Add keyboard support for ESC key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        const modal = document.getElementById('exportModal');
+                        if (modal && modal.style.display === 'block') {
+                            this.closeExportModal();
+                        }
+                    }
+                });
+
+                // Close modal when clicking outside
+                document.getElementById('exportModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'exportModal') {
+                        this.closeExportModal();
+                    }
+                });
+            }
+
+            async performExport() {
+                const selectedType = document.querySelector('.export-option.selected');
+                if (!selectedType) {
+                    this.showNotification('Pilih format export terlebih dahulu', 'warning');
+                    return;
+                }
+
+                 const type = selectedType.dataset.type;
+                 const combine = document.getElementById('combineRecords').checked;
+                 const includePhotos = document.getElementById('includePhotos').checked;
+                 const includeAI = document.getElementById('includeAI').checked;
+                 
+                 // Get custom document titles
+                 const documentTitle = document.getElementById('documentTitle').value;
+                 const documentSubtitle = document.getElementById('documentSubtitle').value;
+                 const documentLocation = document.getElementById('documentLocation').value;
+
+                 // Show loading state
+                const btnExport = document.getElementById('btnExport');
+                const exportSpinner = document.getElementById('exportSpinner');
+                const exportIcon = document.getElementById('exportIcon');
+                const exportText = document.getElementById('exportText');
+                
+                btnExport.disabled = true;
+                exportSpinner.style.display = 'block';
+                exportIcon.style.display = 'none';
+                exportText.textContent = 'Exporting...';
+
+                try {
+                    const token = localStorage.getItem('session_token');
+                     const requestData = {
+                         ids: Array.from(this.selectedRecords),
+                         type: type,
+                         combine: combine,
+                         includePhotos: includePhotos,
+                         includeAI: includeAI,
+                         documentTitle: documentTitle,
+                         documentSubtitle: documentSubtitle,
+                         documentLocation: documentLocation
+                     };
+                    
+                    console.log('Export request data:', requestData);
+                    
+                    const response = await fetch('/api/profiling/export', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    console.log('Export response status:', response.status);
+                    console.log('Export response headers:', response.headers);
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Export response result:', result);
+                        
+                        if (result.success) {
+                            // Download the file
+                            const filename = result.data?.filename || result.filename;
+                            console.log('Downloading file:', filename);
+                            window.open(`/api/profiling/download/${filename}`, '_blank');
+                            this.showNotification('Export berhasil!', 'success');
+                            this.closeExportModal();
+                        } else {
+                            console.error('Export failed:', result.error);
+                            this.showNotification(result.error || 'Export gagal', 'error');
+                        }
+                    } else {
+                        const errorResult = await response.json().catch(() => ({}));
+                        console.error('Export HTTP error:', response.status, errorResult);
+                        this.showNotification(errorResult.error || 'Export gagal', 'error');
+                    }
+                } catch (error) {
+                    console.error('Export error:', error);
+                    this.showNotification('Export gagal', 'error');
+                } finally {
+                    // Reset button state
+                    btnExport.disabled = false;
+                    exportSpinner.style.display = 'none';
+                    exportIcon.style.display = 'inline';
+                    exportText.textContent = 'Export';
+                }
+            }
+
+            async exportSelected() {
+                // Legacy method - redirect to new modal
+                this.showExportModal();
+            }
+
+            async autoLink() {
+                if (this.selectedRecords.size !== 1) {
+                    alert('Pilih satu record untuk mencari relasi');
+                    return;
+                }
+
+                const recordId = Array.from(this.selectedRecords)[0];
+                
+                try {
+                    const token = localStorage.getItem('session_token');
+                    const response = await fetch(`/api/profiling/reports/${recordId}/related`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success && result.data.length > 0) {
+                        // Add related records to selection
+                        result.data.forEach(relatedRecord => {
+                            this.selectedRecords.add(relatedRecord.id);
+                        });
+                        this.updateSelectionUI();
+                        alert(`Ditemukan ${result.data.length} record terkait`);
+                    } else {
+                        alert('Tidak ditemukan record terkait');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error finding related records:', error);
+                    alert('Error finding related records: ' + error.message);
+                }
+            }
+
+            groupAsReport() {
+                if (this.selectedRecords.size < 2) {
+                    alert('Pilih minimal 2 record untuk digabung');
+                    return;
+                }
+                alert('Fitur Group as Single Report akan diimplementasikan');
+            }
+
+            handleGlobalSearch(query) {
+                if (query.length > 2) {
+                    this.loadProfilingData();
+                } else if (query.length === 0) {
+                    this.loadProfilingData();
+                }
+            }
+
+            updateKabupatenOptions() {
+                const provinsi = document.getElementById('provinsiFilter').value;
+                const kabupatenSelect = document.getElementById('kabupatenFilter');
+                
+                // Clear existing options
+                kabupatenSelect.innerHTML = '<option value="">Semua Kabupaten</option>';
+                
+                // Add options based on selected province
+                if (provinsi === 'Jambi') {
+                    const kabupatens = ['Tanjung Jabung Timur', 'Tanjung Jabung Barat', 'Muaro Jambi', 'Batanghari'];
+                    kabupatens.forEach(kab => {
+                        const option = document.createElement('option');
+                        option.value = kab;
+                        option.textContent = kab;
+                        kabupatenSelect.appendChild(option);
+                    });
+                }
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                loading.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        // Global functions
+        const app = new ProfilingReportsApp();
+        
+        // Initialize export modal event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            app.addExportEventListeners();
+        });
+
+        function toggleSidebar() {
+            if (app.isMobile) {
+                app.sidebar.classList.toggle('mobile-open');
+                app.sidebarOverlay.classList.toggle('active');
+            } else {
+                app.isSidebarCollapsed = !app.isSidebarCollapsed;
+                app.sidebar.classList.toggle('collapsed');
+                app.mainContent.classList.toggle('sidebar-collapsed');
+            }
+        }
+
+        function togglePreview() {
+            app.isPreviewCollapsed = !app.isPreviewCollapsed;
+            app.previewPanel.classList.toggle('collapsed');
+            
+            const toggleIcon = app.previewPanel.querySelector('.preview-toggle i');
+            if (app.isPreviewCollapsed) {
+                toggleIcon.className = 'fas fa-chevron-left';
+            } else {
+                toggleIcon.className = 'fas fa-chevron-right';
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                window.location.href = '/login';
+            }
+        }
+
+        function applyFilters() {
+            app.loadProfilingData();
+        }
+
+        function clearFilters() {
+            document.getElementById('provinsiFilter').value = '';
+            document.getElementById('kabupatenFilter').value = '';
+            document.getElementById('kecamatanFilter').value = '';
+            document.getElementById('kategoriFilter').value = '';
+            document.getElementById('subkategoriFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('sortBy').value = 'tanggal_input';
+            document.getElementById('globalSearch').value = '';
+            
+            app.loadProfilingData();
+        }
+
+        function selectAll() {
+            app.selectAll();
+        }
+
+        function clearSelection() {
+            app.clearSelection();
+        }
+
+        function autoLink() {
+            app.autoLink();
+        }
+
+        function groupAsReport() {
+            app.groupAsReport();
+        }
+
+        function previewSelected() {
+            app.previewSelected();
+        }
+
+        function exportSelected() {
+            app.showExportModal();
+        }
+    </script>
+
+    <!-- Export Modal -->
+    <div id="exportModal" class="export-modal">
+        <div class="export-modal-content">
+            <div class="export-modal-header">
+                <h3>
+                    <i class="fas fa-download icon"></i>
+                    Export Profiling Reports
+                </h3>
+                <span class="close" onclick="app.closeExportModal()">&times;</span>
+            </div>
+            <div class="export-modal-body">
+                <div class="export-options">
+                    <div class="export-option" data-type="docx" onclick="app.selectExportType('docx')">
+                        <i class="fas fa-file-word icon" style="color: #2b579a;"></i>
+                        <h4>DOCX</h4>
+                        <p>Microsoft Word Document</p>
+                    </div>
+                    <div class="export-option" data-type="pdf" onclick="app.selectExportType('pdf')">
+                        <i class="fas fa-file-pdf icon" style="color: #dc3545;"></i>
+                        <h4>PDF</h4>
+                        <p>Portable Document Format</p>
+                    </div>
+                </div>
+
+                <div class="export-settings">
+                    <h4><i class="fas fa-cog"></i> Export Settings</h4>
+                    
+                    <div class="setting-item">
+                        <label for="documentTitle"><i class="fas fa-heading"></i> Judul Dokumen:</label>
+                        <input type="text" id="documentTitle" value="PROFILING" placeholder="Masukkan judul dokumen">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="documentSubtitle"><i class="fas fa-subscript"></i> Sub Judul:</label>
+                        <input type="text" id="documentSubtitle" value="" placeholder="Masukkan sub judul (contoh: Perkebunan Sawit Ilegal, Operasi Batu Bara, dll)">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="documentLocation"><i class="fas fa-map-marker-alt"></i> Lokasi:</label>
+                        <input type="text" id="documentLocation" value="" placeholder="Masukkan lokasi (contoh: di Kabupaten Jambi, di Provinsi Kalimantan, dll)">
+                    </div>
+                    
+                    <div class="setting-item">
+                        <input type="checkbox" id="combineRecords" checked>
+                        <label for="combineRecords">Gabungkan semua record dalam satu dokumen</label>
+                    </div>
+                    <div class="setting-item">
+                        <input type="checkbox" id="includePhotos" checked>
+                        <label for="includePhotos">Sertakan foto profil</label>
+                    </div>
+                    <div class="setting-item">
+                        <input type="checkbox" id="includeAI" checked>
+                        <label for="includeAI">Sertakan analisis AI</label>
+                    </div>
+                </div>
+
+                <div class="export-preview">
+                    <h5><i class="fas fa-eye"></i> Preview Export</h5>
+                    <p id="exportPreview">Pilih format export untuk melihat preview</p>
+                </div>
+            </div>
+            <div class="export-modal-footer">
+                <div class="export-info">
+                    <i class="fas fa-info-circle icon"></i>
+                    <span id="exportInfo">0 record dipilih</span>
+                </div>
+                <div class="export-actions">
+                    <button class="btn-cancel-export" onclick="app.closeExportModal()">
+                        <i class="fas fa-times"></i> Batal
+                    </button>
+                    <button class="btn-export" id="btnExport" onclick="app.performExport()" disabled>
+                        <div class="loading-spinner" id="exportSpinner"></div>
+                        <i class="fas fa-download" id="exportIcon"></i>
+                        <span id="exportText">Export</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Export Modal Styles */
+        .export-modal {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+
+        .export-modal-content {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            margin: 5% auto;
+            padding: 0;
+            border: none;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            animation: exportModalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes exportModalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-80px) scale(0.8) rotateX(20deg);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1) rotateX(0deg);
+            }
+        }
+
+        .export-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .export-modal-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%) translateY(-100%) rotate(0deg); }
+            50% { transform: translateX(100%) translateY(100%) rotate(180deg); }
+        }
+
+        .export-modal-header h3 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .export-modal-header .icon {
+            font-size: 24px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .export-modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+            max-height: calc(90vh - 200px);
+        }
+
+        .export-modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .export-modal-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .export-modal-body::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+
+        .export-modal-body::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd8;
+        }
+
+        .export-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .export-option {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .export-option::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .export-option:hover::before {
+            left: 100%;
+        }
+
+        .export-option:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+
+        .export-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .export-option .icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .export-option h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .export-option p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .export-settings {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .export-settings h4 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+        }
+
+        .setting-item label {
+            font-size: 14px;
+            color: #495057;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .setting-item input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+        .setting-item input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .setting-item input[type="text"]::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        .export-preview {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .export-preview h5 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1976d2;
+        }
+
+        .export-preview p {
+            margin: 0;
+            font-size: 13px;
+            color: #424242;
+        }
+
+        .export-modal-footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .export-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .export-info .icon {
+            font-size: 16px;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-export:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-cancel-export {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel-export:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        /* Responsive Design for Export Modal */
+        @media (max-width: 768px) {
+            .export-modal {
+                padding: 10px;
+            }
+
+            .export-modal-content {
+                margin: 0;
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 15px;
+            }
+
+            .export-modal-body {
+                padding: 15px;
+                max-height: calc(100vh - 200px);
+            }
+
+            .export-options {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .export-option {
+                padding: 15px;
+            }
+
+            .export-option .icon {
+                font-size: 28px;
+            }
+
+            .export-option h4 {
+                font-size: 15px;
+            }
+
+            .export-option p {
+                font-size: 12px;
+            }
+
+            .export-modal-header {
+                padding: 15px 20px;
+            }
+
+            .export-modal-header h3 {
+                font-size: 18px;
+            }
+
+            .export-settings {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .export-settings h4 {
+                font-size: 15px;
+                margin-bottom: 12px;
+            }
+
+            .setting-item {
+                margin-bottom: 10px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .setting-item label {
+                font-size: 13px;
+                margin-bottom: 0;
+            }
+
+            .setting-item input[type="text"] {
+                width: 100%;
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+
+            .setting-item input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+            }
+
+            .export-preview {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+
+            .export-preview h5 {
+                font-size: 13px;
+            }
+
+            .export-preview p {
+                font-size: 12px;
+            }
+
+            .export-modal-footer {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .export-info {
+                font-size: 13px;
+                justify-content: center;
+            }
+
+            .export-actions {
+                width: 100%;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .btn-export, .btn-cancel-export {
+                flex: 1;
+                justify-content: center;
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .export-modal {
+                padding: 5px;
+            }
+
+            .export-modal-content {
+                border-radius: 12px;
+            }
+
+            .export-modal-body {
+                padding: 12px;
+                max-height: calc(100vh - 180px);
+            }
+
+            .export-options {
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .export-option {
+                padding: 12px;
+            }
+
+            .export-option .icon {
+                font-size: 24px;
+            }
+
+            .export-option h4 {
+                font-size: 14px;
+            }
+
+            .export-option p {
+                font-size: 11px;
+            }
+
+            .export-modal-header {
+                padding: 12px 15px;
+            }
+
+            .export-modal-header h3 {
+                font-size: 16px;
+            }
+
+            .export-settings {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+
+            .export-settings h4 {
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+
+            .setting-item {
+                margin-bottom: 8px;
+            }
+
+            .setting-item label {
+                font-size: 12px;
+            }
+
+            .setting-item input[type="text"] {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+
+            .setting-item input[type="checkbox"] {
+                width: 14px;
+                height: 14px;
+            }
+
+            .export-preview {
+                padding: 10px;
+                margin-bottom: 12px;
+            }
+
+            .export-preview h5 {
+                font-size: 12px;
+            }
+
+            .export-preview p {
+                font-size: 11px;
+            }
+
+            .export-modal-footer {
+                padding: 12px 15px;
+                gap: 10px;
+            }
+
+            .export-info {
+                font-size: 12px;
+            }
+
+            .export-actions {
+                gap: 8px;
+            }
+
+            .btn-export, .btn-cancel-export {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</body>
+</html>

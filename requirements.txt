@@ -1,0 +1,54 @@
+# Core Flask Framework
+flask==2.3.3
+flask-cors==4.0.0
+
+# Database
+mysql-connector-python==8.2.0
+
+# Image Processing & Computer Vision
+opencv-python==4.8.1.78
+pillow==10.0.1
+numpy<2.0.0
+face_recognition==1.3.0
+
+# AI/ML Libraries
+torch>=2.2.0
+torchvision>=0.17.0
+
+# Web Scraping & HTTP Requests
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# Document Generation
+reportlab==4.0.4
+python-docx==0.8.11
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Additional utilities (usually included with Python but good to specify)
+# These are built-in Python modules but listed for completeness:
+# - os (built-in)
+# - sys (built-in)
+# - json (built-in)
+# - time (built-in)
+# - base64 (built-in)
+# - tempfile (built-in)
+# - logging (built-in)
+# - pathlib (built-in)
+# - io (built-in)
+# - hashlib (built-in)
+# - secrets (built-in)
+# - datetime (built-in)
+# - typing (built-in)
+# - re (built-in)
+# - argparse (built-in)
+
+# Production Server (optional)
+gunicorn==21.2.0
+
+# Development Tools (optional - uncomment if needed)
+# pytest==7.4.0
+# pytest-flask==1.2.0
+# black==23.7.0
+# flake8==6.0.0

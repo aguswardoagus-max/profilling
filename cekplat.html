@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Plat No Jambi - Clearance Face Search</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            opacity: 0;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: rgba(255,255,255,0.5);
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-left-color: white;
+        }
+
+        .nav-submenu {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        .nav-submenu .menu-item {
+            padding: 10px 25px;
+            font-size: 0.9rem;
+        }
+
+        .menu-item i {
+            font-size: 1.2rem;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .menu-item span {
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .menu-item span {
+            opacity: 0;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 10px 20px;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .user-details {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .user-details {
+            opacity: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .sidebar.collapsed .logout-btn span {
+            opacity: 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+
+        .sidebar.collapsed + .main-content {
+            margin-left: 70px;
+        }
+
+        .topbar {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #667eea;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+        }
+
+        .sidebar-toggle:hover {
+            background: #f8f9ff;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 10px 15px 10px 40px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            width: 300px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .notification-btn:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Cek Plat Content */
+        .cekplat-content {
+            padding: 30px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #6b7280;
+            border: 1px solid #e1e5e9;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Search Form */
+        .search-form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #9ca3af;
+        }
+
+        .search-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Results Container */
+        .results-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .results-header {
+            padding: 25px;
+            border-bottom: 1px solid #f1f3f4;
+            background: #f8f9fa;
+        }
+
+        .results-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 5px;
+        }
+
+        .results-subtitle {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .results-content {
+            padding: 25px;
+        }
+
+        /* Data Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e1e5e9;
+        }
+
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f1f3f4;
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        /* Map Container */
+        .map-container {
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .map-placeholder {
+            height: 300px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        #map {
+            height: 300px;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .map-loading {
+            height: 300px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        /* Accuracy Info */
+        .accuracy-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .accuracy-score {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0369a1;
+            margin-bottom: 10px;
+        }
+
+        .accuracy-details {
+            font-size: 0.9rem;
+            color: #0c4a6e;
+        }
+
+        .accuracy-details ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .accuracy-details li {
+            margin-bottom: 5px;
+        }
+
+        /* Error Message */
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .topbar {
+                padding: 15px 20px;
+            }
+
+            .topbar-left h1 {
+                font-size: 1.2rem;
+            }
+
+            .search-box {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                color: #374151;
+                cursor: pointer;
+                margin-right: 15px;
+            }
+
+            .page-title {
+                font-size: 1.4rem;
+            }
+
+            .cekplat-content {
+                padding: 15px;
+                min-height: 100vh;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .page-header h2 {
+                font-size: 1.3rem;
+                margin-bottom: 8px;
+            }
+
+            .page-header p {
+                font-size: 0.9rem;
+                line-height: 1.5;
+            }
+
+            .page-actions {
+                width: 100%;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .page-actions .btn {
+                width: 100%;
+                font-size: 0.9rem;
+                padding: 12px 20px;
+                justify-content: center;
+            }
+
+            .search-form-container {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-group label {
+                font-size: 0.95rem;
+                margin-bottom: 10px;
+                font-weight: 600;
+            }
+
+            .form-group input {
+                padding: 14px 16px;
+                font-size: 0.95rem;
+                border-radius: 8px;
+                border: 2px solid #e1e5e9;
+            }
+
+            .form-group input:focus {
+                border-color: #667eea;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+
+            .search-btn {
+                padding: 14px 20px;
+                font-size: 0.95rem;
+                font-weight: 600;
+                border-radius: 10px;
+            }
+
+            .results-container {
+                margin-bottom: 20px;
+            }
+
+            .results-header {
+                padding: 20px;
+            }
+
+            .results-title {
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }
+
+            .results-subtitle {
+                font-size: 0.85rem;
+            }
+
+            .results-content {
+                padding: 20px;
+            }
+
+            .data-table {
+                font-size: 0.9rem;
+                width: 100%;
+                overflow-x: auto;
+                display: block;
+                white-space: nowrap;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 12px 8px;
+                min-width: 120px;
+            }
+
+            .data-table th:first-child,
+            .data-table td:first-child {
+                min-width: 100px;
+            }
+
+            .map-container {
+                margin-top: 15px;
+            }
+
+            #map {
+                height: 250px;
+            }
+
+            .map-placeholder {
+                height: 250px;
+                font-size: 1rem;
+            }
+
+            .accuracy-info {
+                padding: 15px;
+                margin-top: 15px;
+            }
+
+            .accuracy-score {
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+            }
+
+            .accuracy-details {
+                font-size: 0.85rem;
+            }
+
+            .accuracy-details ul {
+                margin: 8px 0;
+                padding-left: 15px;
+            }
+
+            .error-message {
+                padding: 15px;
+                margin-top: 15px;
+                font-size: 0.9rem;
+            }
+
+            .loading {
+                padding: 30px;
+            }
+
+            .spinner {
+                width: 30px;
+                height: 30px;
+                border-width: 3px;
+            }
+
+            .loading p {
+                font-size: 0.9rem;
+            }
+
+            /* Address info styling */
+            .results-content h4 {
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+
+            .results-content p {
+                font-size: 0.9rem;
+                line-height: 1.5;
+                margin-bottom: 8px;
+            }
+
+            /* Map popup styling */
+            .leaflet-popup-content {
+                font-size: 0.85rem;
+            }
+
+            .leaflet-popup-content strong {
+                font-size: 0.9rem;
+            }
+
+            .leaflet-popup-content small {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Tablet Responsive */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .search-form-container {
+                padding: 25px;
+            }
+            
+            .form-group input {
+                padding: 13px 15px;
+                font-size: 0.95rem;
+            }
+            
+            .search-btn {
+                padding: 13px 20px;
+                font-size: 0.95rem;
+            }
+            
+            .data-table {
+                font-size: 0.9rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 12px;
+            }
+            
+            #map {
+                height: 280px;
+            }
+            
+            .map-placeholder {
+                height: 280px;
+            }
+        }
+
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Toast Animations */
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="sidebar-title">Clearance Search</div>
+        </div>
+        
+        <nav class="sidebar-menu">
+            <a href="/dashboard" class="menu-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/profiling" class="menu-item">
+                <i class="fas fa-search"></i>
+                <span>Profiling</span>
+            </a>
+            <a href="/data-profiling" class="menu-item">
+                <i class="fas fa-database"></i>
+                <span>Data Profiling</span>
+            </a>
+            <a href="/cekplat" class="menu-item active">
+                <i class="fas fa-car"></i>
+                <span>Cek Plat No Jambi</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/data-cari-plat" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    <span>Data Cari Plat No</span>
+                </a>
+            </div>
+            <a href="/user-management" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <a href="/ai-features" class="menu-item">
+                <i class="fas fa-robot"></i>
+                <span>AI Features</span>
+            </a>
+            <a href="/reports" class="menu-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/reports/profiling" class="menu-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Profiling</span>
+                </a>
+            </div>
+            <a href="/settings" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Admin User</div>
+                    <div class="user-role" id="userRole">Administrator</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Cek Plat No Jambi</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Quick search..." id="globalSearch">
+                </div>
+                <button class="notification-btn">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cek Plat Content -->
+        <div class="cekplat-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div>
+                    <h2>Pencarian Data Kendaraan</h2>
+                    <p style="color: #6b7280; margin-top: 5px;">Cek informasi kendaraan berdasarkan nomor polisi Jambi</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-history"></i>
+                        Riwayat Pencarian
+                    </button>
+                    <button class="btn btn-success">
+                        <i class="fas fa-download"></i>
+                        Export Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Form -->
+            <div class="search-form-container">
+                <form id="searchForm">
+                    <div class="form-group">
+                        <label for="no_polisi">Nomor Polisi</label>
+                        <input 
+                            type="text" 
+                            id="no_polisi" 
+                            name="no_polisi" 
+                            placeholder="Masukkan nomor polisi (contoh: BH 1234 AB)" 
+                            required
+                            style="text-transform: uppercase;"
+                        >
+                    </div>
+                    <button type="submit" class="search-btn" id="searchBtn">
+                        <i class="fas fa-search"></i>
+                        Cari Data Kendaraan
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Container -->
+            <div class="results-container" id="resultsContainer" style="display: none;">
+                <div class="results-header">
+                    <h3 class="results-title">Hasil Pencarian</h3>
+                    <p class="results-subtitle" id="resultsSubtitle">Data kendaraan untuk nomor polisi</p>
+                </div>
+                <div class="results-content" id="resultsContent">
+                    <!-- Results will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Mencari data kendaraan...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        class CekPlatApp {
+            constructor() {
+                this.sidebar = document.getElementById('sidebar');
+                this.sidebarOverlay = document.getElementById('sidebarOverlay');
+                this.isSidebarCollapsed = false;
+                this.isMobile = window.innerWidth <= 768;
+                this.map = null;
+                this.currentMarker = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.checkAuth();
+                this.loadUserData();
+            }
+
+            setupEventListeners() {
+                // Search form
+                document.getElementById('searchForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleSearch();
+                });
+
+                // Global search
+                document.getElementById('globalSearch').addEventListener('input', (e) => {
+                    this.handleGlobalSearch(e.target.value);
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.isMobile = window.innerWidth <= 768;
+                    if (!this.isMobile) {
+                        this.sidebarOverlay.classList.remove('active');
+                    }
+                });
+            }
+
+            checkAuth() {
+                const token = localStorage.getItem('session_token');
+                if (!token) {
+                    window.location.href = '/login';
+                    return;
+                }
+            }
+
+            loadUserData() {
+                const userData = localStorage.getItem('user_data');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    document.getElementById('userName').textContent = user.name || 'Admin User';
+                    document.getElementById('userRole').textContent = user.role || 'Administrator';
+                    
+                    // Set menu visibility based on user role
+                    this.setMenuVisibility(user.role);
+                }
+            }
+
+            setMenuVisibility(userRole) {
+                // Hide admin-only menus for non-admin users
+                const adminOnlyMenus = ['user-management', 'settings'];
+                
+                adminOnlyMenus.forEach(menuId => {
+                    const menuElement = document.querySelector(`a[href="/${menuId}"]`);
+                    if (menuElement) {
+                        if (userRole === 'admin') {
+                            menuElement.style.display = 'flex';
+                        } else {
+                            menuElement.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            async handleSearch() {
+                const noPolisi = document.getElementById('no_polisi').value.trim().toUpperCase();
+                
+                if (!noPolisi) {
+                    this.showMessage('Nomor polisi harus diisi', 'error');
+                    return;
+                }
+
+                this.showLoading(true);
+                this.hideResults();
+
+                try {
+                    const response = await fetch('/api/cekplat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('session_token')}`
+                        },
+                        body: JSON.stringify({ no_polisi: noPolisi })
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.displayResults(result, noPolisi);
+                    } else if (response.status === 401) {
+                        localStorage.removeItem('session_token');
+                        localStorage.removeItem('user_data');
+                        window.location.href = '/login';
+                        return;
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error('Error searching:', error);
+                    this.showMessage('Error: ' + error.message, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            displayResults(data, noPolisi) {
+                const resultsContainer = document.getElementById('resultsContainer');
+                const resultsSubtitle = document.getElementById('resultsSubtitle');
+                const resultsContent = document.getElementById('resultsContent');
+
+                resultsSubtitle.textContent = `Data kendaraan untuk nomor polisi ${noPolisi}`;
+
+                if (data.error) {
+                    resultsContent.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${data.error}
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+
+                    // Table data
+                    if (data.table_data && data.table_data.length > 0) {
+                        html += `
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Informasi</th>
+                                        <th>Detail</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        data.table_data.forEach(([label, value]) => {
+                            html += `
+                                <tr>
+                                    <td><strong>${label}</strong></td>
+                                    <td>${value}</td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                </tbody>
+                            </table>
+                        `;
+                    }
+
+                    // Address and coordinates
+                    if (data.alamat) {
+                        html += `
+                            <div style="margin-top: 20px;">
+                                <h4 style="color: #374151; margin-bottom: 10px;">
+                                    <i class="fas fa-map-marker-alt"></i> Informasi Alamat
+                                </h4>
+                                <p><strong>Alamat:</strong> ${data.alamat}</p>
+                        `;
+
+                        if (data.coordinates && data.coordinates[0] && data.coordinates[1]) {
+                            html += `
+                                <p><strong>Koordinat:</strong> ${data.coordinates[0]}, ${data.coordinates[1]}</p>
+                                <div class="map-container">
+                                    <div id="map" style="height: 300px; width: 100%;"></div>
+                                </div>
+                            `;
+                        } else {
+                            html += `
+                                <div class="map-container">
+                                    <div class="map-placeholder">
+                                        <i class="fas fa-map" style="font-size: 2rem; margin-right: 10px;"></i>
+                                        Koordinat tidak tersedia
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        html += `</div>`;
+                    }
+
+                    // Accuracy information
+                    if (data.accuracy_score !== undefined && data.accuracy_details) {
+                        html += `
+                            <div class="accuracy-info">
+                                <div class="accuracy-score">
+                                    <i class="fas fa-crosshairs"></i>
+                                    Akurasi Geokoding: ${data.accuracy_score.toFixed(1)}%
+                                </div>
+                                <div class="accuracy-details">
+                                    <strong>Detail Akurasi:</strong>
+                                    <ul>
+                        `;
+
+                        data.accuracy_details.forEach(detail => {
+                            html += `<li>${detail}</li>`;
+                        });
+
+                        html += `
+                                    </ul>
+                                    <p><strong>Alamat yang Ditemukan:</strong> ${data.display_name || 'Tidak tersedia'}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    resultsContent.innerHTML = html;
+                    
+                    // Initialize map if coordinates are available
+                    if (data.coordinates && data.coordinates[0] && data.coordinates[1]) {
+                        setTimeout(() => {
+                            this.initializeMap(data.coordinates[0], data.coordinates[1], data.alamat);
+                        }, 100);
+                    }
+                }
+
+                resultsContainer.style.display = 'block';
+            }
+
+            initializeMap(lat, lon, address) {
+                try {
+                    // Remove existing map if any
+                    if (this.map) {
+                        this.map.remove();
+                        this.map = null;
+                        this.currentMarker = null;
+                    }
+
+                    // Initialize map
+                    this.map = L.map('map').setView([lat, lon], 15);
+
+                    // Add OpenStreetMap tiles
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19
+                    }).addTo(this.map);
+
+                    // Add marker
+                    const marker = L.marker([lat, lon]).addTo(this.map);
+                    
+                    // Add popup with address
+                    if (address) {
+                        marker.bindPopup(`
+                            <div style="max-width: 250px;">
+                                <strong><i class="fas fa-map-marker-alt"></i> Lokasi Kendaraan</strong><br>
+                                <small>${address}</small><br>
+                                <small><strong>Koordinat:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</small>
+                            </div>
+                        `).openPopup();
+                    }
+
+                    this.currentMarker = marker;
+
+                    // Fit map to marker with some padding
+                    this.map.fitBounds([[lat, lon]], { padding: [20, 20] });
+
+                } catch (error) {
+                    console.error('Error initializing map:', error);
+                    // Show error message in map container
+                    const mapContainer = document.getElementById('map');
+                    if (mapContainer) {
+                        mapContainer.innerHTML = `
+                            <div class="map-loading">
+                                <i class="fas fa-exclamation-triangle" style="color: #ef4444; margin-right: 10px;"></i>
+                                Error loading map
+                            </div>
+                        `;
+                    }
+                }
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                loading.style.display = show ? 'block' : 'none';
+            }
+
+            hideResults() {
+                document.getElementById('resultsContainer').style.display = 'none';
+                
+                // Clean up map
+                if (this.map) {
+                    this.map.remove();
+                    this.map = null;
+                    this.currentMarker = null;
+                }
+            }
+
+            showMessage(message, type) {
+                // Create a simple toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 20px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 600;
+                    z-index: 10000;
+                    max-width: 400px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    animation: slideIn 0.3s ease;
+                `;
+                
+                if (type === 'success') {
+                    toast.style.background = '#10b981';
+                } else if (type === 'error') {
+                    toast.style.background = '#ef4444';
+                } else {
+                    toast.style.background = '#6b7280';
+                }
+                
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }, 5000);
+            }
+
+            handleGlobalSearch(query) {
+                if (query.length > 2) {
+                    console.log('Global search for:', query);
+                    // Implement global search functionality
+                }
+            }
+        }
+
+        // Global functions
+        function toggleSidebar() {
+            const app = window.cekplatApp;
+            if (app.isMobile) {
+                app.sidebar.classList.toggle('mobile-open');
+                app.sidebarOverlay.classList.toggle('active');
+            } else {
+                app.isSidebarCollapsed = !app.isSidebarCollapsed;
+                app.sidebar.classList.toggle('collapsed');
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                window.location.href = '/login';
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            window.cekplatApp = new CekPlatApp();
+        });
+    </script>
+</body>
+</html>
