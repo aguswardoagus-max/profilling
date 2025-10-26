@@ -24,6 +24,16 @@ import requests
 # Load environment variables from .env file
 load_dotenv()
 
+# Get the directory of this file (backend/)
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory (project root)
+project_root = os.path.dirname(backend_dir)
+# Set paths for frontend files
+frontend_dir = os.path.join(project_root, 'frontend')
+frontend_pages_dir = os.path.join(frontend_dir, 'pages')
+frontend_static_dir = os.path.join(frontend_dir, 'static')
+config_dir = os.path.join(project_root, 'config')
+
 def require_auth(f):
     """Decorator to require authentication for routes"""
     @wraps(f)
@@ -487,7 +497,9 @@ FAMILY_API_BASE = config.get('FAMILY_API_BASE', 'http://10.1.54.224:4646/json/cl
 FAMILY_API_ALT = config.get('FAMILY_API_ALT', 'http://10.1.54.116:27682/api/v1/ktp/internal')
 PHONE_API_BASE = config.get('PHONE_API_BASE', 'http://10.1.54.224:4646/json/clearance/phones')
 
-app = Flask(__name__)
+app = Flask(__name__, 
+           static_folder=frontend_static_dir,
+           template_folder=frontend_pages_dir)
 app.secret_key = 'your-secret-key-change-this-in-production'
 CORS(app, origins=['*'], supports_credentials=True)
 
@@ -495,9 +507,9 @@ CORS(app, origins=['*'], supports_credentials=True)
 app.register_blueprint(cekplat_bp, url_prefix='/cekplat')
 
 # Configuration
-UPLOAD_FOLDER = Path('uploads')
-OUTPUT_FOLDER = Path('faces')
-CLEAN_PHOTOS_FOLDER = Path('static/clean_photos')
+UPLOAD_FOLDER = Path(project_root) / 'uploads'
+OUTPUT_FOLDER = Path(project_root) / 'faces'
+CLEAN_PHOTOS_FOLDER = Path(frontend_static_dir) / 'clean_photos'
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 OUTPUT_FOLDER.mkdir(exist_ok=True)
 CLEAN_PHOTOS_FOLDER.mkdir(exist_ok=True)
@@ -987,7 +999,7 @@ def export_profiling_document():
                 filename = f"PROFILING_MULTIPLE_{date_str}.{export_type}"
         
         # Create export directory
-        export_dir = Path('exports')
+        export_dir = Path(project_root) / 'exports'
         export_dir.mkdir(exist_ok=True)
         
         file_path = export_dir / filename
@@ -1044,7 +1056,7 @@ def download_profiling_file(filename):
             return jsonify({'success': False, 'error': 'Invalid file type'}), 400
         
         # Check if file exists
-        export_dir = Path('exports')
+        export_dir = Path(project_root) / 'exports'
         file_path = export_dir / filename
         
         if not file_path.exists():
@@ -2611,7 +2623,7 @@ def index():
 @app.route('/simple')
 def index_simple():
     """Serve the simple HTML page"""
-    return send_from_directory('.', 'index_simple.html')
+    return send_from_directory(frontend_pages_dir, 'index_simple.html')
 
 @app.route('/api/config')
 def api_config():
@@ -2628,13 +2640,13 @@ def api_config():
 @app.route('/login')
 def login_page():
     """Serve login page"""
-    return send_from_directory('.', 'login.html')
+    return send_from_directory(frontend_pages_dir, 'login.html')
 
 @app.route('/dashboard')
 @require_auth
 def dashboard_page():
     """Serve dashboard page"""
-    return send_from_directory('.', 'dashboard.html')
+    return send_from_directory(frontend_pages_dir, 'dashboard.html')
 
 @app.route('/api/dashboard/stats')
 def dashboard_stats():
@@ -2666,55 +2678,55 @@ def dashboard_stats():
 @require_auth
 def profiling_page():
     """Serve profiling page"""
-    return send_from_directory('.', 'profiling.html')
+    return send_from_directory(frontend_pages_dir, 'profiling.html')
 
 @app.route('/user-management')
 @require_auth
 def user_management_page():
     """Serve user management page"""
-    return send_from_directory('.', 'user_management.html')
+    return send_from_directory(frontend_pages_dir, 'user_management.html')
 
 @app.route('/data-profiling')
 @require_auth
 def data_profiling_page():
     """Serve data profiling page"""
-    return send_from_directory('.', 'data_profiling.html')
+    return send_from_directory(frontend_pages_dir, 'data_profiling.html')
 
 @app.route('/cekplat')
 @require_auth
 def cekplat_page():
     """Serve cek plat page"""
-    return send_from_directory('.', 'cekplat.html')
+    return send_from_directory(frontend_pages_dir, 'cekplat.html')
 
 @app.route('/data-cari-plat')
 @require_auth
 def data_cari_plat_page():
     """Serve data cari plat page"""
-    return send_from_directory('.', 'data_cari_plat.html')
+    return send_from_directory(frontend_pages_dir, 'data_cari_plat.html')
 
 @app.route('/ai-features')
 @require_auth
 def ai_features_page():
     """Serve AI features page"""
-    return send_from_directory('.', 'ai_features.html')
+    return send_from_directory(frontend_pages_dir, 'ai_features.html')
 
 @app.route('/reports')
 @require_auth
 def reports_page():
     """Serve reports page"""
-    return send_from_directory('.', 'reports.html')
+    return send_from_directory(frontend_pages_dir, 'reports.html')
 
 @app.route('/reports/profiling')
 @require_auth
 def reports_profiling_page():
     """Serve reports profiling page"""
-    return send_from_directory('.', 'reports_profiling.html')
+    return send_from_directory(frontend_pages_dir, 'reports_profiling.html')
 
 @app.route('/settings')
 @require_auth
 def settings_page():
     """Serve settings page"""
-    return send_from_directory('.', 'settings.html')
+    return send_from_directory(frontend_pages_dir, 'settings.html')
 
 
 @app.route('/api/login', methods=['POST'])
