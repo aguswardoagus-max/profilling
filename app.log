@@ -21648,3 +21648,5 @@
 2025-10-26 06:36:49,409 - werkzeug - INFO -  * Restarting with stat
 2025-10-26 06:36:51,215 - werkzeug - WARNING -  * Debugger is active!
 2025-10-26 06:36:51,218 - werkzeug - INFO -  * Debugger PIN: 568-076-950
+2025-10-26 06:56:33,429 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 06:56:33] "GET /dashboard HTTP/1.1" 200 -
+2025-10-26 06:56:33,807 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 06:56:33] "GET /api/dashboard/stats HTTP/1.1" 200 -

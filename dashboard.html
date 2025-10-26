@@ -1151,6 +1151,16 @@
                     cekPlatRegions,
                     recentActivities
                 });
+                
+                // Debug: Log processed chart data
+                const last7Days = this.getLast7Days();
+                const profilingData = this.processDailyData(dailyActivity, last7Days, 'profiling_searches');
+                const cekPlatData = this.processDailyData(cekPlatDaily, last7Days, 'cek_plat_searches');
+                console.log('Processed chart data:', {
+                    last7Days,
+                    profilingData,
+                    cekPlatData
+                });
 
                 // Profiling Search Types Chart (Doughnut) - dengan data real
                 const profilingCtx = document.getElementById('profilingChart').getContext('2d');
@@ -1187,10 +1197,7 @@
                 // Daily Activity Chart (Line) - dengan data real
                 const dailyCtx = document.getElementById('dailyActivityChart').getContext('2d');
                 
-                // Process daily activity data
-                const last7Days = this.getLast7Days();
-                const profilingData = this.processDailyData(dailyActivity, last7Days, 'profiling_searches');
-                const cekPlatData = this.processDailyData(cekPlatDaily, last7Days, 'cek_plat_searches');
+                // Use already processed data from above
                 
                 new Chart(dailyCtx, {
                     type: 'line',
@@ -1320,8 +1327,22 @@
             processDailyData(dailyActivity, last7Days, valueKey = 'profiling_searches') {
                 const data = new Array(7).fill(0);
                 dailyActivity.forEach(activity => {
-                    // Handle both string and Date object formats
-                    const activityDate = typeof activity.date === 'string' ? activity.date : activity.date.toISOString().split('T')[0];
+                    let activityDate;
+                    
+                    // Handle different date formats from API
+                    if (typeof activity.date === 'string') {
+                        // Handle formats like "Thu, 23 Oct 2025 00:00:00 GMT"
+                        if (activity.date.includes('GMT')) {
+                            activityDate = new Date(activity.date).toISOString().split('T')[0];
+                        } else {
+                            // Handle YYYY-MM-DD format
+                            activityDate = activity.date;
+                        }
+                    } else {
+                        // Handle Date object
+                        activityDate = activity.date.toISOString().split('T')[0];
+                    }
+                    
                     const dayIndex = last7Days.findIndex(day => day.date === activityDate);
                     if (dayIndex !== -1) {
                         data[dayIndex] = activity[valueKey] || 0;
