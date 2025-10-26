@@ -22707,3 +22707,82 @@
 2025-10-26 20:14:58,237 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:14:58] "[31m[1mGET /profiling HTTP/1.1[0m" 401 -
 2025-10-26 20:14:58,397 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:14:58] "[36mGET /login HTTP/1.1[0m" 304 -
 2025-10-26 20:14:58,755 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:14:58] "[31m[1mGET /profiling HTTP/1.1[0m" 401 -
+2025-10-26 20:33:42,130 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-10-26 20:33:42,130 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-10-26 20:33:42,138 - werkzeug - INFO -  * Restarting with stat
+2025-10-26 20:33:44,018 - werkzeug - WARNING -  * Debugger is active!
+2025-10-26 20:33:44,024 - werkzeug - INFO -  * Debugger PIN: 568-076-950
+2025-10-26 20:34:06,442 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:06] "GET /reports/profiling HTTP/1.1" 200 -
+2025-10-26 20:34:06,742 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:06] "GET /login HTTP/1.1" 200 -
+2025-10-26 20:34:08,472 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:08] "POST /api/login HTTP/1.1" 200 -
+2025-10-26 20:34:10,103 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:10] "GET /dashboard HTTP/1.1" 200 -
+2025-10-26 20:34:10,386 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:10] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:34:10,570 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:10] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 20:34:14,136 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:14] "GET /reports/profiling HTTP/1.1" 200 -
+2025-10-26 20:34:14,404 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:14] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:34:14,549 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:14] "GET /api/profiling/reports?prov=&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=&end_date=&sort_by=tanggal_input&q=&page=1&limit=20 HTTP/1.1" 200 -
+2025-10-26 20:34:19,304 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:34:19,540 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:34:19,682 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:34:19,938 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:34:19,938 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:34:19] "POST /api/profiling/preview HTTP/1.1" 200 -
+2025-10-26 20:35:22,648 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:35:22,917 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:35:23,091 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:35:23,327 - app - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 20:35:23,437 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:23] "POST /api/profiling/export HTTP/1.1" 200 -
+2025-10-26 20:35:23,674 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:23] "GET /api/profiling/download/PROFILING_MULTIPLE_2025-10-26.docx HTTP/1.1" 200 -
+2025-10-26 20:35:50,749 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:50] "GET /data-cari-plat HTTP/1.1" 200 -
+2025-10-26 20:35:51,013 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:51] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:35:51,150 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:51] "GET /api/cekplat-data-test?q=&limit=20&offset=0 HTTP/1.1" 200 -
+2025-10-26 20:35:56,014 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:56] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 20:35:56,180 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:56] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:35:56,303 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:56] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 20:35:57,231 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:57] "GET /profiling HTTP/1.1" 200 -
+2025-10-26 20:35:57,528 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:57] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:35:57,569 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:35:57] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:04,783 - app - INFO - Processing clean photo for NIK 1505041107830002 from base64 data
+2025-10-26 20:36:04,783 - app - INFO - Clean photo already exists for NIK 1505041107830002, using cached version
+2025-10-26 20:36:04,783 - app - INFO - Successfully added clean photo URL for NIK 1505041107830002: /static/clean_photos/1505041107830002.jpg
+2025-10-26 20:36:04,815 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:04] "POST /api/search HTTP/1.1" 200 -
+2025-10-26 20:36:13,437 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:13] "[33mPOST /api/ai/suggestions HTTP/1.1[0m" 404 -
+2025-10-26 20:36:13,527 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:13] "[33mPOST /api/ai/analysis HTTP/1.1[0m" 404 -
+2025-10-26 20:36:16,875 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:16] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 20:36:17,046 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:17] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:17,183 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:17] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 20:36:24,474 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:24] "GET /data-profiling HTTP/1.1" 200 -
+2025-10-26 20:36:25,391 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:25] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:25,769 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:25] "GET /api/profiling-data HTTP/1.1" 200 -
+2025-10-26 20:36:27,683 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:27] "[36mGET /data-cari-plat HTTP/1.1[0m" 304 -
+2025-10-26 20:36:28,007 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:28] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:28,130 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:28] "GET /api/cekplat-data-test?q=&limit=20&offset=0 HTTP/1.1" 200 -
+2025-10-26 20:36:29,581 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:29] "GET /cekplat HTTP/1.1" 200 -
+2025-10-26 20:36:29,842 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:29] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:31,457 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:31] "GET /data-profiling HTTP/1.1" 200 -
+2025-10-26 20:36:31,799 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:31] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:31,970 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:31] "GET /api/profiling-data HTTP/1.1" 200 -
+2025-10-26 20:36:39,478 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:39] "[36mGET /data-cari-plat HTTP/1.1[0m" 304 -
+2025-10-26 20:36:39,616 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:39] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:36:39,756 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:39] "GET /api/cekplat-data-test?q=&limit=20&offset=0 HTTP/1.1" 200 -
+2025-10-26 20:36:44,970 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:44] "DELETE /api/cekplat-data/20 HTTP/1.1" 200 -
+2025-10-26 20:36:46,662 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:36:46] "GET /api/cekplat-data-test?q=&limit=20&offset=0 HTTP/1.1" 200 -
+2025-10-26 20:37:15,367 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:15] "GET /dashboard HTTP/1.1" 200 -
+2025-10-26 20:37:15,640 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:15] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:37:15,753 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:15] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 20:37:43,646 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:43] "[36mGET /login HTTP/1.1[0m" 304 -
+2025-10-26 20:37:45,125 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:45] "POST /api/login HTTP/1.1" 200 -
+2025-10-26 20:37:46,807 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:46] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 20:37:47,032 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:47] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:37:47,174 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:47] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 20:37:53,836 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:53] "[36mGET /login HTTP/1.1[0m" 304 -
+2025-10-26 20:37:59,756 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:37:59] "POST /api/login HTTP/1.1" 200 -
+2025-10-26 20:38:01,385 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:01] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 20:38:01,581 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:01] "POST /api/validate-session HTTP/1.1" 200 -
+2025-10-26 20:38:01,667 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:01] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-10-26 20:38:01,793 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:01] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 20:38:04,715 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:04] "[36mGET /login HTTP/1.1[0m" 304 -
+2025-10-26 20:38:10,521 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:10] "[36mGET /data-profiling HTTP/1.1[0m" 304 -
+2025-10-26 20:38:10,761 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:10] "[36mGET /login HTTP/1.1[0m" 304 -
+2025-10-26 20:38:19,176 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:19] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 20:38:19,398 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 20:38:19] "GET /login HTTP/1.1" 200 -
