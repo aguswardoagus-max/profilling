@@ -2617,18 +2617,7 @@ def enrich_person_data(person, token=None):
 
 @app.route('/')
 def index():
-    """Redirect to appropriate page based on authentication status"""
-    # Check if user is already authenticated
-    session_token = request.cookies.get('session_token')
-    
-    if session_token:
-        # Validate session token
-        user = validate_session_token(session_token)
-        if user:
-            # User is already logged in, redirect to dashboard
-            return redirect('/dashboard')
-    
-    # User is not logged in, redirect to login
+    """Redirect to login page"""
     return redirect('/login')
 
 @app.route('/simple')
@@ -2650,8 +2639,8 @@ def api_config():
 # Authentication routes
 @app.route('/login')
 def login_page():
-    """Serve login page"""
-    # Check if user is already authenticated
+    """Serve login page - redirect to dashboard if already logged in"""
+    # Check if user is already logged in
     session_token = request.cookies.get('session_token')
     
     if session_token:
@@ -2661,6 +2650,7 @@ def login_page():
             # User is already logged in, redirect to dashboard
             return redirect('/dashboard')
     
+    # User is not logged in, serve login page
     return send_from_directory(frontend_pages_dir, 'login.html')
 
 @app.route('/dashboard')
