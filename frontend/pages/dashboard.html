@@ -1053,26 +1053,53 @@
             
             if (!sessionToken) {
                 console.log('No session token found, redirecting to login');
-                window.location.href = '/login';
+                // Clear any corrupted data first
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                sessionStorage.clear();
+                // Use replace to prevent back button issues
+                window.location.replace('/login');
+                return false;
+            }
+            
+            // Check if session token is valid format
+            if (sessionToken.length < 10) {
+                console.log('Invalid session token format, clearing and redirecting to login');
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                sessionStorage.clear();
+                window.location.replace('/login');
                 return false;
             }
             
             try {
-                const response = await fetch('/api/validate-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ session_token: sessionToken })
+                console.log('Validating session token...');
+                // Use the simpler check-auth endpoint
+                const response = await fetch('/api/check-auth', {
+                    method: 'GET',
+                    credentials: 'include'
                 });
                 
-                const data = await response.json();
+                console.log('Response status:', response.status);
                 
-                if (!data.valid) {
+                if (!response.ok) {
+                    console.log('Session validation failed with status:', response.status);
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    sessionStorage.clear();
+                    window.location.replace('/login');
+                    return false;
+                }
+                
+                const data = await response.json();
+                console.log('Session validation response:', data);
+                
+                if (!data.authenticated) {
                     console.log('Invalid session token, redirecting to login');
                     localStorage.removeItem('session_token');
                     localStorage.removeItem('user_data');
-                    window.location.href = '/login';
+                    sessionStorage.clear();
+                    window.location.replace('/login');
                     return false;
                 }
                 
@@ -1082,9 +1109,11 @@
                 return true;
             } catch (error) {
                 console.error('Authentication check failed:', error);
+                // Clear session data and redirect
                 localStorage.removeItem('session_token');
                 localStorage.removeItem('user_data');
-                window.location.href = '/login';
+                sessionStorage.clear();
+                window.location.replace('/login');
                 return false;
             }
         }
@@ -1100,16 +1129,34 @@
             }
             
             async init() {
-                // Check authentication first
-                const isAuthenticated = await checkAuthentication();
-                if (!isAuthenticated) {
-                    return; // Stop initialization if not authenticated
-                }
+                // Add timeout to prevent infinite loading
+                const authTimeout = setTimeout(() => {
+                    console.error('Authentication timeout, redirecting to login');
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                }, 10000); // 10 second timeout
                 
-                this.setupEventListeners();
-                this.loadUserData();
-                this.loadDashboardData();
-                this.checkAuth();
+                try {
+                    // Check authentication first
+                    const isAuthenticated = await checkAuthentication();
+                    clearTimeout(authTimeout);
+                    
+                    if (!isAuthenticated) {
+                        return; // Stop initialization if not authenticated
+                    }
+                    
+                    this.setupEventListeners();
+                    this.loadUserData();
+                    this.loadDashboardData();
+                    this.checkAuth();
+                } catch (error) {
+                    clearTimeout(authTimeout);
+                    console.error('Dashboard initialization failed:', error);
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                }
             }
 
             setupEventListeners() {
@@ -1529,13 +1576,49 @@
                     // Always clear local storage and redirect
                     localStorage.removeItem('session_token');
                     localStorage.removeItem('user_data');
-                    window.location.href = '/login';
+                    sessionStorage.clear();
+                    // Use server-side logout to ensure proper session cleanup
+                    window.location.href = '/logout';
                 }
             }
         }
 
+        // Clear corrupted session data
+        function clearSessionData() {
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('user_data');
+            sessionStorage.clear();
+        }
+
+        // Check for redirect loop prevention
+        function checkRedirectLoop() {
+            const redirectCount = sessionStorage.getItem('redirect_count') || 0;
+            if (redirectCount > 3) {
+                console.log('Redirect loop detected, clearing all data and stopping');
+                clearSessionData();
+                alert('Terjadi masalah dengan autentikasi. Silakan login ulang.');
+                return false;
+            }
+            sessionStorage.setItem('redirect_count', parseInt(redirectCount) + 1);
+            return true;
+        }
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
+            // Check for redirect loop first
+            if (!checkRedirectLoop()) {
+                return;
+            }
+            
+            // Clear any potentially corrupted session data first
+            const sessionToken = localStorage.getItem('session_token');
+            if (sessionToken && sessionToken.length < 10) {
+                console.log('Detected corrupted session token, clearing...');
+                clearSessionData();
+                window.location.replace('/login');
+                return;
+            }
+            
             window.dashboardApp = new DashboardApp();
         });
     </script>

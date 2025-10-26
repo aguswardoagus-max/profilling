@@ -502,6 +502,12 @@ app = Flask(__name__,
            static_folder=frontend_static_dir,
            template_folder=frontend_pages_dir)
 app.secret_key = 'your-secret-key-change-this-in-production'
+
+# Session configuration
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['REMEMBER_COOKIE_SECURE'] = False
+
 CORS(app, origins=['*'], supports_credentials=True)
 
 # Register blueprints
@@ -2642,14 +2648,15 @@ def api_config():
 @app.route('/login')
 def login_page():
     """Serve login page - redirect to dashboard if already logged in"""
-    # Check if user is already logged in
+    # Check if user is already logged in via cookie
     session_token = request.cookies.get('session_token')
     
     if session_token:
-        # Validate session token
+        # Validate session token server-side
         user = validate_session_token(session_token)
         if user:
             # User is already logged in, redirect to dashboard
+            print(f"User {user.get('username', 'Unknown')} already logged in, redirecting to dashboard")
             return redirect('/dashboard')
     
     # User is not logged in, serve login page
@@ -2803,24 +2810,138 @@ def api_logout():
     except Exception as e:
         return jsonify({'error': f'Logout error: {str(e)}'}), 500
 
+@app.route('/logout')
+def logout_page():
+    """Logout page - clear session and redirect to login"""
+    try:
+        # Get session token from cookie
+        session_token = request.cookies.get('session_token')
+        
+        if session_token:
+            # Logout user
+            logout_user(session_token)
+            print(f"User logged out via logout page")
+        
+        # Create response that redirects to login
+        response = redirect('/login')
+        
+        # Clear the session token cookie
+        response.set_cookie('session_token', '', expires=0)
+        
+        return response
+    except Exception as e:
+        print(f"Logout error: {e}")
+        # Even if there's an error, redirect to login
+        response = redirect('/login')
+        response.set_cookie('session_token', '', expires=0)
+        return response
+
 @app.route('/api/validate-session', methods=['POST'])
 def api_validate_session():
     """API endpoint untuk validasi session"""
     try:
         data = request.get_json()
+        if not data:
+            print("No JSON data received in validate-session")
+            return jsonify({'valid': False, 'error': 'No data provided'}), 400
+            
         session_token = data.get('session_token')
+        print(f"Validating session token: {session_token[:10] if session_token else 'None'}...")
         
         if not session_token:
-            return jsonify({'valid': False}), 400
+            print("No session token provided")
+            return jsonify({'valid': False, 'error': 'No session token provided'}), 400
         
         user = validate_session_token(session_token)
         if user:
+            print(f"Session validation successful for user: {user.get('username', 'Unknown')}")
             return jsonify({'valid': True, 'user': user})
         else:
-            return jsonify({'valid': False}), 401
+            print("Session validation failed - invalid or expired token")
+            return jsonify({'valid': False, 'error': 'Invalid or expired session'}), 401
             
     except Exception as e:
-        return jsonify({'error': f'Session validation error: {str(e)}'}), 500
+        print(f"Session validation error: {str(e)}")
+        return jsonify({'valid': False, 'error': f'Session validation error: {str(e)}'}), 500
+
+@app.route('/api/debug/session-status', methods=['GET'])
+def debug_session_status():
+    """Debug endpoint to check session status"""
+    try:
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not session_token:
+            session_token = request.cookies.get('session_token')
+        
+        if not session_token:
+            return jsonify({
+                'has_token': False,
+                'message': 'No session token found'
+            })
+        
+        user = validate_session_token(session_token)
+        return jsonify({
+            'has_token': True,
+            'token_preview': session_token[:10] + '...',
+            'is_valid': user is not None,
+            'user': user if user else None
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'has_token': False
+        })
+
+@app.route('/api/check-auth', methods=['GET'])
+def check_auth_status():
+    """Check authentication status without redirect"""
+    try:
+        session_token = request.cookies.get('session_token')
+        if not session_token:
+            return jsonify({'authenticated': False, 'message': 'No session token'})
+        
+        user = validate_session_token(session_token)
+        if user:
+            return jsonify({'authenticated': True, 'user': user})
+        else:
+            return jsonify({'authenticated': False, 'message': 'Invalid session'})
+    except Exception as e:
+        return jsonify({'authenticated': False, 'error': str(e)})
+
+@app.route('/api/auth-status', methods=['GET'])
+def auth_status():
+    """Get current authentication status for debugging"""
+    try:
+        session_token = request.cookies.get('session_token')
+        if not session_token:
+            return jsonify({
+                'authenticated': False,
+                'has_cookie': False,
+                'message': 'No session token in cookies'
+            })
+        
+        user = validate_session_token(session_token)
+        if user:
+            return jsonify({
+                'authenticated': True,
+                'has_cookie': True,
+                'user': {
+                    'id': user.get('id'),
+                    'username': user.get('username'),
+                    'role': user.get('role')
+                }
+            })
+        else:
+            return jsonify({
+                'authenticated': False,
+                'has_cookie': True,
+                'message': 'Invalid or expired session token'
+            })
+    except Exception as e:
+        return jsonify({
+            'authenticated': False,
+            'has_cookie': bool(request.cookies.get('session_token')),
+            'error': str(e)
+        })
 
 @app.route('/api/users', methods=['GET'])
 def api_get_users():

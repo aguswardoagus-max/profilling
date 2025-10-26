@@ -1052,45 +1052,36 @@
 
         // Check if user is already logged in
         async function checkExistingSession() {
-            const sessionToken = localStorage.getItem('session_token');
-            
-            if (!sessionToken) {
-                return false; // No session, allow login
-            }
-            
-            try {
-                const response = await fetch('/api/validate-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ session_token: sessionToken })
-                });
-                
-                const data = await response.json();
-                
-                if (data.valid) {
-                    // User is already logged in, redirect to dashboard
-                    console.log('User already logged in, redirecting to dashboard...');
-                    window.location.href = '/dashboard';
-                    return true;
-                } else {
-                    // Invalid session, clear it and allow login
-                    localStorage.removeItem('session_token');
-                    localStorage.removeItem('user_data');
-                    return false;
-                }
-            } catch (error) {
-                console.error('Error checking existing session:', error);
-                // On error, clear session and allow login
+            // Server-side authentication check is now handled by the backend
+            // This function is kept for compatibility but simplified
+            console.log('Login page loaded - server will handle authentication check');
+            return false; // Always allow login page to load, server will redirect if needed
+        }
+
+        // Check for redirect loop prevention
+        function checkRedirectLoop() {
+            const redirectCount = sessionStorage.getItem('redirect_count') || 0;
+            if (redirectCount > 3) {
+                console.log('Redirect loop detected, clearing all data and stopping');
                 localStorage.removeItem('session_token');
                 localStorage.removeItem('user_data');
+                sessionStorage.clear();
+                alert('Terjadi masalah dengan autentikasi. Silakan refresh halaman dan login ulang.');
                 return false;
             }
+            return true;
         }
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', async () => {
+            // Check for redirect loop first
+            if (!checkRedirectLoop()) {
+                return;
+            }
+            
+            // Reset redirect count on successful page load
+            sessionStorage.setItem('redirect_count', '0');
+            
             // Check if user is already logged in first
             const isLoggedIn = await checkExistingSession();
             

@@ -14,6 +14,7 @@ face_recognition==1.3.0
 # AI/ML Libraries
 torch>=2.2.0
 torchvision>=0.17.0
+pytesseract>=0.3.10
 
 # Web Scraping & HTTP Requests
 requests==2.31.0

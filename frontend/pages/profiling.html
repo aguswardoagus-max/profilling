@@ -931,8 +931,31 @@
             border: 2px solid #e1e5e9;
         }
 
+        .ai-result-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            border: 2px solid #e1e5e9;
+        }
+
         .ai-result-info {
             flex: 1;
+        }
+
+        .source-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
         }
 
         .ai-result-info h5 {
@@ -4233,35 +4256,45 @@
 
                 try {
                     // Show loading state
-                    this.showMessage('AI sedang menganalisis foto...', 'info');
+                    this.showMessage('OCR sedang membaca NIK dari foto...', 'info');
                     
                     // Convert file to base64
                     const base64 = await this.fileToBase64(file);
                     
-                    // Call AI face analysis API
-                    const response = await fetch('/api/ai/face-to-nik', {
+                    // Call OCR NIK extraction API
+                    const response = await fetch('/api/ai/ocr-nik', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${localStorage.getItem('session_token')}`
                         },
                         body: JSON.stringify({
-                            image: base64,
-                            threshold: 50 // Default threshold
+                            image_data: base64
                         })
                     });
 
                     if (response.ok) {
                         const data = await response.json();
-                        this.identityFaceResults = data.results || [];
-                        this.renderIdentityResults();
-                        this.showMessage(`AI menemukan ${this.identityFaceResults.length} kemungkinan identitas`, 'success');
+                        if (data.success) {
+                            // Convert OCR results to the expected format
+                            this.identityFaceResults = data.data.nik_candidates.map(candidate => ({
+                                nik: candidate.nik,
+                                name: candidate.name || 'Nama tidak terdeteksi',
+                                confidence: candidate.confidence,
+                                source: 'ocr'
+                            }));
+                            
+                            this.renderIdentityResults();
+                            this.showMessage(`OCR menemukan ${this.identityFaceResults.length} NIK dari foto`, 'success');
+                        } else {
+                            throw new Error(data.error || 'OCR extraction failed');
+                        }
                     } else {
-                        throw new Error('AI analysis failed');
+                        throw new Error('OCR analysis failed');
                     }
                 } catch (error) {
-                    console.error('Error in identity face upload:', error);
-                    this.showMessage('Error saat menganalisis foto', 'error');
+                    console.error('Error in OCR NIK extraction:', error);
+                    this.showMessage('Error saat membaca NIK dari foto', 'error');
                 }
             }
 
@@ -4270,7 +4303,7 @@
                 const resultsPanel = document.getElementById('identityResultsPanel');
                 
                 if (this.identityFaceResults.length === 0) {
-                    resultsList.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">Tidak ada hasil yang ditemukan</p>';
+                    resultsList.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">Tidak ada NIK yang ditemukan dalam foto</p>';
                     resultsPanel.classList.add('active');
                     return;
                 }
@@ -4278,17 +4311,20 @@
                 resultsList.innerHTML = this.identityFaceResults.map((result, index) => {
                     const confidenceClass = this.getConfidenceClass(result.confidence);
                     const isSelected = index === 0; // Auto-select highest confidence
+                    const sourceIcon = result.source === 'ocr' ? 'fas fa-eye' : 'fas fa-user';
+                    const sourceText = result.source === 'ocr' ? 'OCR' : 'AI';
                     
                     return `
                         <div class="ai-result-item ${isSelected ? 'selected' : ''}" 
                              onclick="selectIdentityResult(${index})" 
                              data-nik="${result.nik}">
-                            <img src="${result.photo_url || '/static/default-avatar.png'}" 
-                                 alt="${result.name}" 
-                                 onerror="this.src='/static/default-avatar.png'">
+                            <div class="ai-result-icon">
+                                <i class="${sourceIcon}"></i>
+                            </div>
                             <div class="ai-result-info">
-                                <h5>${result.name || 'N/A'}</h5>
+                                <h5>${result.name || 'Nama tidak terdeteksi'}</h5>
                                 <p>NIK: ${result.nik}</p>
+                                <small class="source-badge">${sourceText}</small>
                             </div>
                             <div class="confidence-score ${confidenceClass}">
                                 ${result.confidence}%

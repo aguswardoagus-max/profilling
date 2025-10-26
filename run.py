@@ -12,15 +12,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 # Import and run the Flask app
 from app import app
 
+
+
 if __name__ == '__main__':
-    print("🚀 Starting Clearance Face Search Application...")
-    print("📁 Backend: ./backend/")
-    print("🎨 Frontend: ./frontend/")
-    print("⚙️  Config: ./config/")
-    print("🌐 Server: http://127.0.0.1:5000")
-    print("🔒 Authentication: Enabled")
-    print("🤖 AI Features: Ready")
-    print("📊 Reports: Available")
+    print("Starting Clearance Face Search Application...")
+    print("Backend: ./backend/")
+    print("Frontend: ./frontend/")
+    print("Config: ./config/")
+    print("Server: http://127.0.0.1:5000")
+    print("Authentication: Enabled")
+    print("AI Features: Ready")
+    print("Reports: Available")
     print("-" * 50)
     
     app.run(

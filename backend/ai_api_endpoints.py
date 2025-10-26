@@ -301,7 +301,7 @@ def ocr_extract():
         
         image_bytes = base64.b64decode(image_data)
         
-        # Extract text using OCR (placeholder implementation)
+        # Extract text using OCR
         extracted_text = extract_text_from_image(image_bytes)
         
         return jsonify({
@@ -316,6 +316,65 @@ def ocr_extract():
         
     except Exception as e:
         logger.error(f"Error in OCR extraction: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@ai_bp.route('/ocr-nik', methods=['POST'])
+def ocr_extract_nik():
+    """OCR NIK extraction endpoint - specifically for extracting NIK from ID photos"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('image_data'):
+            return jsonify({
+                'success': False,
+                'error': 'Image data is required'
+            }), 400
+        
+        # Decode base64 image
+        image_data = data['image_data']
+        if image_data.startswith('data:'):
+            image_data = image_data.split(',', 1)[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        
+        # Extract text using OCR
+        extracted_text = extract_text_from_image(image_bytes)
+        
+        # Extract NIK numbers from the text
+        nik_candidates = extract_nik_from_text(extracted_text)
+        
+        # Extract name from the text
+        extracted_name = extract_name_from_text(extracted_text)
+        
+        # Create results with confidence scores
+        results = []
+        for i, nik in enumerate(nik_candidates):
+            # Calculate confidence based on position and NIK validity
+            confidence = 90 - (i * 10)  # First NIK gets highest confidence
+            results.append({
+                'nik': nik,
+                'name': extracted_name if i == 0 else '',  # Only first result gets name
+                'confidence': max(confidence, 50),  # Minimum 50% confidence
+                'source': 'ocr'
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'extracted_text': extracted_text,
+                'nik_candidates': results,
+                'total_found': len(results),
+                'extracted_name': extracted_name
+            },
+            'message': f'OCR NIK extraction completed. Found {len(results)} NIK candidates.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in OCR NIK extraction: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -391,14 +450,66 @@ def generate_chatbot_response(message: str, user_id: int = None) -> str:
         return "Terima kasih atas pertanyaan Anda. Saya adalah asisten AI untuk sistem Clearance Face Search. Bagaimana saya bisa membantu Anda hari ini?"
 
 def extract_text_from_image(image_bytes: bytes) -> str:
-    """Extract text from image using OCR (placeholder implementation)"""
+    """Extract text from image using OCR with pytesseract"""
     try:
-        # This would use pytesseract or easyocr in real implementation
-        # For now, return placeholder text
-        return "Text extraction from image (OCR implementation required)"
+        import pytesseract
+        from PIL import Image
+        import io
+        import re
+        
+        # Convert bytes to PIL Image
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Configure tesseract for better NIK recognition
+        # Use Indonesian language if available, otherwise use English
+        try:
+            # Try Indonesian first
+            text = pytesseract.image_to_string(image, lang='ind', config='--psm 6 --oem 3')
+        except:
+            # Fallback to English
+            text = pytesseract.image_to_string(image, lang='eng', config='--psm 6 --oem 3')
+        
+        return text.strip()
     except Exception as e:
         logger.error(f"Error in OCR extraction: {e}")
         return "Error extracting text from image"
+
+def extract_nik_from_text(text: str) -> list:
+    """Extract NIK numbers from OCR text"""
+    import re
+    
+    # NIK pattern: 16 digits
+    nik_pattern = r'\b\d{16}\b'
+    
+    # Find all NIK matches
+    nik_matches = re.findall(nik_pattern, text)
+    
+    # Remove duplicates while preserving order
+    unique_niks = []
+    for nik in nik_matches:
+        if nik not in unique_niks:
+            unique_niks.append(nik)
+    
+    return unique_niks
+
+def extract_name_from_text(text: str) -> str:
+    """Extract name from OCR text (look for common name patterns)"""
+    import re
+    
+    # Look for text that might be a name (2-3 words, starting with capital letters)
+    # This is a simple heuristic - could be improved with more sophisticated NLP
+    name_patterns = [
+        r'\b[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+\b',  # 3 words
+        r'\b[A-Z][a-z]+ [A-Z][a-z]+\b',  # 2 words
+    ]
+    
+    for pattern in name_patterns:
+        matches = re.findall(pattern, text)
+        if matches:
+            # Return the first match that looks like a name
+            return matches[0]
+    
+    return ""
 
 def speech_to_text(audio_bytes: bytes) -> str:
     """Convert speech to text (placeholder implementation)"""
