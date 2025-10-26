@@ -1072,8 +1072,31 @@
             return true;
         }
 
+        // Global configuration
+        let appConfig = {
+            baseUrl: window.location.origin,
+            apiBase: window.location.origin + '/api'
+        };
+
+        // Load frontend configuration
+        async function loadFrontendConfig() {
+            try {
+                const response = await fetch('/api/frontend-config');
+                if (response.ok) {
+                    const config = await response.json();
+                    appConfig = { ...appConfig, ...config };
+                    console.log('Frontend config loaded:', appConfig);
+                }
+            } catch (error) {
+                console.log('Using default config:', appConfig);
+            }
+        }
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', async () => {
+            // Load configuration first
+            await loadFrontendConfig();
+            
             // Check for redirect loop first
             if (!checkRedirectLoop()) {
                 return;

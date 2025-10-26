@@ -503,12 +503,55 @@ app = Flask(__name__,
            template_folder=frontend_pages_dir)
 app.secret_key = 'your-secret-key-change-this-in-production'
 
-# Session configuration
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False
-app.config['REMEMBER_COOKIE_SECURE'] = False
+# Session configuration - dynamic based on environment
+import os
+is_production = os.getenv('FLASK_ENV') == 'production'
+is_https = os.getenv('HTTPS') == 'true' or 'https' in os.getenv('BASE_URL', '')
 
-CORS(app, origins=['*'], supports_credentials=True)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = is_https
+app.config['REMEMBER_COOKIE_SECURE'] = is_https
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow all domains
+
+# CORS configuration - support multiple domains
+allowed_origins = [
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://localhost:5000',
+    'https://127.0.0.1:5000'
+]
+
+# Add custom domains from environment
+custom_domains = os.getenv('ALLOWED_ORIGINS', '').split(',')
+for domain in custom_domains:
+    if domain.strip():
+        allowed_origins.append(domain.strip())
+
+# Add current domain if running on server
+base_url = os.getenv('BASE_URL', '')
+if base_url:
+    allowed_origins.append(base_url)
+    # Add HTTP and HTTPS versions
+    if base_url.startswith('http://'):
+        allowed_origins.append(base_url.replace('http://', 'https://'))
+    elif base_url.startswith('https://'):
+        allowed_origins.append(base_url.replace('https://', 'http://'))
+
+CORS(app, origins=allowed_origins, supports_credentials=True, allow_headers=['Content-Type', 'Authorization'])
+
+# Helper function to get base URL dynamically
+def get_base_url():
+    """Get the base URL dynamically based on request"""
+    if request.is_secure:
+        protocol = 'https'
+    else:
+        protocol = 'http'
+    
+    host = request.host
+    return f"{protocol}://{host}"
 
 # Register blueprints
 app.register_blueprint(cekplat_bp, url_prefix='/cekplat')
@@ -2642,6 +2685,18 @@ def api_config():
         'family_api_base': FAMILY_API_BASE,
         'family_api_alt': FAMILY_API_ALT,
         'phone_api_base': PHONE_API_BASE
+    })
+
+@app.route('/api/frontend-config', methods=['GET'])
+def get_frontend_config():
+    """API endpoint untuk mendapatkan konfigurasi frontend"""
+    base_url = get_base_url()
+    return jsonify({
+        'base_url': base_url,
+        'api_base': f"{base_url}/api",
+        'is_https': request.is_secure,
+        'host': request.host,
+        'allowed_origins': allowed_origins
     })
 
 # Authentication routes

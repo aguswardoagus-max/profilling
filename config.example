@@ -1,0 +1,27 @@
+# Environment Configuration Example
+# Copy this file to .env and modify as needed
+
+# Environment
+FLASK_ENV=development
+HTTPS=false
+BASE_URL=http://localhost:5000
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=clearance_facesearch
+
+# Allowed Origins (comma-separated)
+ALLOWED_ORIGINS=http://localhost:5000,http://127.0.0.1:5000,https://yourdomain.com
+
+# API Configuration
+CLEARANCE_USERNAME=rezarios
+CLEARANCE_PASSWORD=12345678
+FAMILY_API_BASE=http://10.1.54.224:4646/json/clearance/dukcapil/family
+FAMILY_API_ALT=http://10.1.54.116:27682/api/v1/ktp/internal
+PHONE_API_BASE=http://10.1.54.224:4646/json/clearance/phones
+
+# AI Configuration
+GEMINI_API_KEY=your_gemini_api_key_here
