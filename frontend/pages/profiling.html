@@ -4389,11 +4389,27 @@
             }
         }
 
-        function logout() {
+        async function logout() {
             if (confirm('Are you sure you want to logout?')) {
-                localStorage.removeItem('session_token');
-                localStorage.removeItem('user_data');
-                window.location.href = '/login';
+                try {
+                    const token = localStorage.getItem('session_token');
+                    if (token) {
+                        await fetch('/api/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ session_token: token })
+                        });
+                    }
+                } catch (error) {
+                    console.error('Logout API error:', error);
+                } finally {
+                    // Always clear local storage and redirect
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                }
             }
         }
 

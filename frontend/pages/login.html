@@ -1050,12 +1050,57 @@
             }
         }
 
+        // Check if user is already logged in
+        async function checkExistingSession() {
+            const sessionToken = localStorage.getItem('session_token');
+            
+            if (!sessionToken) {
+                return false; // No session, allow login
+            }
+            
+            try {
+                const response = await fetch('/api/validate-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ session_token: sessionToken })
+                });
+                
+                const data = await response.json();
+                
+                if (data.valid) {
+                    // User is already logged in, redirect to dashboard
+                    console.log('User already logged in, redirecting to dashboard...');
+                    window.location.href = '/dashboard';
+                    return true;
+                } else {
+                    // Invalid session, clear it and allow login
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error checking existing session:', error);
+                // On error, clear session and allow login
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                return false;
+            }
+        }
+
         // Initialize app
-        document.addEventListener('DOMContentLoaded', () => {
-            new LoginApp();
-            new ParticleSystem();
-            new MouseTracker(document.querySelector('.login-container'));
-            setCurrentYear(); // Set current year automatically
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if user is already logged in first
+            const isLoggedIn = await checkExistingSession();
+            
+            if (!isLoggedIn) {
+                // Only initialize login components if user is not logged in
+                new LoginApp();
+                new ParticleSystem();
+                new MouseTracker(document.querySelector('.login-container'));
+                setCurrentYear(); // Set current year automatically
+            }
         });
     </script>
 </body>
