@@ -693,6 +693,97 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Pagination */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-top: 1px solid #e1e5e9;
+            background: #f8f9fa;
+            border-radius: 0 0 15px 15px;
+        }
+
+        .pagination-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-btn {
+            background: white;
+            border: 2px solid #e1e5e9;
+            color: #6b7280;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 40px;
+            justify-content: center;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            border-color: #667eea;
+            color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pagination-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            color: white;
+        }
+
+        .pagination-pages {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .page-size-selector select {
+            padding: 6px 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .page-size-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .sidebar {
@@ -876,6 +967,46 @@
             .preview-document {
                 font-size: 11px;
                 padding: 15px;
+            }
+
+            /* Mobile Pagination */
+            .pagination-container {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px 20px;
+            }
+
+            .pagination-info {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .pagination-controls {
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .pagination-btn {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+                min-width: 35px;
+            }
+
+            .pagination-pages {
+                gap: 3px;
+            }
+
+            .page-size-selector {
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+            }
+
+            .page-size-selector select {
+                padding: 5px 8px;
+                font-size: 0.8rem;
             }
         }
 
@@ -1348,6 +1479,40 @@
                         <!-- Results will be populated here -->
                     </div>
                 </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-container" id="paginationContainer" style="display: none;">
+                    <div class="pagination-info">
+                        <span id="paginationInfo">Showing 0 to 0 of 0 entries</span>
+                        <div class="page-size-selector">
+                            <label for="pageSize">Show:</label>
+                            <select id="pageSize" onchange="app.changePageSize(this.value)">
+                                <option value="10">10</option>
+                                <option value="20" selected>20</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" id="firstPage" onclick="app.goToPage(1)" disabled>
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                        <button class="pagination-btn" id="prevPage" onclick="app.goToPreviousPage()" disabled>
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                        <div class="pagination-pages" id="paginationPages">
+                            <!-- Page numbers will be generated here -->
+                        </div>
+                        <button class="pagination-btn" id="nextPage" onclick="app.goToNextPage()" disabled>
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                        <button class="pagination-btn" id="lastPage" onclick="app.goToLastPage()" disabled>
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Panel - Preview -->
@@ -1407,6 +1572,12 @@
                 this.isMobile = window.innerWidth <= 768;
                 this.selectedRecords = new Set();
                 this.currentData = [];
+                
+                // Pagination properties
+                this.currentPage = 1;
+                this.pageSize = 20;
+                this.totalRecords = 0;
+                this.totalPages = 0;
                 
                 this.init();
             }
@@ -1488,6 +1659,10 @@
                     }
 
                     const filters = this.getCurrentFilters();
+                    // Add pagination parameters
+                    filters.page = this.currentPage;
+                    filters.limit = this.pageSize;
+                    
                     console.log('Current filters:', filters);
                     const queryParams = new URLSearchParams(filters);
                     console.log('Query params:', queryParams.toString());
@@ -1510,17 +1685,26 @@
                     
                     if (result.success) {
                         this.currentData = result.data;
+                        this.totalRecords = result.pagination?.total || result.data.length;
+                        this.totalPages = Math.ceil(this.totalRecords / this.pageSize);
+                        
                         console.log('Loaded data count:', result.data.length);
+                        console.log('Total records:', this.totalRecords);
+                        console.log('Total pages:', this.totalPages);
+                        
                         this.renderResults(result.data);
-                        this.updateResultsCount(result.pagination.total);
+                        this.updateResultsCount(this.totalRecords);
+                        this.updatePagination();
                     } else {
                         console.error('Failed to load profiling data:', result.error);
                         this.renderResults([]);
+                        this.updatePagination();
                     }
                     
                 } catch (error) {
                     console.error('Error loading profiling data:', error);
                     this.renderResults([]);
+                    this.updatePagination();
                 } finally {
                     this.showLoading(false);
                 }
@@ -1936,8 +2120,10 @@
 
             handleGlobalSearch(query) {
                 if (query.length > 2) {
+                    this.currentPage = 1; // Reset to first page when searching
                     this.loadProfilingData();
                 } else if (query.length === 0) {
+                    this.currentPage = 1; // Reset to first page when clearing search
                     this.loadProfilingData();
                 }
             }
@@ -1964,6 +2150,88 @@
             showLoading(show) {
                 const loading = document.getElementById('loading');
                 loading.style.display = show ? 'block' : 'none';
+            }
+
+            // Pagination methods
+            updatePagination() {
+                const paginationContainer = document.getElementById('paginationContainer');
+                const paginationInfo = document.getElementById('paginationInfo');
+                const paginationPages = document.getElementById('paginationPages');
+                
+                if (this.totalRecords === 0) {
+                    paginationContainer.style.display = 'none';
+                    return;
+                }
+                
+                paginationContainer.style.display = 'flex';
+                
+                // Update pagination info
+                const startRecord = (this.currentPage - 1) * this.pageSize + 1;
+                const endRecord = Math.min(this.currentPage * this.pageSize, this.totalRecords);
+                paginationInfo.textContent = `Showing ${startRecord} to ${endRecord} of ${this.totalRecords} entries`;
+                
+                // Update page size selector
+                document.getElementById('pageSize').value = this.pageSize;
+                
+                // Update navigation buttons
+                document.getElementById('firstPage').disabled = this.currentPage === 1;
+                document.getElementById('prevPage').disabled = this.currentPage === 1;
+                document.getElementById('nextPage').disabled = this.currentPage === this.totalPages;
+                document.getElementById('lastPage').disabled = this.currentPage === this.totalPages;
+                
+                // Generate page numbers
+                this.generatePageNumbers(paginationPages);
+            }
+
+            generatePageNumbers(container) {
+                container.innerHTML = '';
+                
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(this.totalPages, startPage + maxVisiblePages - 1);
+                
+                // Adjust start page if we're near the end
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                // Add page numbers
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = `pagination-btn ${i === this.currentPage ? 'active' : ''}`;
+                    pageBtn.textContent = i;
+                    pageBtn.onclick = () => this.goToPage(i);
+                    container.appendChild(pageBtn);
+                }
+            }
+
+            goToPage(page) {
+                if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+                    this.currentPage = page;
+                    this.loadProfilingData();
+                }
+            }
+
+            goToPreviousPage() {
+                if (this.currentPage > 1) {
+                    this.goToPage(this.currentPage - 1);
+                }
+            }
+
+            goToNextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.goToPage(this.currentPage + 1);
+                }
+            }
+
+            goToLastPage() {
+                this.goToPage(this.totalPages);
+            }
+
+            changePageSize(newSize) {
+                this.pageSize = parseInt(newSize);
+                this.currentPage = 1; // Reset to first page
+                this.loadProfilingData();
             }
         }
 
@@ -2007,6 +2275,7 @@
         }
 
         function applyFilters() {
+            app.currentPage = 1; // Reset to first page when applying filters
             app.loadProfilingData();
         }
 
@@ -2022,6 +2291,7 @@
             document.getElementById('sortBy').value = 'tanggal_input';
             document.getElementById('globalSearch').value = '';
             
+            app.currentPage = 1; // Reset to first page when clearing filters
             app.loadProfilingData();
         }
 

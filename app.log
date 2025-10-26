@@ -21682,3 +21682,24 @@
 2025-10-26 07:05:01,413 - werkzeug - INFO -  * Debugger PIN: 243-335-524
 2025-10-26 07:05:56,028 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:05:56] "POST /api/login HTTP/1.1" 200 -
 2025-10-26 07:05:58,075 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:05:58] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 07:18:55,261 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:18:55] "GET /ai-features HTTP/1.1" 200 -
+2025-10-26 07:18:55,332 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:18:55] "[33mGET /api/ai/status HTTP/1.1[0m" 404 -
+2025-10-26 07:18:57,313 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:18:57] "GET /reports/profiling HTTP/1.1" 200 -
+2025-10-26 07:18:57,401 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:18:57] "GET /api/profiling/reports?prov=&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=&end_date=&sort_by=tanggal_input&q= HTTP/1.1" 200 -
+2025-10-26 07:24:33,505 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:24:33] "HEAD /reports/profiling HTTP/1.1" 200 -
+2025-10-26 07:24:53,389 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:24:53] "POST /api/login HTTP/1.1" 200 -
+2025-10-26 07:24:55,433 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:24:55] "GET /api/profiling/reports?page=1&limit=10 HTTP/1.1" 200 -
+2025-10-26 07:24:57,472 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:24:57] "GET /api/profiling/reports?page=1&limit=20 HTTP/1.1" 200 -
+2025-10-26 07:24:59,514 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:24:59] "GET /api/profiling/reports?page=2&limit=10 HTTP/1.1" 200 -
+2025-10-26 07:25:01,566 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:25:01] "GET /api/profiling/reports?page=1&limit=50 HTTP/1.1" 200 -
+2025-10-26 07:45:18,735 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:45:18] "GET /reports/profiling HTTP/1.1" 200 -
+2025-10-26 07:45:18,927 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:45:18] "GET /api/profiling/reports?prov=&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=2025-09-26&end_date=2025-10-26&sort_by=tanggal_input&q=&page=1&limit=20 HTTP/1.1" 200 -
+2025-10-26 07:45:36,581 - __main__ - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 07:45:36,790 - __main__ - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 07:45:36,790 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:45:36] "POST /api/profiling/preview HTTP/1.1" 200 -
+2025-10-26 07:45:44,877 - __main__ - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 07:45:45,141 - __main__ - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 07:45:45,221 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:45:45] "POST /api/profiling/export HTTP/1.1" 200 -
+2025-10-26 07:45:45,317 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:45:45] "GET /api/profiling/download/PROFILING_MULTIPLE_2025-10-26.pdf HTTP/1.1" 200 -
+2025-10-26 07:46:12,051 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:46:12] "GET /api/profiling/reports?prov=&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=2025-09-26&end_date=2025-10-26&sort_by=tanggal_input&q=&page=2&limit=20 HTTP/1.1" 200 -
+2025-10-26 07:46:15,880 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:46:15] "GET /api/profiling/reports?prov=&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=2025-09-26&end_date=2025-10-26&sort_by=tanggal_input&q=&page=1&limit=20 HTTP/1.1" 200 -
