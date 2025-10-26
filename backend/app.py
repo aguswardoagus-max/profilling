@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from database import authenticate_user, validate_session_token, logout_user, db
 from functools import wraps
 from cekplat import cekplat_bp
+from ai_api_endpoints import ai_bp
 import numpy as np
 import requests
 
@@ -505,6 +506,7 @@ CORS(app, origins=['*'], supports_credentials=True)
 
 # Register blueprints
 app.register_blueprint(cekplat_bp, url_prefix='/cekplat')
+app.register_blueprint(ai_bp)
 
 # Configuration
 UPLOAD_FOLDER = Path(project_root) / 'uploads'
