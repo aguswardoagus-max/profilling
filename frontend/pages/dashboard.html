@@ -1612,14 +1612,22 @@
         // Load frontend configuration
         async function loadFrontendConfig() {
             try {
-                const response = await fetch('/api/frontend-config');
+                const response = await fetch('/api/frontend-config', {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
                 if (response.ok) {
                     const config = await response.json();
                     appConfig = { ...appConfig, ...config };
                     console.log('Frontend config loaded:', appConfig);
+                } else {
+                    console.log('Config response not ok:', response.status);
                 }
             } catch (error) {
-                console.log('Using default config:', appConfig);
+                console.log('Using default config:', appConfig, 'Error:', error);
             }
         }
 

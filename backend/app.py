@@ -508,13 +508,16 @@ import os
 is_production = os.getenv('FLASK_ENV') == 'production'
 is_https = os.getenv('HTTPS') == 'true' or 'https' in os.getenv('BASE_URL', '')
 
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = is_https
-app.config['REMEMBER_COOKIE_SECURE'] = is_https
+# Detect if running on ngrok
+is_ngrok = any('ngrok' in origin for origin in [os.getenv('BASE_URL', ''), os.getenv('HTTP_HOST', ''), os.getenv('SERVER_NAME', '')])
+
+app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_ngrok else 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = is_https or is_ngrok
+app.config['REMEMBER_COOKIE_SECURE'] = is_https or is_ngrok
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow all domains
 
-# CORS configuration - support multiple domains
+# CORS configuration - support multiple domains including ngrok
 allowed_origins = [
     'http://localhost:5000',
     'http://127.0.0.1:5000',
@@ -522,6 +525,16 @@ allowed_origins = [
     'http://127.0.0.1:3000',
     'https://localhost:5000',
     'https://127.0.0.1:5000'
+]
+
+# Add ngrok domains pattern
+ngrok_patterns = [
+    'https://*.ngrok.io',
+    'https://*.ngrok-free.app',
+    'https://*.ngrok-free.dev',
+    'http://*.ngrok.io',
+    'http://*.ngrok-free.app',
+    'http://*.ngrok-free.dev'
 ]
 
 # Add custom domains from environment
@@ -540,7 +553,29 @@ if base_url:
     elif base_url.startswith('https://'):
         allowed_origins.append(base_url.replace('https://', 'http://'))
 
+# For development, allow all origins if ngrok is detected
+is_ngrok = any('ngrok' in origin for origin in [base_url, os.getenv('HTTP_HOST', ''), os.getenv('SERVER_NAME', '')])
+if is_ngrok or os.getenv('FLASK_ENV') == 'development':
+    allowed_origins.append('*')
+
+print(f"Allowed CORS origins: {allowed_origins}")
+
 CORS(app, origins=allowed_origins, supports_credentials=True, allow_headers=['Content-Type', 'Authorization'])
+
+# Middleware to handle ngrok and external domains
+@app.before_request
+def handle_ngrok_request():
+    """Handle ngrok and external domain requests"""
+    # Check if request is from ngrok
+    if 'ngrok' in request.host:
+        # Set secure flag for ngrok HTTPS
+        if request.is_secure:
+            request.is_secure = True
+        # Add ngrok domain to allowed origins dynamically
+        origin = f"{request.scheme}://{request.host}"
+        if origin not in allowed_origins and origin != '*':
+            allowed_origins.append(origin)
+            print(f"Added ngrok domain to allowed origins: {origin}")
 
 # Helper function to get base URL dynamically
 def get_base_url():
