@@ -21688,3 +21688,31 @@
 2025-10-26 08:47:16,889 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:47:16] "GET /api/dashboard/stats HTTP/1.1" 200 -
 2025-10-26 09:16:15,653 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:16:15] "GET /dashboard HTTP/1.1" 200 -
 2025-10-26 09:16:15,839 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:16:15] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 09:43:43,005 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:43] "GET /dashboard HTTP/1.1" 200 -
+2025-10-26 09:43:43,210 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:43] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 09:43:43,294 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-10-26 09:43:45,664 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:45] "GET /data-cari-plat HTTP/1.1" 200 -
+2025-10-26 09:43:45,930 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:45] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:43:47,057 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:47] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:43:49,541 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:49] "GET /data-profiling HTTP/1.1" 200 -
+2025-10-26 09:43:49,897 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:49] "GET /api/profiling-data HTTP/1.1" 200 -
+2025-10-26 09:43:52,415 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:52] "[36mGET /data-cari-plat HTTP/1.1[0m" 304 -
+2025-10-26 09:43:52,580 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:52] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:43:53,649 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:43:53] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:44:10,867 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.1.90.118:5000
+2025-10-26 09:44:10,867 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-10-26 09:44:10,869 - werkzeug - INFO -  * Restarting with stat
+2025-10-26 09:44:12,485 - werkzeug - WARNING -  * Debugger is active!
+2025-10-26 09:44:12,489 - werkzeug - INFO -  * Debugger PIN: 568-076-950
+2025-10-26 09:44:15,048 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:15] "GET /data-cari-plat HTTP/1.1" 200 -
+2025-10-26 09:44:15,305 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:15] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:44:16,346 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:16] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:44:18,834 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:18] "GET /cekplat HTTP/1.1" 200 -
+2025-10-26 09:44:19,817 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:19] "GET /data-profiling HTTP/1.1" 200 -
+2025-10-26 09:44:20,086 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:20] "GET /api/profiling-data HTTP/1.1" 200 -
+2025-10-26 09:44:23,509 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:23] "GET /data-cari-plat HTTP/1.1" 200 -
+2025-10-26 09:44:23,747 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:23] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 09:44:24,780 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:44:24] "GET /api/cekplat-data-test HTTP/1.1" 200 -
