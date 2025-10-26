@@ -1000,6 +1000,46 @@
     </div>
 
     <script>
+        // Authentication middleware
+        async function checkAuthentication() {
+            const sessionToken = localStorage.getItem('session_token');
+            
+            if (!sessionToken) {
+                console.log('No session token found, redirecting to login');
+                window.location.href = '/login';
+                return false;
+            }
+            
+            try {
+                const response = await fetch('/api/validate-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ session_token: sessionToken })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.valid) {
+                    console.log('Invalid session token, redirecting to login');
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                    return false;
+                }
+                
+                console.log('Authentication successful');
+                return true;
+            } catch (error) {
+                console.error('Authentication check failed:', error);
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                window.location.href = '/login';
+                return false;
+            }
+        }
+
         class DashboardApp {
             constructor() {
                 this.sidebar = document.getElementById('sidebar');
@@ -1010,7 +1050,13 @@
                 this.init();
             }
             
-            init() {
+            async init() {
+                // Check authentication first
+                const isAuthenticated = await checkAuthentication();
+                if (!isAuthenticated) {
+                    return; // Stop initialization if not authenticated
+                }
+                
                 this.setupEventListeners();
                 this.loadUserData();
                 this.loadDashboardData();

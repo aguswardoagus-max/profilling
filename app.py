@@ -16,12 +16,70 @@ from flask import Flask, request, jsonify, send_from_directory, render_template,
 from flask_cors import CORS
 from dotenv import load_dotenv
 from database import authenticate_user, validate_session_token, logout_user, db
+from functools import wraps
 from cekplat import cekplat_bp
 import numpy as np
 import requests
 
 # Load environment variables from .env file
 load_dotenv()
+
+def require_auth(f):
+    """Decorator to require authentication for routes"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check for session token in cookies first
+        session_token = request.cookies.get('session_token')
+        
+        # If no cookie, check Authorization header
+        if not session_token:
+            session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            # Return a simple HTML page that redirects to login
+            return '''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Unauthorized Access</title>
+                <meta http-equiv="refresh" content="0; url=/login">
+                <script>
+                    window.location.href = '/login';
+                </script>
+            </head>
+            <body>
+                <p>Redirecting to login page...</p>
+            </body>
+            </html>
+            ''', 401
+        
+        # Validate session token
+        user = validate_session_token(session_token)
+        if not user:
+            # Return a simple HTML page that redirects to login
+            return '''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Session Expired</title>
+                <meta http-equiv="refresh" content="0; url=/login">
+                <script>
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                </script>
+            </head>
+            <body>
+                <p>Session expired. Redirecting to login page...</p>
+            </body>
+            </html>
+            ''', 401
+        
+        # Add user info to request context
+        request.current_user = user
+        return f(*args, **kwargs)
+    
+    return decorated_function
 import cv2
 from PIL import Image
 import io
@@ -2573,6 +2631,7 @@ def login_page():
     return send_from_directory('.', 'login.html')
 
 @app.route('/dashboard')
+@require_auth
 def dashboard_page():
     """Serve dashboard page"""
     return send_from_directory('.', 'dashboard.html')
@@ -2604,46 +2663,55 @@ def dashboard_stats():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/profiling')
+@require_auth
 def profiling_page():
     """Serve profiling page"""
     return send_from_directory('.', 'profiling.html')
 
 @app.route('/user-management')
+@require_auth
 def user_management_page():
     """Serve user management page"""
     return send_from_directory('.', 'user_management.html')
 
 @app.route('/data-profiling')
+@require_auth
 def data_profiling_page():
     """Serve data profiling page"""
     return send_from_directory('.', 'data_profiling.html')
 
 @app.route('/cekplat')
+@require_auth
 def cekplat_page():
     """Serve cek plat page"""
     return send_from_directory('.', 'cekplat.html')
 
 @app.route('/data-cari-plat')
+@require_auth
 def data_cari_plat_page():
     """Serve data cari plat page"""
     return send_from_directory('.', 'data_cari_plat.html')
 
 @app.route('/ai-features')
+@require_auth
 def ai_features_page():
     """Serve AI features page"""
     return send_from_directory('.', 'ai_features.html')
 
 @app.route('/reports')
+@require_auth
 def reports_page():
     """Serve reports page"""
     return send_from_directory('.', 'reports.html')
 
 @app.route('/reports/profiling')
+@require_auth
 def reports_profiling_page():
     """Serve reports profiling page"""
     return send_from_directory('.', 'reports_profiling.html')
 
 @app.route('/settings')
+@require_auth
 def settings_page():
     """Serve settings page"""
     return send_from_directory('.', 'settings.html')
@@ -2668,11 +2736,23 @@ def api_login():
         auth_result = authenticate_user(username, password, ip_address, user_agent)
         
         if auth_result:
-            return jsonify({
+            response = jsonify({
                 'success': True,
                 'user': auth_result['user'],
                 'session_token': auth_result['session_token']
             })
+            
+            # Set session token as HTTP-only cookie for server-side validation
+            response.set_cookie(
+                'session_token', 
+                auth_result['session_token'],
+                max_age=24*60*60,  # 24 hours
+                httponly=True,     # Prevent XSS attacks
+                secure=False,      # Set to True in production with HTTPS
+                samesite='Lax'     # CSRF protection
+            )
+            
+            return response
         else:
             return jsonify({'error': 'Username atau password salah'}), 401
             
@@ -2689,7 +2769,12 @@ def api_logout():
         if session_token:
             logout_user(session_token)
         
-        return jsonify({'success': True, 'message': 'Logged out successfully'})
+        response = jsonify({'success': True, 'message': 'Logged out successfully'})
+        
+        # Clear the session token cookie
+        response.set_cookie('session_token', '', expires=0)
+        
+        return response
     except Exception as e:
         return jsonify({'error': f'Logout error: {str(e)}'}), 500
 
