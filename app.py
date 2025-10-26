@@ -4650,6 +4650,87 @@ def export_word():
         print(f"Error generating Word document: {e}")
         return jsonify({'error': f'Word document generation failed: {str(e)}'}), 500
 
+@app.route('/api/ai/face-to-nik', methods=['POST'])
+def api_ai_face_to_nik():
+    """API endpoint untuk AI Face-to-NIK analysis"""
+    try:
+        # Validate session token
+        session_token = request.cookies.get('session_token')
+        if not session_token:
+            session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not session_token:
+            return jsonify({'error': 'Session token required'}), 401
+        
+        user = validate_session_token(session_token)
+        if not user:
+            return jsonify({'error': 'Invalid session token'}), 401
+        
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({'error': 'Image data required'}), 400
+        
+        image_base64 = data.get('image')
+        threshold = data.get('threshold', 50)
+        
+        # Decode base64 image
+        try:
+            image_data = base64.b64decode(image_base64)
+        except Exception as e:
+            return jsonify({'error': 'Invalid image data'}), 400
+        
+        # Simulate AI face analysis (replace with actual AI implementation)
+        # For now, return mock data based on existing database records
+        mock_results = [
+            {
+                'nik': '1505041107830002',
+                'name': 'YASIR HASBI',
+                'confidence': 85,
+                'photo_url': '/static/clean_photos/yasir_hasbi.jpg'
+            },
+            {
+                'nik': '1771010511010001',
+                'name': 'EVIN NOPRILIANDA',
+                'confidence': 72,
+                'photo_url': '/static/clean_photos/evin_noprilianda.jpg'
+            },
+            {
+                'nik': '3212241009990003',
+                'name': 'MOH. SOKABAH',
+                'confidence': 68,
+                'photo_url': '/static/clean_photos/moh_sokabah.jpg'
+            },
+            {
+                'nik': '3318072004930001',
+                'name': 'MOHAMMAD ALI NUR SADUAN',
+                'confidence': 65,
+                'photo_url': '/static/clean_photos/mohammad_ali_nur_saduan.jpg'
+            },
+            {
+                'nik': '6311061205840001',
+                'name': 'SAID YASIR',
+                'confidence': 62,
+                'photo_url': '/static/clean_photos/said_yasir.jpg'
+            }
+        ]
+        
+        # Filter results by threshold
+        filtered_results = [result for result in mock_results if result['confidence'] >= threshold]
+        
+        # Sort by confidence (highest first)
+        filtered_results.sort(key=lambda x: x['confidence'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'results': filtered_results,
+            'total_found': len(filtered_results),
+            'threshold_used': threshold
+        })
+        
+    except Exception as e:
+        print(f"Error in AI face-to-NIK analysis: {e}")
+        return jsonify({'error': f'AI analysis failed: {str(e)}'}), 500
+
 if __name__ == '__main__':
     print("Starting Clearance Face Search Web Server...")
     print(f"Face recognition library available: {USE_FACE_LIB}")
