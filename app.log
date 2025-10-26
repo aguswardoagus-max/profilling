@@ -21650,3 +21650,41 @@
 2025-10-26 06:36:51,218 - werkzeug - INFO -  * Debugger PIN: 568-076-950
 2025-10-26 06:56:33,429 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 06:56:33] "GET /dashboard HTTP/1.1" 200 -
 2025-10-26 06:56:33,807 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 06:56:33] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 07:55:10,824 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.1.90.118:5000
+2025-10-26 07:55:10,839 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-10-26 07:55:10,839 - werkzeug - INFO -  * Restarting with stat
+2025-10-26 07:55:12,535 - werkzeug - WARNING -  * Debugger is active!
+2025-10-26 07:55:12,535 - werkzeug - INFO -  * Debugger PIN: 568-076-950
+2025-10-26 07:55:21,366 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:55:21] "GET /reports/profiling HTTP/1.1" 200 -
+2025-10-26 07:55:21,652 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:55:21] "GET /api/profiling/reports?prov=Sumatera+Selatan&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=2025-09-26&end_date=2025-10-26&sort_by=tanggal_input&q=&page=1&limit=20 HTTP/1.1" 200 -
+2025-10-26 07:55:32,462 - __main__ - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 07:55:32,731 - __main__ - ERROR - Error generating AI analysis: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-10-26 07:55:32,731 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:55:32] "POST /api/profiling/preview HTTP/1.1" 200 -
+2025-10-26 07:55:48,263 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:55:48] "GET /settings HTTP/1.1" 200 -
+2025-10-26 07:56:08,324 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:56:08] "[36mGET /settings HTTP/1.1[0m" 304 -
+2025-10-26 07:56:10,994 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:56:10] "GET /reports/profiling HTTP/1.1" 200 -
+2025-10-26 07:56:13,279 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 07:56:13] "GET /api/profiling/reports?prov=&kab_kota=&kec=&kategori=&subkategori=&status_verifikasi=&start_date=&end_date=&sort_by=tanggal_input&q=&page=1&limit=20 HTTP/1.1" 200 -
+2025-10-26 08:00:15,192 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:00:15] "[36mGET /profiling HTTP/1.1[0m" 304 -
+2025-10-26 08:00:17,060 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:00:17] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 08:00:17,213 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:00:17] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 08:12:17,873 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:12:17] "GET /data-profiling HTTP/1.1" 200 -
+2025-10-26 08:12:18,131 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:12:18] "GET /api/profiling-data HTTP/1.1" 200 -
+2025-10-26 08:12:21,801 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:12:21] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 08:12:21,964 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:12:21] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 08:34:23,603 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:23] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 08:34:23,751 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:23] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 08:34:46,452 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:46] "GET /data-profiling HTTP/1.1" 200 -
+2025-10-26 08:34:46,721 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:46] "GET /api/profiling-data HTTP/1.1" 200 -
+2025-10-26 08:34:50,943 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:50] "GET /data-cari-plat HTTP/1.1" 200 -
+2025-10-26 08:34:51,199 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:51] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 08:34:52,238 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:34:52] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 08:35:10,110 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:35:10] "[36mGET /data-cari-plat HTTP/1.1[0m" 304 -
+2025-10-26 08:35:10,300 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:35:10] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 08:35:11,340 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:35:11] "GET /api/cekplat-data-test HTTP/1.1" 200 -
+2025-10-26 08:47:16,715 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:47:16] "[36mGET /dashboard HTTP/1.1[0m" 304 -
+2025-10-26 08:47:16,889 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 08:47:16] "GET /api/dashboard/stats HTTP/1.1" 200 -
+2025-10-26 09:16:15,653 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:16:15] "GET /dashboard HTTP/1.1" 200 -
+2025-10-26 09:16:15,839 - werkzeug - INFO - 127.0.0.1 - - [26/Oct/2025 09:16:15] "GET /api/dashboard/stats HTTP/1.1" 200 -
