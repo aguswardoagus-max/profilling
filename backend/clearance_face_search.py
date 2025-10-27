@@ -374,6 +374,13 @@ def main():
     parser.add_argument("--password", "-p", help="password (atau set env MY_PASSWORD)")
     parser.add_argument("--name", help="filter name")
     parser.add_argument("--nik", help="filter nik")
+    parser.add_argument("--family_cert_number", help="filter family certificate number")
+    parser.add_argument("--tempat_lahir", help="filter birth place")
+    parser.add_argument("--tanggal_lahir", help="filter birth date")
+    parser.add_argument("--no_prop", help="filter province code")
+    parser.add_argument("--no_kab", help="filter city/regency code")
+    parser.add_argument("--no_kec", help="filter district code")
+    parser.add_argument("--no_desa", help="filter village code")
     parser.add_argument("--page", default="1")
     parser.add_argument("--face-query", "-f", help="path to query face image (jpg/png)")
     parser.add_argument("--face-threshold", type=float, default=0.50, help="threshold distance (lower stricter). default 0.50")
@@ -389,8 +396,8 @@ def main():
         print("ERROR: butuh username & password.", file=sys.stderr)
         sys.exit(1)
 
-    if not args.name and not args.nik:
-        print("ERROR: tentukan --name atau --nik minimal untuk membatasi hasil (agar tidak terlalu banyak).", file=sys.stderr)
+    if not args.name and not args.nik and not args.family_cert_number and not args.tempat_lahir and not args.tanggal_lahir and not args.no_prop and not args.no_kab and not args.no_kec and not args.no_desa:
+        print("ERROR: tentukan minimal satu parameter untuk membatasi hasil (--name, --nik, --family_cert_number, --tempat_lahir, --tanggal_lahir, --no_prop, --no_kab, --no_kec, atau --no_desa).", file=sys.stderr)
         sys.exit(1)
 
     token = ensure_token(username, password, force_refresh=args.force_login)
@@ -398,13 +405,13 @@ def main():
     params = {
         "name": args.name or "",
         "nik": args.nik or "",
-        "family_cert_number": "",
-        "tempat_lahir": "",
-        "tanggal_lahir": "",
-        "no_prop": "",
-        "no_kab": "",
-        "no_kec": "",
-        "no_desa": "",
+        "family_cert_number": args.family_cert_number or "",
+        "tempat_lahir": args.tempat_lahir or "",
+        "tanggal_lahir": args.tanggal_lahir or "",
+        "no_prop": args.no_prop or "",
+        "no_kab": args.no_kab or "",
+        "no_kec": args.no_kec or "",
+        "no_desa": args.no_desa or "",
         "page": args.page
     }
 

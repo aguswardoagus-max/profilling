@@ -3498,8 +3498,8 @@ def api_search():
         search_type = data.get('search_type', 'identity')
         
         if search_type == 'identity':
-            if not data.get('name') and not data.get('nik'):
-                return jsonify({'error': 'Minimal tentukan name atau nik untuk membatasi hasil'}), 400
+            if not data.get('name') and not data.get('nik') and not data.get('family_cert_number') and not data.get('tempat_lahir') and not data.get('tanggal_lahir') and not data.get('no_prop') and not data.get('no_kab') and not data.get('no_kec') and not data.get('no_desa'):
+                return jsonify({'error': 'Minimal tentukan satu parameter untuk membatasi hasil (name, nik, family_cert_number, tempat_lahir, tanggal_lahir, no_prop, no_kab, no_kec, atau no_desa)'}), 400
         elif search_type == 'phone':
             if not data.get('phone_number'):
                 return jsonify({'error': 'Nomor HP diperlukan untuk pencarian phone'}), 400
@@ -3527,13 +3527,13 @@ def api_search():
         params = {
             "name": data.get('name', ''),
             "nik": data.get('nik', ''),
-            "family_cert_number": "",
-            "tempat_lahir": "",
-            "tanggal_lahir": "",
-            "no_prop": "",
-            "no_kab": "",
-            "no_kec": "",
-            "no_desa": "",
+            "family_cert_number": data.get('family_cert_number', ''),
+            "tempat_lahir": data.get('tempat_lahir', ''),
+            "tanggal_lahir": data.get('tanggal_lahir', ''),
+            "no_prop": data.get('no_prop', ''),
+            "no_kab": data.get('no_kab', ''),
+            "no_kec": data.get('no_kec', ''),
+            "no_desa": data.get('no_desa', ''),
             "page": data.get('page', '1')
         }
         
@@ -4408,6 +4408,224 @@ def api_person_details():
     except Exception as e:
         print(f"Error getting person details: {e}")
         return jsonify({'error': f'Error: {str(e)}'}), 500
+
+@app.route('/api/wilayah/provinsi', methods=['GET'])
+def get_provinsi():
+    """API endpoint untuk mengambil daftar provinsi"""
+    try:
+        # Data provinsi Indonesia (dapat disesuaikan dengan data server asli)
+        provinsi_data = [
+            {"kode": "11", "nama": "ACEH"},
+            {"kode": "12", "nama": "SUMATERA UTARA"},
+            {"kode": "13", "nama": "SUMATERA BARAT"},
+            {"kode": "14", "nama": "RIAU"},
+            {"kode": "15", "nama": "JAMBI"},
+            {"kode": "16", "nama": "SUMATERA SELATAN"},
+            {"kode": "17", "nama": "BENGKULU"},
+            {"kode": "18", "nama": "LAMPUNG"},
+            {"kode": "19", "nama": "KEPULAUAN BANGKA BELITUNG"},
+            {"kode": "21", "nama": "KEPULAUAN RIAU"},
+            {"kode": "31", "nama": "DKI JAKARTA"},
+            {"kode": "32", "nama": "JAWA BARAT"},
+            {"kode": "33", "nama": "JAWA TENGAH"},
+            {"kode": "34", "nama": "DI YOGYAKARTA"},
+            {"kode": "35", "nama": "JAWA TIMUR"},
+            {"kode": "36", "nama": "BANTEN"},
+            {"kode": "51", "nama": "BALI"},
+            {"kode": "52", "nama": "NUSA TENGGARA BARAT"},
+            {"kode": "53", "nama": "NUSA TENGGARA TIMUR"},
+            {"kode": "61", "nama": "KALIMANTAN BARAT"},
+            {"kode": "62", "nama": "KALIMANTAN TENGAH"},
+            {"kode": "63", "nama": "KALIMANTAN SELATAN"},
+            {"kode": "64", "nama": "KALIMANTAN TIMUR"},
+            {"kode": "65", "nama": "KALIMANTAN UTARA"},
+            {"kode": "71", "nama": "SULAWESI UTARA"},
+            {"kode": "72", "nama": "SULAWESI TENGAH"},
+            {"kode": "73", "nama": "SULAWESI SELATAN"},
+            {"kode": "74", "nama": "SULAWESI TENGGARA"},
+            {"kode": "75", "nama": "GORONTALO"},
+            {"kode": "76", "nama": "SULAWESI BARAT"},
+            {"kode": "81", "nama": "MALUKU"},
+            {"kode": "82", "nama": "MALUKU UTARA"},
+            {"kode": "91", "nama": "PAPUA BARAT"},
+            {"kode": "94", "nama": "PAPUA"}
+        ]
+        
+        return jsonify({
+            'success': True,
+            'data': provinsi_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error getting provinsi data: {str(e)}'
+        }), 500
+
+@app.route('/api/wilayah/kabupaten/<provinsi_kode>', methods=['GET'])
+def get_kabupaten(provinsi_kode):
+    """API endpoint untuk mengambil daftar kabupaten berdasarkan kode provinsi"""
+    try:
+        # Data kabupaten untuk Jambi (kode 15) sebagai contoh
+        if provinsi_kode == "15":  # Jambi
+            kabupaten_data = [
+                {"kode": "1501", "nama": "KERINCI"},
+                {"kode": "1502", "nama": "MERANGIN"},
+                {"kode": "1503", "nama": "SAROLANGUN"},
+                {"kode": "1504", "nama": "BATANG HARI"},
+                {"kode": "1505", "nama": "MUARO JAMBI"},
+                {"kode": "1506", "nama": "TANJUNG JABUNG TIMUR"},
+                {"kode": "1507", "nama": "TANJUNG JABUNG BARAT"},
+                {"kode": "1508", "nama": "TEBO"},
+                {"kode": "1509", "nama": "BUNGO"},
+                {"kode": "1571", "nama": "KOTA JAMBI"},
+                {"kode": "1572", "nama": "KOTA SUNGAI PENUH"}
+            ]
+        elif provinsi_kode == "12":  # Sumatera Utara
+            kabupaten_data = [
+                {"kode": "1201", "nama": "KABUPATEN NIAS"},
+                {"kode": "1202", "nama": "KABUPATEN MANDAILING NATAL"},
+                {"kode": "1203", "nama": "KABUPATEN TAPANULI SELATAN"},
+                {"kode": "1204", "nama": "KABUPATEN TAPANULI TENGAH"},
+                {"kode": "1205", "nama": "KABUPATEN TAPANULI UTARA"},
+                {"kode": "1206", "nama": "KABUPATEN TOBA SAMOSIR"},
+                {"kode": "1207", "nama": "KABUPATEN LABUHAN BATU"},
+                {"kode": "1208", "nama": "KABUPATEN ASAHAN"},
+                {"kode": "1209", "nama": "KABUPATEN SIMALUNGUN"},
+                {"kode": "1210", "nama": "KABUPATEN DAIRI"},
+                {"kode": "1211", "nama": "KABUPATEN KARO"},
+                {"kode": "1212", "nama": "KABUPATEN DELI SERDANG"},
+                {"kode": "1213", "nama": "KABUPATEN LANGKAT"},
+                {"kode": "1214", "nama": "KABUPATEN NIAS SELATAN"},
+                {"kode": "1215", "nama": "KABUPATEN HUMBANG HASUNDUTAN"},
+                {"kode": "1216", "nama": "KABUPATEN PAKPAK BHARAT"},
+                {"kode": "1217", "nama": "KABUPATEN SAMOSIR"},
+                {"kode": "1218", "nama": "KABUPATEN SERDANG BEDAGAI"},
+                {"kode": "1219", "nama": "KABUPATEN BATU BARA"},
+                {"kode": "1220", "nama": "KABUPATEN PADANG LAWAS UTARA"},
+                {"kode": "1221", "nama": "KABUPATEN PADANG LAWAS"},
+                {"kode": "1222", "nama": "KABUPATEN LABUHAN BATU SELATAN"},
+                {"kode": "1223", "nama": "KABUPATEN LABUHAN BATU UTARA"},
+                {"kode": "1224", "nama": "KABUPATEN NIAS UTARA"},
+                {"kode": "1225", "nama": "KABUPATEN NIAS BARAT"},
+                {"kode": "1271", "nama": "KOTA SIBOLGA"},
+                {"kode": "1272", "nama": "KOTA TANJUNG BALAI"},
+                {"kode": "1273", "nama": "KOTA PEMATANG SIANTAR"},
+                {"kode": "1274", "nama": "KOTA TEBING TINGGI"},
+                {"kode": "1275", "nama": "KOTA MEDAN"},
+                {"kode": "1276", "nama": "KOTA BINJAI"},
+                {"kode": "1277", "nama": "KOTA PADANGSIDIMPUAN"},
+                {"kode": "1278", "nama": "KOTA GUNUNGSITOLI"}
+            ]
+        else:
+            # Default data untuk provinsi lain
+            kabupaten_data = [
+                {"kode": f"{provinsi_kode}01", "nama": f"KABUPATEN {provinsi_kode}"},
+                {"kode": f"{provinsi_kode}02", "nama": f"KABUPATEN {provinsi_kode} 2"},
+                {"kode": f"{provinsi_kode}71", "nama": f"KOTA {provinsi_kode}"}
+            ]
+        
+        return jsonify({
+            'success': True,
+            'data': kabupaten_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error getting kabupaten data: {str(e)}'
+        }), 500
+
+@app.route('/api/wilayah/kecamatan/<kabupaten_kode>', methods=['GET'])
+def get_kecamatan(kabupaten_kode):
+    """API endpoint untuk mengambil daftar kecamatan berdasarkan kode kabupaten"""
+    try:
+        # Data kecamatan untuk Kota Jambi (kode 1571) sebagai contoh
+        if kabupaten_kode == "1571":  # Kota Jambi
+            kecamatan_data = [
+                {"kode": "157101", "nama": "KECAMATAN JAMBI SELATAN"},
+                {"kode": "157102", "nama": "KECAMATAN JAMBI TIMUR"},
+                {"kode": "157103", "nama": "KECAMATAN JELUTUNG"},
+                {"kode": "157104", "nama": "KECAMATAN PELAYANGAN"},
+                {"kode": "157105", "nama": "KECAMATAN DANAU TELUK"},
+                {"kode": "157106", "nama": "KECAMATAN KOTA BARU"},
+                {"kode": "157107", "nama": "KECAMATAN JAMBI UTARA"},
+                {"kode": "157108", "nama": "KECAMATAN ALAM BARAJO"},
+                {"kode": "157109", "nama": "KECAMATAN DANAU SIPIN"},
+                {"kode": "157110", "nama": "KECAMATAN PAAL MERAH"}
+            ]
+        elif kabupaten_kode == "1201":  # Kabupaten Nias
+            kecamatan_data = [
+                {"kode": "120101", "nama": "KECAMATAN GUNUNGSITOLI"},
+                {"kode": "120102", "nama": "KECAMATAN GUNUNGSITOLI SELATAN"},
+                {"kode": "120103", "nama": "KECAMATAN GUNUNGSITOLI UTARA"},
+                {"kode": "120104", "nama": "KECAMATAN GUNUNGSITOLI BARAT"},
+                {"kode": "120105", "nama": "KECAMATAN GUNUNGSITOLI TIMUR"},
+                {"kode": "120106", "nama": "KECAMATAN GUNUNGSITOLI IDANOI"},
+                {"kode": "120107", "nama": "KECAMATAN GUNUNGSITOLI ALO'OA"},
+                {"kode": "120108", "nama": "KECAMATAN GUNUNGSITOLI HILIR"}
+            ]
+        else:
+            # Default data untuk kabupaten lain
+            kecamatan_data = [
+                {"kode": f"{kabupaten_kode}01", "nama": f"KECAMATAN {kabupaten_kode}"},
+                {"kode": f"{kabupaten_kode}02", "nama": f"KECAMATAN {kabupaten_kode} 2"},
+                {"kode": f"{kabupaten_kode}03", "nama": f"KECAMATAN {kabupaten_kode} 3"}
+            ]
+        
+        return jsonify({
+            'success': True,
+            'data': kecamatan_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error getting kecamatan data: {str(e)}'
+        }), 500
+
+@app.route('/api/wilayah/kelurahan/<kecamatan_kode>', methods=['GET'])
+def get_kelurahan(kecamatan_kode):
+    """API endpoint untuk mengambil daftar kelurahan berdasarkan kode kecamatan"""
+    try:
+        # Data kelurahan untuk Jambi Selatan (kode 157101) sebagai contoh
+        if kecamatan_kode == "157101":  # Jambi Selatan
+            kelurahan_data = [
+                {"kode": "1571012001", "nama": "KELURAHAN KENALI BESAR"},
+                {"kode": "1571012002", "nama": "KELURAHAN KENALI KECIL"},
+                {"kode": "1571012003", "nama": "KELURAHAN KENALI ASAM"},
+                {"kode": "1571012004", "nama": "KELURAHAN KENALI BESAR ATAS"},
+                {"kode": "1571012005", "nama": "KELURAHAN KENALI BESAR BAWAH"},
+                {"kode": "1571012006", "nama": "KELURAHAN KENALI BESAR TENGAH"},
+                {"kode": "1571012007", "nama": "KELURAHAN KENALI BESAR TIMUR"},
+                {"kode": "1571012008", "nama": "KELURAHAN KENALI BESAR BARAT"}
+            ]
+        elif kecamatan_kode == "157102":  # Jambi Timur
+            kelurahan_data = [
+                {"kode": "1571022001", "nama": "KELURAHAN TELANAIPURA"},
+                {"kode": "1571022002", "nama": "KELURAHAN TELANAIPURA TIMUR"},
+                {"kode": "1571022003", "nama": "KELURAHAN TELANAIPURA BARAT"},
+                {"kode": "1571022004", "nama": "KELURAHAN TELANAIPURA UTARA"},
+                {"kode": "1571022005", "nama": "KELURAHAN TELANAIPURA SELATAN"}
+            ]
+        else:
+            # Default data untuk kecamatan lain
+            kelurahan_data = [
+                {"kode": f"{kecamatan_kode}2001", "nama": f"KELURAHAN {kecamatan_kode}"},
+                {"kode": f"{kecamatan_kode}2002", "nama": f"KELURAHAN {kecamatan_kode} 2"},
+                {"kode": f"{kecamatan_kode}2003", "nama": f"KELURAHAN {kecamatan_kode} 3"}
+            ]
+        
+        return jsonify({
+            'success': True,
+            'data': kelurahan_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error getting kelurahan data: {str(e)}'
+        }), 500
 
 @app.route('/api/universal-search', methods=['POST'])
 def api_universal_search():
