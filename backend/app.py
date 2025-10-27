@@ -39,6 +39,15 @@ def require_auth(f):
     """Decorator to require authentication for routes"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Check for redirect loop protection
+        redirect_count = request.cookies.get('redirect_count', '0')
+        if int(redirect_count) > 5:
+            print("Redirect loop detected in require_auth, serving login page")
+            response = send_from_directory(frontend_pages_dir, 'login.html')
+            response.set_cookie('redirect_count', '0', expires=0)
+            response.set_cookie('session_token', '', expires=0)
+            return response
+        
         # Check for session token in cookies first
         session_token = request.cookies.get('session_token')
         
@@ -48,43 +57,49 @@ def require_auth(f):
         
         if not session_token:
             # Return a simple HTML page that redirects to login
-            return '''
+            response = '''
             <!DOCTYPE html>
             <html>
             <head>
                 <title>Unauthorized Access</title>
-                <meta http-equiv="refresh" content="0; url=/login">
+                <meta http-equiv="refresh" content="2; url=/login">
                 <script>
-                    window.location.href = '/login';
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
                 </script>
             </head>
             <body>
-                <p>Redirecting to login page...</p>
+                <p>No session token found. Redirecting to login page in 2 seconds...</p>
             </body>
             </html>
-            ''', 401
+            '''
+            return response, 401
         
         # Validate session token
         user = validate_session_token(session_token)
         if not user:
             # Return a simple HTML page that redirects to login
-            return '''
+            response = '''
             <!DOCTYPE html>
             <html>
             <head>
                 <title>Session Expired</title>
-                <meta http-equiv="refresh" content="0; url=/login">
+                <meta http-equiv="refresh" content="2; url=/login">
                 <script>
                     localStorage.removeItem('session_token');
                     localStorage.removeItem('user_data');
-                    window.location.href = '/login';
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
                 </script>
             </head>
             <body>
-                <p>Session expired. Redirecting to login page...</p>
+                <p>Session expired. Redirecting to login page in 2 seconds...</p>
             </body>
             </html>
-            ''', 401
+            '''
+            return response, 401
         
         # Add user info to request context
         request.current_user = user
@@ -2738,6 +2753,14 @@ def get_frontend_config():
 @app.route('/login')
 def login_page():
     """Serve login page - redirect to dashboard if already logged in"""
+    # Check for redirect loop protection
+    redirect_count = request.cookies.get('redirect_count', '0')
+    if int(redirect_count) > 3:
+        print("Redirect loop detected, serving login page without redirect")
+        response = send_from_directory(frontend_pages_dir, 'login.html')
+        response.set_cookie('redirect_count', '0', expires=0)
+        return response
+    
     # Check if user is already logged in via cookie
     session_token = request.cookies.get('session_token')
     
@@ -2747,16 +2770,23 @@ def login_page():
         if user:
             # User is already logged in, redirect to dashboard
             print(f"User {user.get('username', 'Unknown')} already logged in, redirecting to dashboard")
-            return redirect('/dashboard')
+            response = redirect('/dashboard')
+            response.set_cookie('redirect_count', str(int(redirect_count) + 1), max_age=60)
+            return response
     
     # User is not logged in, serve login page
-    return send_from_directory(frontend_pages_dir, 'login.html')
+    response = send_from_directory(frontend_pages_dir, 'login.html')
+    response.set_cookie('redirect_count', '0', max_age=60)
+    return response
 
 @app.route('/dashboard')
 @require_auth
 def dashboard_page():
     """Serve dashboard page"""
-    return send_from_directory(frontend_pages_dir, 'dashboard.html')
+    # Reset redirect count on successful dashboard access
+    response = send_from_directory(frontend_pages_dir, 'dashboard.html')
+    response.set_cookie('redirect_count', '0', max_age=60)
+    return response
 
 @app.route('/api/dashboard/stats')
 def dashboard_stats():
@@ -2915,8 +2945,9 @@ def logout_page():
         # Create response that redirects to login
         response = redirect('/login')
         
-        # Clear the session token cookie
+        # Clear the session token cookie and redirect count
         response.set_cookie('session_token', '', expires=0)
+        response.set_cookie('redirect_count', '0', expires=0)
         
         return response
     except Exception as e:
@@ -2924,7 +2955,17 @@ def logout_page():
         # Even if there's an error, redirect to login
         response = redirect('/login')
         response.set_cookie('session_token', '', expires=0)
+        response.set_cookie('redirect_count', '0', expires=0)
         return response
+
+@app.route('/clear-redirect-loop')
+def clear_redirect_loop():
+    """Clear redirect loop and reset session"""
+    print("Clearing redirect loop and resetting session")
+    response = redirect('/login')
+    response.set_cookie('session_token', '', expires=0)
+    response.set_cookie('redirect_count', '0', expires=0)
+    return response
 
 @app.route('/api/validate-session', methods=['POST'])
 def api_validate_session():
