@@ -3066,6 +3066,46 @@
                             <label for="nik"><i class="fas fa-id-card"></i> NIK</label>
                             <input type="text" id="nik" placeholder="Masukkan nomor NIK" value="1505041107830002">
                             </div>
+                            <div class="form-group">
+                            <label for="family_cert_number"><i class="fas fa-home"></i> Nomor Kartu Keluarga</label>
+                            <input type="text" id="family_cert_number" placeholder="Masukkan nomor KK (opsional)">
+                            </div>
+                            <div class="form-group">
+                            <label for="tempat_lahir"><i class="fas fa-map-marker-alt"></i> Tempat Lahir</label>
+                            <input type="text" id="tempat_lahir" placeholder="Masukkan tempat lahir (opsional)">
+                            </div>
+                            <div class="form-group">
+                            <label for="tanggal_lahir"><i class="fas fa-calendar"></i> Tanggal Lahir</label>
+                            <input type="date" id="tanggal_lahir" placeholder="Masukkan tanggal lahir (opsional)">
+                            </div>
+                            <div class="form-group">
+                            <label for="provinsi"><i class="fas fa-map"></i> Provinsi</label>
+                            <select id="provinsi" onchange="loadKabupaten()">
+                                <option value="">Pilih Provinsi</option>
+                            </select>
+                            <input type="hidden" id="no_prop" value="">
+                            </div>
+                            <div class="form-group">
+                            <label for="kabupaten"><i class="fas fa-city"></i> Kabupaten/Kota</label>
+                            <select id="kabupaten" onchange="loadKecamatan()" disabled>
+                                <option value="">Pilih Kabupaten/Kota</option>
+                            </select>
+                            <input type="hidden" id="no_kab" value="">
+                            </div>
+                            <div class="form-group">
+                            <label for="kecamatan"><i class="fas fa-building"></i> Kecamatan</label>
+                            <select id="kecamatan" onchange="loadKelurahan()" disabled>
+                                <option value="">Pilih Kecamatan</option>
+                            </select>
+                            <input type="hidden" id="no_kec" value="">
+                            </div>
+                            <div class="form-group">
+                            <label for="kelurahan"><i class="fas fa-home"></i> Kelurahan/Desa</label>
+                            <select id="kelurahan" onchange="updateKelurahanCode()" disabled>
+                                <option value="">Pilih Kelurahan/Desa</option>
+                            </select>
+                            <input type="hidden" id="no_desa" value="">
+                            </div>
                         </div>
                 </div>
             </div>
@@ -3513,9 +3553,18 @@
                     case 'identity':
                         const name = document.getElementById('name').value.trim();
                         const nik = document.getElementById('nik').value.trim();
-                        console.log('Identity validation - Name:', name, 'NIK:', nik);
-                        if (!name && !nik) {
-                            this.showMessage('Nama atau NIK harus diisi', 'error');
+                        const family_cert_number = document.getElementById('family_cert_number').value.trim();
+                        const tempat_lahir = document.getElementById('tempat_lahir').value.trim();
+                        const tanggal_lahir = document.getElementById('tanggal_lahir').value.trim();
+                        const no_prop = document.getElementById('no_prop').value.trim();
+                        const no_kab = document.getElementById('no_kab').value.trim();
+                        const no_kec = document.getElementById('no_kec').value.trim();
+                        const no_desa = document.getElementById('no_desa').value.trim();
+                        
+                        console.log('Identity validation - Name:', name, 'NIK:', nik, 'Family Cert:', family_cert_number, 'Tempat Lahir:', tempat_lahir, 'Tanggal Lahir:', tanggal_lahir, 'No Prop:', no_prop, 'No Kab:', no_kab, 'No Kec:', no_kec, 'No Desa:', no_desa);
+                        
+                        if (!name && !nik && !family_cert_number && !tempat_lahir && !tanggal_lahir && !no_prop && !no_kab && !no_kec && !no_desa) {
+                            this.showMessage('Minimal satu parameter harus diisi (Nama, NIK, KK, Tempat Lahir, Tanggal Lahir, atau Kode Lokasi)', 'error');
                             return false;
                         }
                         break;
@@ -3554,7 +3603,14 @@
                         return {
                             ...baseData,
                             name: document.getElementById('name').value.trim(),
-                            nik: document.getElementById('nik').value.trim()
+                            nik: document.getElementById('nik').value.trim(),
+                            family_cert_number: document.getElementById('family_cert_number').value.trim(),
+                            tempat_lahir: document.getElementById('tempat_lahir').value.trim(),
+                            tanggal_lahir: document.getElementById('tanggal_lahir').value.trim(),
+                            no_prop: document.getElementById('no_prop').value.trim(),
+                            no_kab: document.getElementById('no_kab').value.trim(),
+                            no_kec: document.getElementById('no_kec').value.trim(),
+                            no_desa: document.getElementById('no_desa').value.trim()
                         };
                     
                     case 'phone':
@@ -3762,6 +3818,31 @@
                     case 'identity':
                 document.getElementById('name').value = '';
                 document.getElementById('nik').value = '';
+                document.getElementById('family_cert_number').value = '';
+                document.getElementById('tempat_lahir').value = '';
+                document.getElementById('tanggal_lahir').value = '';
+                
+                // Reset wilayah dropdowns
+                document.getElementById('provinsi').value = '';
+                document.getElementById('kabupaten').value = '';
+                document.getElementById('kecamatan').value = '';
+                document.getElementById('kelurahan').value = '';
+                
+                // Reset hidden fields
+                document.getElementById('no_prop').value = '';
+                document.getElementById('no_kab').value = '';
+                document.getElementById('no_kec').value = '';
+                document.getElementById('no_desa').value = '';
+                
+                // Reset dropdown states
+                document.getElementById('kabupaten').disabled = true;
+                document.getElementById('kecamatan').disabled = true;
+                document.getElementById('kelurahan').disabled = true;
+                
+                // Reset dropdown options
+                document.getElementById('kabupaten').innerHTML = '<option value="">Pilih Kabupaten/Kota</option>';
+                document.getElementById('kecamatan').innerHTML = '<option value="">Pilih Kecamatan</option>';
+                document.getElementById('kelurahan').innerHTML = '<option value="">Pilih Kelurahan/Desa</option>';
                         break;
                     case 'phone':
                         document.getElementById('phoneNumber').value = '';
@@ -5192,9 +5273,161 @@
             app.selectIdentityResult(index);
         }
 
+        // Functions for wilayah dropdowns
+        async function loadProvinsi() {
+            try {
+                const response = await fetch('/api/wilayah/provinsi');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const provinsiSelect = document.getElementById('provinsi');
+                    provinsiSelect.innerHTML = '<option value="">Pilih Provinsi</option>';
+                    
+                    result.data.forEach(provinsi => {
+                        const option = document.createElement('option');
+                        option.value = provinsi.kode;
+                        option.textContent = provinsi.nama;
+                        provinsiSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading provinsi:', error);
+            }
+        }
+
+        async function loadKabupaten() {
+            const provinsiSelect = document.getElementById('provinsi');
+            const kabupatenSelect = document.getElementById('kabupaten');
+            const kecamatanSelect = document.getElementById('kecamatan');
+            const kelurahanSelect = document.getElementById('kelurahan');
+            
+            // Reset dependent dropdowns
+            kabupatenSelect.innerHTML = '<option value="">Pilih Kabupaten/Kota</option>';
+            kecamatanSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+            kelurahanSelect.innerHTML = '<option value="">Pilih Kelurahan/Desa</option>';
+            
+            // Update hidden fields
+            document.getElementById('no_prop').value = provinsiSelect.value;
+            document.getElementById('no_kab').value = '';
+            document.getElementById('no_kec').value = '';
+            document.getElementById('no_desa').value = '';
+            
+            if (!provinsiSelect.value) {
+                kabupatenSelect.disabled = true;
+                kecamatanSelect.disabled = true;
+                kelurahanSelect.disabled = true;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/wilayah/kabupaten/${provinsiSelect.value}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    kabupatenSelect.innerHTML = '<option value="">Pilih Kabupaten/Kota</option>';
+                    
+                    result.data.forEach(kabupaten => {
+                        const option = document.createElement('option');
+                        option.value = kabupaten.kode;
+                        option.textContent = kabupaten.nama;
+                        kabupatenSelect.appendChild(option);
+                    });
+                    
+                    kabupatenSelect.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error loading kabupaten:', error);
+            }
+        }
+
+        async function loadKecamatan() {
+            const kabupatenSelect = document.getElementById('kabupaten');
+            const kecamatanSelect = document.getElementById('kecamatan');
+            const kelurahanSelect = document.getElementById('kelurahan');
+            
+            // Reset dependent dropdowns
+            kecamatanSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+            kelurahanSelect.innerHTML = '<option value="">Pilih Kelurahan/Desa</option>';
+            
+            // Update hidden fields
+            document.getElementById('no_kab').value = kabupatenSelect.value;
+            document.getElementById('no_kec').value = '';
+            document.getElementById('no_desa').value = '';
+            
+            if (!kabupatenSelect.value) {
+                kecamatanSelect.disabled = true;
+                kelurahanSelect.disabled = true;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/wilayah/kecamatan/${kabupatenSelect.value}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    kecamatanSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+                    
+                    result.data.forEach(kecamatan => {
+                        const option = document.createElement('option');
+                        option.value = kecamatan.kode;
+                        option.textContent = kecamatan.nama;
+                        kecamatanSelect.appendChild(option);
+                    });
+                    
+                    kecamatanSelect.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error loading kecamatan:', error);
+            }
+        }
+
+        async function loadKelurahan() {
+            const kecamatanSelect = document.getElementById('kecamatan');
+            const kelurahanSelect = document.getElementById('kelurahan');
+            
+            // Reset dependent dropdown
+            kelurahanSelect.innerHTML = '<option value="">Pilih Kelurahan/Desa</option>';
+            
+            // Update hidden fields
+            document.getElementById('no_kec').value = kecamatanSelect.value;
+            document.getElementById('no_desa').value = '';
+            
+            if (!kecamatanSelect.value) {
+                kelurahanSelect.disabled = true;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/wilayah/kelurahan/${kecamatanSelect.value}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    kelurahanSelect.innerHTML = '<option value="">Pilih Kelurahan/Desa</option>';
+                    
+                    result.data.forEach(kelurahan => {
+                        const option = document.createElement('option');
+                        option.value = kelurahan.kode;
+                        option.textContent = kelurahan.nama;
+                        kelurahanSelect.appendChild(option);
+                    });
+                    
+                    kelurahanSelect.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error loading kelurahan:', error);
+            }
+        }
+
+        function updateKelurahanCode() {
+            const kelurahanSelect = document.getElementById('kelurahan');
+            document.getElementById('no_desa').value = kelurahanSelect.value;
+        }
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
             window.profilingApp = new ProfilingApp();
+            // Load provinsi data on page load
+            loadProvinsi();
         });
     </script>
 </body>
