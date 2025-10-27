@@ -2752,32 +2752,11 @@ def get_frontend_config():
 # Authentication routes
 @app.route('/login')
 def login_page():
-    """Serve login page - redirect to dashboard if already logged in"""
-    # Check for redirect loop protection
-    redirect_count = request.cookies.get('redirect_count', '0')
-    if int(redirect_count) > 3:
-        print("Redirect loop detected, serving login page without redirect")
-        response = send_from_directory(frontend_pages_dir, 'login.html')
-        response.set_cookie('redirect_count', '0', expires=0)
-        return response
-    
-    # Check if user is already logged in via cookie
-    session_token = request.cookies.get('session_token')
-    
-    if session_token:
-        # Validate session token server-side
-        user = validate_session_token(session_token)
-        if user:
-            # User is already logged in, redirect to dashboard
-            print(f"User {user.get('username', 'Unknown')} already logged in, redirecting to dashboard")
-            response = redirect('/dashboard')
-            response.set_cookie('redirect_count', str(int(redirect_count) + 1), max_age=60)
-            return response
-    
-    # User is not logged in, serve login page
-    response = send_from_directory(frontend_pages_dir, 'login.html')
-    response.set_cookie('redirect_count', '0', max_age=60)
-    return response
+    """Serve login page - let JavaScript handle authentication"""
+    # Always serve login page, let JavaScript handle the authentication logic
+    # This prevents server-side redirect conflicts with client-side logic
+    print("Serving login page - JavaScript will handle authentication")
+    return send_from_directory(frontend_pages_dir, 'login.html')
 
 @app.route('/dashboard')
 @require_auth
@@ -2966,6 +2945,24 @@ def clear_redirect_loop():
     response.set_cookie('session_token', '', expires=0)
     response.set_cookie('redirect_count', '0', expires=0)
     return response
+
+@app.route('/api/clear-session', methods=['POST'])
+def clear_session_api():
+    """API endpoint to clear session and reset authentication"""
+    try:
+        print("Clearing session via API")
+        response = jsonify({
+            'success': True,
+            'message': 'Session cleared successfully'
+        })
+        
+        # Clear all session cookies
+        response.set_cookie('session_token', '', expires=0)
+        response.set_cookie('redirect_count', '0', expires=0)
+        
+        return response
+    except Exception as e:
+        return jsonify({'error': f'Session clear error: {str(e)}'}), 500
 
 @app.route('/api/validate-session', methods=['POST'])
 def api_validate_session():

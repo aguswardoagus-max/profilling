@@ -1052,10 +1052,61 @@
 
         // Check if user is already logged in
         async function checkExistingSession() {
-            // Server-side authentication check is now handled by the backend
-            // This function is kept for compatibility but simplified
-            console.log('Login page loaded - server will handle authentication check');
-            return false; // Always allow login page to load, server will redirect if needed
+            const sessionToken = localStorage.getItem('session_token');
+            
+            if (!sessionToken) {
+                console.log('No session token found, allowing login');
+                return false; // No session, allow login
+            }
+            
+            // Check if session token is valid format
+            if (sessionToken.length < 10) {
+                console.log('Invalid session token format, clearing and allowing login');
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                return false;
+            }
+            
+            try {
+                console.log('Checking existing session...');
+                // Use the simpler check-auth endpoint
+                const response = await fetch('/api/check-auth', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                console.log('Session validation response status:', response.status);
+                
+                if (!response.ok) {
+                    console.log('Session validation failed, clearing session');
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    return false;
+                }
+                
+                const data = await response.json();
+                console.log('Session validation response:', data);
+                
+                if (data.authenticated) {
+                    // User is already logged in, redirect to dashboard
+                    console.log('User already logged in, redirecting to dashboard...');
+                    // Use replace to prevent back button issues
+                    window.location.replace('/dashboard');
+                    return true;
+                } else {
+                    // Invalid session, clear it and allow login
+                    console.log('Invalid session, clearing and allowing login');
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error checking existing session:', error);
+                // On error, clear session and allow login
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_data');
+                return false;
+            }
         }
 
         // Check for redirect loop prevention

@@ -1077,7 +1077,11 @@
                 // Use the simpler check-auth endpoint
                 const response = await fetch('/api/check-auth', {
                     method: 'GET',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 console.log('Response status:', response.status);
