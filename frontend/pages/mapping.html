@@ -1,0 +1,3527 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping Profiling - Sistem Intelijen</title>
+    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .sidebar-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: rgba(255,255,255,0.5);
+            transform: translateX(5px);
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-left-color: white;
+            border-left-width: 4px;
+        }
+
+        .menu-item i {
+            font-size: 1.2rem;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .nav-submenu {
+            margin-left: 20px;
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .nav-submenu .menu-item {
+            padding: 12px 25px;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+
+
+        .menu-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 20px 20px;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.1);
+            margin-top: auto;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .user-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+        }
+
+        /* Auth Loading Screen */
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .auth-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .auth-loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 1.1rem;
+        }
+
+        .auth-loading.hidden {
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mapping Specific Styles */
+        .mapping-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Network Visualization Styles */
+        .network-container {
+            position: relative;
+            width: 100%;
+            height: 700px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        .network-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 2px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+
+        .hierarchy-ring {
+            position: absolute;
+            border: 1px dashed rgba(0,0,0,0.1);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .hierarchy-ring.high {
+            top: 100px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            transform: translateX(-50%);
+            border-color: #2c3e50;
+            border-width: 3px;
+            border-style: solid;
+            border-radius: 0;
+            background: #2c3e50;
+        }
+
+        .hierarchy-ring.medium {
+            top: 280px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            transform: translateX(-50%);
+            border-color: #3498db;
+            border-width: 3px;
+            border-style: solid;
+            border-radius: 0;
+            background: #3498db;
+        }
+
+        .hierarchy-ring.low {
+            top: 460px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            transform: translateX(-50%);
+            border-color: #95a5a6;
+            border-width: 3px;
+            border-style: solid;
+            border-radius: 0;
+            background: #95a5a6;
+        }
+
+        .network-container:active {
+            cursor: grabbing;
+        }
+
+        .network-node {
+            position: absolute;
+            width: 100px;
+            height: 80px;
+            border-radius: 8px;
+            border: 2px solid #333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            cursor: grab;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            background: #f8f9fa;
+        }
+
+        .network-node:active {
+            cursor: grabbing;
+        }
+
+        .network-node:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            z-index: 20;
+        }
+
+        .network-node.high-priority {
+            background: #2c3e50;
+            color: white;
+            border-color: #34495e;
+        }
+
+        .network-node.medium-priority {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .network-node.low-priority {
+            background: #95a5a6;
+            color: white;
+            border-color: #7f8c8d;
+        }
+
+        .node-photo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.8);
+            margin-bottom: 2px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+
+        .node-photo-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.8);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: rgba(255,255,255,0.9);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+
+        .node-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+            max-width: 90px;
+            line-height: 1.2;
+            word-wrap: break-word;
+            padding: 1px 2px;
+            margin-top: 1px;
+        }
+
+        .network-edge {
+            position: absolute;
+            height: 3px;
+            background: #666;
+            transform-origin: left center;
+            z-index: 1;
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .network-edge.high-strength {
+            height: 5px;
+            background: linear-gradient(90deg, #ff4444, #cc0000);
+            box-shadow: 0 2px 6px rgba(255, 68, 68, 0.4);
+        }
+
+        .network-edge.medium-strength {
+            height: 4px;
+            background: linear-gradient(90deg, #ff8800, #cc6600);
+            box-shadow: 0 2px 6px rgba(255, 136, 0, 0.4);
+        }
+
+        .network-edge.low-strength {
+            height: 3px;
+            background: linear-gradient(90deg, #44ff44, #00cc00);
+            box-shadow: 0 2px 6px rgba(68, 255, 68, 0.4);
+        }
+
+        .network-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .network-legend {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .network-legend h4 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+        }
+
+        .legend-color.high {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+        }
+
+        .legend-color.medium {
+            background: linear-gradient(135deg, #ff8800, #cc6600);
+        }
+
+        .legend-color.low {
+            background: linear-gradient(135deg, #44ff44, #00cc00);
+        }
+
+        .network-control-btn {
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .network-control-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .node-tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 200px;
+        }
+
+        .node-tooltip.show {
+            opacity: 1;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-detail {
+            font-size: 11px;
+            opacity: 0.8;
+            margin: 2px 0;
+        }
+
+        .mapping-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .mapping-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .mapping-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .mapping-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        .mapping-card h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .category-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .category-option {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            background: white;
+        }
+
+        .category-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .category-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .category-option i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .category-option h4 {
+            margin: 0 0 5px 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .category-option p {
+            margin: 0;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .data-input-section {
+            margin-bottom: 20px;
+        }
+
+        .data-input-section h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .data-input-group {
+            margin-bottom: 15px;
+        }
+
+        .data-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .data-input-group input,
+        .data-input-group select,
+        .data-input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .data-input-group input:focus,
+        .data-input-group select:focus,
+        .data-input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .add-data-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .add-data-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .data-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+
+        .data-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .data-item-info {
+            flex: 1;
+        }
+
+        .data-item-info strong {
+            color: #333;
+            font-size: 14px;
+        }
+
+        .data-item-info span {
+            color: #666;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .data-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .data-item-actions button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .data-item-actions button:hover {
+            background: #dc2626;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .results-section {
+            margin-top: 30px;
+        }
+
+        .results-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .results-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.4rem;
+        }
+
+        .threat-level {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .threat-level.low {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .threat-level.medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .threat-level.high {
+            background: #fed7d7;
+            color: #991b1b;
+        }
+
+        .threat-level.critical {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+
+        .network-visualization {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .network-visualization img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .analysis-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .analysis-card h4 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .key-players-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .key-players-list li {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .key-players-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        .player-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .player-score {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .report-section {
+            margin-top: 20px;
+        }
+
+        .report-content {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading i {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+            margin: 20px 0;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            color: #166534;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #bbf7d0;
+            margin: 20px 0;
+        }
+
+        /* Database Integration Styles */
+        .database-section {
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .database-section h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .database-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .database-option {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .database-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .database-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .database-option i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .database-option h5 {
+            margin: 0 0 5px 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .database-option p {
+            margin: 0;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .profiling-selector {
+            margin-top: 15px;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .data-preview {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .data-preview-item {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .data-preview-item:hover {
+            background: #e8f2ff;
+            border-color: #667eea;
+        }
+
+        .data-preview-item.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .data-preview-item .checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ddd;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .data-preview-item.selected .checkbox {
+            background: white;
+            border-color: white;
+        }
+
+        .data-preview-item .checkbox::after {
+            content: '✓';
+            color: #667eea;
+            font-size: 12px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .data-preview-item.selected .checkbox::after {
+            opacity: 1;
+        }
+
+        .data-preview-item .item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .selected-counter {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .profiling-selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .profiling-selector-header h5 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #667eea;
+            color: #667eea;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .data-preview-item h6 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .data-preview-item p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .no-data i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Topbar Styles */
+        .topbar {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #374151;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #333;
+            margin: 0;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .topbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .topbar .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: white;
+        }
+
+        .topbar .user-details {
+            flex: 1;
+        }
+
+        .topbar .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .topbar .user-role {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        /* Sidebar Overlay for Mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 1000;
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .topbar {
+                padding: 15px 20px;
+            }
+
+            .page-title {
+                font-size: 1.4rem;
+            }
+
+            .topbar .user-info {
+                display: none;
+            }
+            
+            .mapping-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .mapping-header h1 {
+                font-size: 2rem;
+            }
+            
+            .category-selector {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .database-options {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mapping-container {
+                padding: 10px;
+            }
+            
+            .mapping-header {
+                padding: 20px;
+            }
+            
+            .mapping-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Loading Screen -->
+    <div class="auth-loading" id="authLoading">
+        <div class="auth-spinner"></div>
+        <div class="auth-loading-text">Memverifikasi autentikasi...</div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="sidebar-title">Pencarian Clearance</div>
+        </div>
+        
+        <nav class="sidebar-menu">
+            <a href="/dashboard" class="menu-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/profiling" class="menu-item">
+                <i class="fas fa-search"></i>
+                <span>Profiling</span>
+            </a>
+            <a href="/data-profiling" class="menu-item">
+                <i class="fas fa-database"></i>
+                <span>Data Profiling</span>
+            </a>
+            <a href="/cekplat" class="menu-item">
+                <i class="fas fa-car"></i>
+                <span>Cek Plat No Jambi</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/data-cari-plat" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    <span>Data Cari Plat No</span>
+                </a>
+            </div>
+            <a href="/user-management" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <a href="/ai-features" class="menu-item">
+                <i class="fas fa-robot"></i>
+                <span>AI Features</span>
+            </a>
+            <a href="/mapping" class="menu-item active">
+                <i class="fas fa-project-diagram"></i>
+                <span>Mapping Profiling</span>
+            </a>
+            <a href="/reports" class="menu-item">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+            <div class="nav-submenu">
+                <a href="/reports/profiling" class="menu-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Profiling</span>
+                </a>
+            </div>
+            <a href="/settings" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Admin User</div>
+                    <div class="user-role" id="userRole">Administrator</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Mapping Profiling</h1>
+            </div>
+            <div class="topbar-right">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="topbarUserName">Admin User</div>
+                        <div class="user-role" id="topbarUserRole">Administrator</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mapping-container">
+            <!-- Header -->
+            <div class="mapping-header">
+                <h1><i class="fas fa-project-diagram"></i> Mapping Profiling</h1>
+                <p>Pemetaan Jaringan Intelijen dengan AI - Teroris, Sosial Budaya, Politik, Hankam, Ekonomi, Ideologi</p>
+            </div>
+
+            <!-- Main Content -->
+            <div class="mapping-grid">
+                <!-- Input Section -->
+                <div class="mapping-card">
+                    <h3><i class="fas fa-edit"></i> Input Data Mapping</h3>
+                    
+                    <!-- Database Integration Section -->
+                    <div class="database-section">
+                        <h4><i class="fas fa-database"></i> Pilih Data dari Database</h4>
+                        <div class="database-options">
+                            <div class="database-option" data-source="profiling" onclick="selectDataSource('profiling')">
+                                <i class="fas fa-user-circle"></i>
+                                <h5>Data Profiling</h5>
+                                <p>Gunakan data dari report profiling</p>
+                            </div>
+                            <div class="database-option" data-source="manual" onclick="selectDataSource('manual')">
+                                <i class="fas fa-edit"></i>
+                                <h5>Input Manual</h5>
+                                <p>Masukkan data secara manual</p>
+                            </div>
+                        </div>
+                        
+                <div id="profilingDataPreview" style="display: none;">
+                    <div class="profiling-selector-header">
+                        <h5><i class="fas fa-database"></i> Pilih Data Profiling:</h5>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="selected-counter" id="selectedCounter" style="display: none;">
+                                <span id="selectedCount">0</span> dipilih
+                            </div>
+                            <button class="btn btn-sm btn-outline" id="clearSelectionBtn" onclick="clearAllSelections()" style="display: none;">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="profiling-selector">
+                        <div class="search-box">
+                            <input type="text" id="profilingSearch" placeholder="Cari data profiling..." onkeyup="filterProfilingData()">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="data-preview" id="profilingDataList">
+                            <!-- Data profiling akan dimuat di sini -->
+                        </div>
+                        <div class="no-data" id="noProfilingData" style="display: none;">
+                            <i class="fas fa-database"></i>
+                            <p>Tidak ada data profiling tersedia</p>
+                        </div>
+                    </div>
+                </div>
+                    </div>
+                    
+                    <!-- Category Selection -->
+                    <div class="data-input-section">
+                        <h4>Pilih Kategori Jaringan</h4>
+                        <div class="category-selector" id="categorySelector">
+                            <div class="category-option" data-category="terrorism">
+                                <i class="fas fa-bomb"></i>
+                                <h4>Teroris</h4>
+                                <p>Jaringan teroris dan ekstremis</p>
+                            </div>
+                            <div class="category-option" data-category="social_cultural">
+                                <i class="fas fa-users"></i>
+                                <h4>Sosial Budaya</h4>
+                                <p>Jaringan sosial dan budaya</p>
+                            </div>
+                            <div class="category-option" data-category="political">
+                                <i class="fas fa-landmark"></i>
+                                <h4>Politik</h4>
+                                <p>Jaringan politik dan kekuasaan</p>
+                            </div>
+                            <div class="category-option" data-category="defense">
+                                <i class="fas fa-shield-alt"></i>
+                                <h4>Hankam</h4>
+                                <p>Jaringan pertahanan dan keamanan</p>
+                            </div>
+                            <div class="category-option" data-category="economic">
+                                <i class="fas fa-chart-line"></i>
+                                <h4>Ekonomi</h4>
+                                <p>Jaringan ekonomi dan bisnis</p>
+                            </div>
+                            <div class="category-option" data-category="ideology">
+                                <i class="fas fa-brain"></i>
+                                <h4>Ideologi</h4>
+                                <p>Jaringan ideologi dan keyakinan</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Input Section -->
+                    <div id="manualInputSection" style="display: none;">
+                        <!-- Person Data Input -->
+                        <div class="data-input-section">
+                            <h4>Data Person</h4>
+                            <div class="data-input-group">
+                                <label>Nama</label>
+                                <input type="text" id="personName" placeholder="Masukkan nama person">
+                            </div>
+                            <div class="data-input-group">
+                                <label>Peran</label>
+                                <input type="text" id="personRole" placeholder="Masukkan peran/jabatan">
+                            </div>
+                            <div class="data-input-group">
+                                <label>Lokasi</label>
+                                <input type="text" id="personLocation" placeholder="Masukkan lokasi">
+                            </div>
+                            <button class="add-data-btn" onclick="addPerson()">
+                                <i class="fas fa-plus"></i> Tambah Person
+                            </button>
+                            <div class="data-list" id="personsList"></div>
+                        </div>
+
+                        <!-- Relationship Data Input -->
+                        <div class="data-input-section">
+                            <h4>Data Hubungan</h4>
+                            <div class="data-input-group">
+                                <label>Dari</label>
+                                <select id="relationshipFrom">
+                                    <option value="">Pilih person</option>
+                                </select>
+                            </div>
+                            <div class="data-input-group">
+                                <label>Ke</label>
+                                <select id="relationshipTo">
+                                    <option value="">Pilih person</option>
+                                </select>
+                            </div>
+                            <div class="data-input-group">
+                                <label>Jenis Hubungan</label>
+                                <input type="text" id="relationshipType" placeholder="Masukkan jenis hubungan">
+                            </div>
+                            <button class="add-data-btn" onclick="addRelationship()">
+                                <i class="fas fa-plus"></i> Tambah Hubungan
+                            </button>
+                            <div class="data-list" id="relationshipsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button class="btn-primary" onclick="previewData()">
+                            <i class="fas fa-eye"></i> Preview Data
+                        </button>
+                        <button class="btn-secondary" onclick="analyzeNetwork()">
+                            <i class="fas fa-brain"></i> Analisis AI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="mapping-card">
+                    <h3><i class="fas fa-chart-pie"></i> Preview Data</h3>
+                    <div id="previewContent">
+                        <p style="text-align: center; color: #666; padding: 40px;">
+                            <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 15px;"></i><br>
+                            Pilih kategori dan masukkan data untuk melihat preview
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <div class="results-card">
+                    <div class="results-header">
+                        <h3><i class="fas fa-chart-network"></i> Hasil Analisis AI</h3>
+                        <div class="threat-level" id="threatLevel">MEDIUM</div>
+                    </div>
+                    
+                    <div id="analysisContent">
+                        <!-- Analysis content will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let selectedCategory = '';
+        let selectedDataSource = '';
+        let persons = [];
+        let relationships = [];
+        let analysisResult = null;
+        let profilingData = [];
+        let selectedProfilingItems = [];
+        
+        // Network visualization variables
+        let networkNodes = [];
+        let networkEdges = [];
+        let isDragging = false;
+        let dragNode = null;
+        let dragOffset = { x: 0, y: 0 };
+        let currentLayout = 'hierarchical';
+        let tooltip = null;
+
+        // Global variables for mobile
+        let isMobile = window.innerWidth <= 768;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Mapping page loaded, initializing...');
+            
+            // Hide loading screen immediately since server-side auth already handled it
+            const authLoading = document.getElementById('authLoading');
+            if (authLoading) {
+                authLoading.classList.add('hidden');
+            }
+            
+            // Load user data from localStorage if available
+            const userData = localStorage.getItem('user_data');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    const userName = document.getElementById('userName');
+                    const userRole = document.getElementById('userRole');
+                    const topbarUserName = document.getElementById('topbarUserName');
+                    const topbarUserRole = document.getElementById('topbarUserRole');
+                    
+                    if (userName && userRole) {
+                        userName.textContent = user.username || 'Admin User';
+                        userRole.textContent = user.role || 'Administrator';
+                    }
+                    
+                    if (topbarUserName && topbarUserRole) {
+                        topbarUserName.textContent = user.username || 'Admin User';
+                        topbarUserRole.textContent = user.role || 'Administrator';
+                    }
+                } catch (e) {
+                    console.log('Could not parse user data from localStorage');
+                }
+            }
+            
+            // Setup mobile detection
+            window.addEventListener('resize', function() {
+                isMobile = window.innerWidth <= 768;
+                if (!isMobile) {
+                    const sidebarOverlay = document.getElementById('sidebarOverlay');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.remove('active');
+                    }
+                }
+            });
+            
+            initializeCategorySelector();
+            loadProfilingData();
+            initializeNetworkVisualization();
+        });
+
+        // Toggle sidebar function
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            
+            if (isMobile) {
+                sidebar.classList.toggle('mobile-open');
+                sidebarOverlay.classList.toggle('active');
+            } else {
+                // Desktop behavior (if needed)
+                sidebar.classList.toggle('collapsed');
+            }
+        }
+
+        // Load profiling data from database
+        function loadProfilingData() {
+            console.log('Loading profiling data...');
+            
+            // Get session token from localStorage
+            const sessionToken = localStorage.getItem('session_token');
+            if (!sessionToken) {
+                console.error('No session token found');
+                return;
+            }
+            
+            fetch('/api/profiling/reports', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    console.log('Profiling data response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Profiling data received:', data);
+                    if (data.success) {
+                        profilingData = data.data;
+                        console.log('First profiling item structure:', profilingData[0]);
+                        updateProfilingDataList();
+                        console.log('Profiling data loaded successfully');
+                    } else {
+                        console.error('Failed to load profiling data:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading profiling data:', error);
+                });
+        }
+
+        // Update profiling data list
+        function updateProfilingDataList() {
+            const list = document.getElementById('profilingDataList');
+            const noData = document.getElementById('noProfilingData');
+            
+            list.innerHTML = '';
+
+            if (profilingData.length === 0) {
+                noData.style.display = 'block';
+                return;
+            }
+
+            noData.style.display = 'none';
+
+            profilingData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'data-preview-item';
+                div.dataset.index = index;
+                div.onclick = () => toggleProfilingDataSelection(item, index);
+                
+                const isSelected = selectedProfilingItems.some(selected => selected.nik === item.nik);
+                if (isSelected) {
+                    div.classList.add('selected');
+                }
+                
+                div.innerHTML = `
+                    <div class="checkbox"></div>
+                    <div class="item-content">
+                        <h6>${item.nama || 'Unknown'}</h6>
+                        <p>NIK: ${item.nik || 'N/A'} | ${item.kategori || 'Unknown'}</p>
+                        <small>Tanggal: ${new Date(item.tanggal_input).toLocaleDateString('id-ID')}</small>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            
+            updateSelectedCounter();
+        }
+
+        // Filter profiling data
+        function filterProfilingData() {
+            const searchTerm = document.getElementById('profilingSearch').value.toLowerCase();
+            const items = document.querySelectorAll('.data-preview-item');
+            
+            items.forEach(item => {
+                const name = item.querySelector('h6').textContent.toLowerCase();
+                const nik = item.querySelector('p').textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || nik.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Toggle profiling data selection
+        function toggleProfilingDataSelection(item, index) {
+            const itemElement = document.querySelector(`[data-index="${index}"]`);
+            const isCurrentlySelected = selectedProfilingItems.some(selected => selected.nik === item.nik);
+            
+            if (isCurrentlySelected) {
+                // Remove from selection
+                selectedProfilingItems = selectedProfilingItems.filter(selected => selected.nik !== item.nik);
+                itemElement.classList.remove('selected');
+            } else {
+                // Add to selection
+                selectedProfilingItems.push(item);
+                itemElement.classList.add('selected');
+            }
+            
+            updateSelectedCounter();
+            updatePersonsFromSelectedProfiling();
+        }
+        
+        // Update selected counter
+        function updateSelectedCounter() {
+            const counter = document.getElementById('selectedCounter');
+            const count = document.getElementById('selectedCount');
+            const clearBtn = document.getElementById('clearSelectionBtn');
+            const selectedCount = selectedProfilingItems.length;
+            
+            if (selectedCount > 0) {
+                counter.style.display = 'block';
+                clearBtn.style.display = 'inline-flex';
+                count.textContent = selectedCount;
+            } else {
+                counter.style.display = 'none';
+                clearBtn.style.display = 'none';
+            }
+        }
+        
+        // Clear all selections
+        function clearAllSelections() {
+            selectedProfilingItems = [];
+            document.querySelectorAll('.data-preview-item').forEach(el => el.classList.remove('selected'));
+            updateSelectedCounter();
+            updatePersonsFromSelectedProfiling();
+            showSuccess('Semua pilihan telah dihapus');
+        }
+        
+        // Update persons array from selected profiling items
+        function updatePersonsFromSelectedProfiling() {
+            persons = [];
+            relationships = [];
+            
+            selectedProfilingItems.forEach(item => {
+                console.log('Processing selected item:', item);
+                console.log('Item foto_url:', item.foto_url);
+                console.log('Item face:', item.face);
+                console.log('Item foto:', item.foto);
+                
+                // Add main person with photo
+                persons.push({
+                    name: item.nama || 'Unknown',
+                    role: item.pekerjaan || 'Unknown',
+                    location: item.kab_kota || 'Unknown',
+                    photo: item.foto_url || item.face || item.foto || item.image || ''
+                });
+                
+                // Add family members if available (NO FAMILY DATA - REMOVED)
+                // We don't want family data anymore as per user request
+            });
+            
+            // Generate cross-relationships between selected persons
+            if (selectedProfilingItems.length > 1) {
+                for (let i = 0; i < selectedProfilingItems.length; i++) {
+                    for (let j = i + 1; j < selectedProfilingItems.length; j++) {
+                        const person1 = selectedProfilingItems[i];
+                        const person2 = selectedProfilingItems[j];
+                        
+                        // Check if they might be related (same location, similar names, etc.)
+                        const isRelated = checkPotentialRelationship(person1, person2);
+                        if (isRelated) {
+                            relationships.push({
+                                from: person1.nama || 'Unknown',
+                                to: person2.nama || 'Unknown',
+                                type: 'Potential Connection',
+                                strength: 'Medium'
+                            });
+                        }
+                    }
+                }
+            }
+            
+            updatePersonsList();
+            updateRelationshipSelects();
+            
+            console.log('Updated persons from selected profiling:', persons);
+            console.log('Updated relationships:', relationships);
+            
+            if (selectedProfilingItems.length > 0) {
+                showSuccess(`${selectedProfilingItems.length} data profiling berhasil dipilih!`);
+            }
+        }
+        
+        // Check potential relationship between two persons
+        function checkPotentialRelationship(person1, person2) {
+            // Check same location
+            if (person1.kab_kota && person2.kab_kota && 
+                person1.kab_kota.toLowerCase() === person2.kab_kota.toLowerCase()) {
+                return true;
+            }
+            
+            // Check same category
+            if (person1.kategori && person2.kategori && 
+                person1.kategori.toLowerCase() === person2.kategori.toLowerCase()) {
+                return true;
+            }
+            
+            // Check similar names (basic check)
+            if (person1.nama && person2.nama) {
+                const name1 = person1.nama.toLowerCase().split(' ')[0];
+                const name2 = person2.nama.toLowerCase().split(' ')[0];
+                if (name1 === name2) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        // Select data source
+        function selectDataSource(source) {
+            selectedDataSource = source;
+            
+            // Remove previous selection
+            document.querySelectorAll('.database-option').forEach(el => el.classList.remove('selected'));
+            
+            // Add selection to clicked option
+            event.target.closest('.database-option').classList.add('selected');
+            
+            // Show/hide relevant sections
+            if (source === 'profiling') {
+                document.getElementById('profilingDataPreview').style.display = 'block';
+                document.getElementById('manualInputSection').style.display = 'none';
+            } else {
+                document.getElementById('profilingDataPreview').style.display = 'none';
+                document.getElementById('manualInputSection').style.display = 'block';
+            }
+        }
+
+        // Category selector
+        function initializeCategorySelector() {
+            const categoryOptions = document.querySelectorAll('.category-option');
+            categoryOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove previous selection
+                    categoryOptions.forEach(opt => opt.classList.remove('selected'));
+                    
+                    // Add selection to clicked option
+                    this.classList.add('selected');
+                    selectedCategory = this.dataset.category;
+                    
+                    console.log('Selected category:', selectedCategory);
+                });
+            });
+        }
+
+        // Add person
+        function addPerson() {
+            const name = document.getElementById('personName').value.trim();
+            const role = document.getElementById('personRole').value.trim();
+            const location = document.getElementById('personLocation').value.trim();
+
+            if (!name) {
+                alert('Nama person harus diisi');
+                return;
+            }
+
+            const person = {
+                name: name,
+                role: role || 'Unknown',
+                location: location || 'Unknown'
+            };
+
+            persons.push(person);
+            updatePersonsList();
+            updateRelationshipSelects();
+            clearPersonInputs();
+        }
+
+        // Update persons list
+        function updatePersonsList() {
+            const list = document.getElementById('personsList');
+            list.innerHTML = '';
+
+            persons.forEach((person, index) => {
+                const item = document.createElement('div');
+                item.className = 'data-item';
+                item.innerHTML = `
+                    <div class="data-item-info">
+                        <strong>${person.name}</strong>
+                        <span>${person.role} - ${person.location}</span>
+                    </div>
+                    <div class="data-item-actions">
+                        <button onclick="removePerson(${index})">Hapus</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Remove person
+        function removePerson(index) {
+            persons.splice(index, 1);
+            updatePersonsList();
+            updateRelationshipSelects();
+        }
+
+        // Update relationship selects
+        function updateRelationshipSelects() {
+            const fromSelect = document.getElementById('relationshipFrom');
+            const toSelect = document.getElementById('relationshipTo');
+            
+            // Clear options
+            fromSelect.innerHTML = '<option value="">Pilih person</option>';
+            toSelect.innerHTML = '<option value="">Pilih person</option>';
+            
+            // Add person options
+            persons.forEach(person => {
+                const option1 = document.createElement('option');
+                option1.value = person.name;
+                option1.textContent = person.name;
+                fromSelect.appendChild(option1);
+                
+                const option2 = document.createElement('option');
+                option2.value = person.name;
+                option2.textContent = person.name;
+                toSelect.appendChild(option2);
+            });
+        }
+
+        // Add relationship
+        function addRelationship() {
+            const from = document.getElementById('relationshipFrom').value;
+            const to = document.getElementById('relationshipTo').value;
+            const type = document.getElementById('relationshipType').value.trim();
+
+            if (!from || !to) {
+                alert('Pilih person untuk hubungan');
+                return;
+            }
+
+            if (from === to) {
+                alert('Person tidak bisa berhubungan dengan dirinya sendiri');
+                return;
+            }
+
+            const relationship = {
+                from: from,
+                to: to,
+                type: type || 'Unknown'
+            };
+
+            relationships.push(relationship);
+            updateRelationshipsList();
+            clearRelationshipInputs();
+        }
+
+        // Update relationships list
+        function updateRelationshipsList() {
+            const list = document.getElementById('relationshipsList');
+            list.innerHTML = '';
+
+            relationships.forEach((relationship, index) => {
+                const item = document.createElement('div');
+                item.className = 'data-item';
+                item.innerHTML = `
+                    <div class="data-item-info">
+                        <strong>${relationship.from}</strong> → <strong>${relationship.to}</strong>
+                        <span>${relationship.type}</span>
+                    </div>
+                    <div class="data-item-actions">
+                        <button onclick="removeRelationship(${index})">Hapus</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Remove relationship
+        function removeRelationship(index) {
+            relationships.splice(index, 1);
+            updateRelationshipsList();
+        }
+
+        // Clear person inputs
+        function clearPersonInputs() {
+            document.getElementById('personName').value = '';
+            document.getElementById('personRole').value = '';
+            document.getElementById('personLocation').value = '';
+        }
+
+        // Clear relationship inputs
+        function clearRelationshipInputs() {
+            document.getElementById('relationshipFrom').value = '';
+            document.getElementById('relationshipTo').value = '';
+            document.getElementById('relationshipType').value = '';
+        }
+
+        // Preview data
+        function previewData() {
+            if (!selectedCategory) {
+                alert('Pilih kategori terlebih dahulu');
+                return;
+            }
+
+            if (persons.length === 0) {
+                alert('Tambahkan minimal satu person');
+                return;
+            }
+
+            const data = {
+                category: selectedCategory,
+                persons: persons,
+                relationships: relationships
+            };
+
+            // Show loading
+            const previewContent = document.getElementById('previewContent');
+            previewContent.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Memproses preview data...</p>
+                </div>
+            `;
+
+            // Send request
+            fetch('/api/mapping/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Preview response status:', response.status);
+                console.log('Preview response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON');
+                }
+                
+                return response.json();
+            })
+            .then(result => {
+                console.log('Preview result:', result);
+                if (result.success) {
+                    displayPreview(result.preview);
+                } else {
+                    showError('Gagal memproses preview: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Preview error:', error);
+                showError('Error: ' + error.message);
+            });
+        }
+
+        // Display preview
+        function displayPreview(preview) {
+            const previewContent = document.getElementById('previewContent');
+            previewContent.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #333; margin-bottom: 10px;">${preview.category_info.name}</h4>
+                    <p style="color: #666; margin: 0;">${preview.category_info.description}</p>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <h5 style="margin: 0 0 10px 0; color: #333;">Total Person</h5>
+                        <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #667eea;">${preview.total_persons}</p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <h5 style="margin: 0 0 10px 0; color: #333;">Total Hubungan</h5>
+                        <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #667eea;">${preview.total_relationships}</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h5 style="color: #333; margin-bottom: 10px;">Preview Person (${preview.persons_preview.length})</h5>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        ${preview.persons_preview.map(person => `
+                            <div style="background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+                                <strong>${person.name}</strong> - ${person.role} - ${person.location}
+                            </div>
+                        `).join('')}
+                        ${preview.has_more_persons ? '<p style="text-align: center; color: #666; margin: 10px 0;">... dan lainnya</p>' : ''}
+                    </div>
+                </div>
+
+                <div>
+                    <h5 style="color: #333; margin-bottom: 10px;">Preview Hubungan (${preview.relationships_preview.length})</h5>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        ${preview.relationships_preview.map(rel => `
+                            <div style="background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+                                <strong>${rel.from}</strong> → <strong>${rel.to}</strong> (${rel.type})
+                            </div>
+                        `).join('')}
+                        ${preview.has_more_relationships ? '<p style="text-align: center; color: #666; margin: 10px 0;">... dan lainnya</p>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Analyze network
+        function analyzeNetwork() {
+            if (!selectedCategory) {
+                alert('Pilih kategori terlebih dahulu');
+                return;
+            }
+
+            if (persons.length === 0) {
+                alert('Tambahkan minimal satu person');
+                return;
+            }
+
+            const data = {
+                category: selectedCategory,
+                persons: persons,
+                relationships: relationships
+            };
+
+            console.log('Analyzing network with data:', data);
+
+            // Show loading
+            const resultsSection = document.getElementById('resultsSection');
+            const analysisContent = document.getElementById('analysisContent');
+            resultsSection.style.display = 'block';
+            analysisContent.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Menganalisis jaringan dengan AI...</p>
+                </div>
+            `;
+
+            // Send request
+            fetch('/api/mapping/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Analysis response status:', response.status);
+                console.log('Analysis response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON');
+                }
+                
+                return response.json();
+            })
+            .then(result => {
+                console.log('Analysis result:', result);
+                if (result.success) {
+                    analysisResult = result;
+                    displayAnalysis(result);
+                } else {
+                    showError('Gagal menganalisis jaringan: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Analysis error:', error);
+                showError('Error: ' + error.message);
+            });
+        }
+
+        // Display analysis
+        function displayAnalysis(result) {
+            const analysis = result.analysis;
+            const analysisContent = document.getElementById('analysisContent');
+            const threatLevel = document.getElementById('threatLevel');
+            
+            // Update threat level
+            const threat = analysis.network_analysis.threat_level.toLowerCase();
+            threatLevel.textContent = analysis.network_analysis.threat_level;
+            threatLevel.className = `threat-level ${threat}`;
+
+            // Display analysis grid
+            analysisContent.innerHTML = `
+                <!-- Network Visualization -->
+                <div class="network-visualization" id="networkVisualization">
+                    <div class="network-container" id="networkContainer">
+                        <div class="network-controls">
+                            <button class="network-control-btn" onclick="resetNetworkLayout()">
+                                <i class="fas fa-refresh"></i> Reset
+                            </button>
+                            <button class="network-control-btn" onclick="toggleNetworkLayout()">
+                                <i class="fas fa-sitemap"></i> Layout
+                            </button>
+                            <button class="network-control-btn" onclick="exportNetworkImage()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                        <!-- Network nodes and edges will be generated here -->
+                    </div>
+                </div>
+                
+                <div class="analysis-grid">
+                    <div class="analysis-card">
+                        <h4>Key Players</h4>
+                        <ul class="key-players-list">
+                            ${analysis.categorized_nodes.high_priority.map(player => `
+                                <li>
+                                    <span class="player-name">${player}</span>
+                                    <span class="player-score">High</span>
+                                </li>
+                            `).join('')}
+                            ${analysis.categorized_nodes.medium_priority.map(player => `
+                                <li>
+                                    <span class="player-name">${player}</span>
+                                    <span class="player-score">Medium</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h4>Network Statistics</h4>
+                        <p><strong>Total Nodes:</strong> ${analysis.network_analysis.total_nodes}</p>
+                        <p><strong>Total Connections:</strong> ${analysis.network_analysis.total_connections}</p>
+                        <p><strong>Network Density:</strong> ${(analysis.network_analysis.network_density * 100).toFixed(2)}%</p>
+                        <p><strong>Threat Level:</strong> ${analysis.network_analysis.threat_level}</p>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h4>Vulnerabilities</h4>
+                        <ul>
+                            ${analysis.network_analysis.vulnerabilities.map(vuln => `<li>${vuln}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h4>Recommendations</h4>
+                        <ul>
+                            ${analysis.network_analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="report-section">
+                    <h4>Laporan AI Lengkap</h4>
+                    <div class="report-content">${result.report}</div>
+                </div>
+                
+                <div class="action-buttons" style="margin-top: 20px;">
+                    <button class="btn-success" onclick="exportPDF()">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </button>
+                    <button class="btn-success" onclick="exportWord()">
+                        <i class="fas fa-file-word"></i> Export Word
+                    </button>
+                </div>
+            `;
+            
+            // Generate interactive network visualization after HTML is set
+            setTimeout(() => {
+                generateNetworkVisualization();
+            }, 100);
+        }
+
+        // Export PDF
+        function exportPDF() {
+            if (!analysisResult) {
+                alert('Tidak ada hasil analisis untuk diekspor');
+                return;
+            }
+
+            const data = {
+                report: analysisResult.report,
+                analysis: analysisResult.analysis
+            };
+
+            fetch('/api/mapping/export/pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Download PDF
+                    const link = document.createElement('a');
+                    link.href = result.pdf_content;
+                    link.download = result.filename;
+                    link.click();
+                } else {
+                    showError('Gagal mengekspor PDF: ' + result.error);
+                }
+            })
+            .catch(error => {
+                showError('Error: ' + error.message);
+            });
+        }
+
+        // Export Word
+        function exportWord() {
+            if (!analysisResult) {
+                alert('Tidak ada hasil analisis untuk diekspor');
+                return;
+            }
+
+            const data = {
+                report: analysisResult.report,
+                analysis: analysisResult.analysis
+            };
+
+            fetch('/api/mapping/export/word', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Download Word
+                    const link = document.createElement('a');
+                    link.href = result.word_content;
+                    link.download = result.filename;
+                    link.click();
+                } else {
+                    showError('Gagal mengekspor Word: ' + result.error);
+                }
+            })
+            .catch(error => {
+                showError('Error: ' + error.message);
+            });
+        }
+
+        // Show error
+        function showError(message) {
+            const analysisContent = document.getElementById('analysisContent');
+            analysisContent.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i> ${message}
+                </div>
+            `;
+        }
+
+        // Show success
+        function showSuccess(message) {
+            const analysisContent = document.getElementById('analysisContent');
+            analysisContent.innerHTML = `
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i> ${message}
+                </div>
+            `;
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // ==================== NETWORK VISUALIZATION FUNCTIONS ====================
+        
+        // Initialize network visualization
+        function initializeNetworkVisualization() {
+            // Create tooltip element
+            tooltip = document.createElement('div');
+            tooltip.className = 'node-tooltip';
+            document.body.appendChild(tooltip);
+            
+            console.log('Network visualization initialized');
+        }
+        
+        // Generate network visualization
+        function generateNetworkVisualization() {
+            const container = document.getElementById('networkContainer');
+            const visualization = document.getElementById('networkVisualization');
+            
+            if (!container || !visualization) return;
+            
+            // Clear existing network
+            container.innerHTML = `
+                <div class="network-legend">
+                    <h4>Prioritas Node</h4>
+                    <div class="legend-item">
+                        <div class="legend-color high"></div>
+                        <span>High Priority</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color medium"></div>
+                        <span>Medium Priority</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color low"></div>
+                        <span>Low Priority</span>
+                    </div>
+                </div>
+                <div class="network-controls">
+                    <button class="network-control-btn" onclick="resetNetworkLayout()">
+                        <i class="fas fa-refresh"></i> Reset
+                    </button>
+                    <button class="network-control-btn" onclick="toggleNetworkLayout()">
+                        <i class="fas fa-sitemap"></i> Layout
+                    </button>
+                    <button class="network-control-btn" onclick="exportNetworkImage()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="network-control-btn" onclick="toggleEdgeMode()" id="edgeModeBtn">
+                        <i class="fas fa-random"></i> All Links
+                    </button>
+                </div>
+                <div class="hierarchy-ring high"></div>
+                <div class="hierarchy-ring medium"></div>
+                <div class="hierarchy-ring low"></div>
+            `;
+            
+            // Generate nodes
+            networkNodes = [];
+            persons.forEach((person, index) => {
+                const node = createNetworkNode(person, index);
+                networkNodes.push(node);
+                container.appendChild(node);
+            });
+            
+            // Generate edges
+            networkEdges = [];
+            renderEdges();
+            
+            // Apply layout
+            applyNetworkLayout();
+            
+            // Show visualization
+            visualization.style.display = 'block';
+            
+            console.log('Network visualization generated with', networkNodes.length, 'nodes and', networkEdges.length, 'edges');
+        }
+
+        // ==================== AI ORGANIZATIONAL ANALYSIS ====================
+        
+        // AI Analysis for organizational structure (NO FAMILY DATA)
+        function analyzePersonForOrganization(person, relationships) {
+            let score = 0;
+            let level = 'low';
+            
+            // 1. Connection Analysis (how many people this person connects to)
+            const connections = relationships.filter(rel => 
+                rel.from === person.name || rel.to === person.name
+            ).length;
+            
+            // 2. Role Analysis (NO FAMILY RELATIONSHIPS)
+            const role = person.role ? person.role.toLowerCase() : '';
+            const roleKeywords = {
+                'high': ['leader', 'pemimpin', 'ketua', 'boss', 'director', 'manager', 'kepala', 'presiden', 'ceo'],
+                'medium': ['supervisor', 'koordinator', 'staff', 'anggota', 'member', 'wakil', 'sekretaris', 'bendahara']
+            };
+            
+            // 3. Location Analysis (central locations are more important)
+            const location = person.location ? person.location.toLowerCase() : '';
+            const centralLocations = ['pusat', 'center', 'jakarta', 'bandung', 'surabaya', 'medan'];
+            const isCentralLocation = centralLocations.some(loc => location.includes(loc));
+            
+            // 4. Name Analysis (common patterns in organizational hierarchy)
+            const name = person.name.toLowerCase();
+            const leadershipNames = ['muhammad', 'ahmad', 'ali', 'hasan', 'hussein'];
+            const hasLeadershipName = leadershipNames.some(leadName => name.includes(leadName));
+            
+            // 5. Professional Experience Analysis (based on name patterns)
+            const hasProfessionalName = name.includes('dr.') || name.includes('prof.') || 
+                                      name.includes('ir.') || name.includes('sh.') ||
+                                      name.includes('se.') || name.includes('mm.');
+            
+            // Calculate AI Score (NO FAMILY SCORING)
+            score += connections * 2; // More connections = higher importance
+            
+            // Role scoring
+            roleKeywords.high.forEach(keyword => {
+                if (role.includes(keyword)) score += 20;
+            });
+            roleKeywords.medium.forEach(keyword => {
+                if (role.includes(keyword)) score += 10;
+            });
+            
+            // Location scoring
+            if (isCentralLocation) score += 15;
+            
+            // Name pattern scoring
+            if (hasLeadershipName) score += 5;
+            
+            // Professional qualification scoring
+            if (hasProfessionalName) score += 12;
+            
+            // Age/Experience simulation (based on name patterns)
+            if (name.includes('senior') || name.includes('tua')) score += 8;
+            if (name.includes('junior') || name.includes('muda')) score -= 3;
+            
+            // Determine organizational level based on AI score
+            if (score >= 30) {
+                level = 'high';    // Top management
+            } else if (score >= 15) {
+                level = 'medium';  // Middle management
+            } else {
+                level = 'low';     // Staff/Operational
+            }
+            
+            console.log(`AI Analysis for ${person.name} (NO FAMILY):`, {
+                score: score,
+                level: level,
+                connections: connections,
+                role: role,
+                location: location,
+                hasProfessionalName: hasProfessionalName
+            });
+            
+            return { score, level, connections, role, location };
+        }
+        
+        // ==================== EDGE RENDERING MODES ====================
+        let showAllEdges = false; // default show hierarchical only
+
+        function toggleEdgeMode() {
+            showAllEdges = !showAllEdges;
+            const btn = document.getElementById('edgeModeBtn');
+            if (btn) btn.innerHTML = showAllEdges ? '<i class="fas fa-link"></i> Hierarchy' : '<i class="fas fa-random"></i> All Links';
+            renderEdges();
+        }
+
+        function renderEdges() {
+            const container = document.getElementById('networkContainer');
+            if (!container) return;
+            // remove old edges
+            networkEdges.forEach(e => e.remove());
+            networkEdges = [];
+
+            // Build a quick map from person name to level based on priority class
+            const levelMap = new Map();
+            networkNodes.forEach(node => {
+                let level = 3; // low by default
+                if (node.classList.contains('high-priority')) level = 1;
+                else if (node.classList.contains('medium-priority')) level = 2;
+                levelMap.set(node.dataset.personName, level);
+            });
+
+            // Filter relationships depending on mode
+            const filtered = relationships.filter(rel => {
+                if (showAllEdges) return true;
+                const lFrom = levelMap.get(rel.from);
+                const lTo = levelMap.get(rel.to);
+                // Keep only edges that connect adjacent levels (1->2 or 2->3)
+                return (lFrom === 1 && lTo === 2) || (lFrom === 2 && lTo === 1) ||
+                       (lFrom === 2 && lTo === 3) || (lFrom === 3 && lTo === 2);
+            });
+
+            // Optionally limit max edges per node when showing all
+            const maxPerNode = showAllEdges ? 6 : 1000;
+            const counts = new Map();
+
+            filtered.forEach((relationship, index) => {
+                const keyA = relationship.from;
+                const keyB = relationship.to;
+                const countA = counts.get(keyA) || 0;
+                const countB = counts.get(keyB) || 0;
+                if (countA >= maxPerNode || countB >= maxPerNode) return;
+
+                const edge = createNetworkEdge(relationship, index);
+                if (edge) {
+                    counts.set(keyA, countA + 1);
+                    counts.set(keyB, countB + 1);
+                    networkEdges.push(edge);
+                    container.appendChild(edge);
+                }
+            });
+        }
+        
+        // Create network node
+        function createNetworkNode(person, index) {
+            const node = document.createElement('div');
+            node.className = 'network-node';
+            node.dataset.personId = index;
+            node.dataset.personName = person.name;
+            
+            // Determine priority based on AI analysis for organizational structure
+            let priority = 'low-priority';
+            
+            // Check if this person is in selected profiling items (main data)
+            const isMainPerson = selectedProfilingItems.some(item => 
+                item.nama && item.nama.toLowerCase().includes(person.name.toLowerCase())
+            );
+            
+            // AI Analysis for organizational hierarchy
+            const aiAnalysis = analyzePersonForOrganization(person, relationships);
+            
+            if (isMainPerson || aiAnalysis.level === 'high') {
+                priority = 'high-priority';
+            } else if (aiAnalysis.level === 'medium') {
+                priority = 'medium-priority';
+            }
+            
+            node.classList.add(priority);
+            
+            // Get photo from profiling data
+            const photoUrl = getPersonPhoto(person.name);
+            console.log(`Photo URL for ${person.name}:`, photoUrl);
+            
+            // Create photo element with better error handling
+            let photoElement = '';
+            if (photoUrl && photoUrl !== '/static/default-avatar.png' && photoUrl.trim() !== '') {
+                photoElement = `<img src="${photoUrl}" class="node-photo" alt="${person.name}" 
+                    onerror="console.log('Photo failed to load:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="node-photo-placeholder" style="display: none;"><i class="fas fa-user"></i></div>`;
+            } else {
+                photoElement = `<div class="node-photo-placeholder"><i class="fas fa-user"></i></div>`;
+            }
+            
+            node.innerHTML = `
+                ${photoElement}
+                <div class="node-name">${person.name}</div>
+            `;
+            
+            // Add drag functionality
+            node.addEventListener('mousedown', startDrag);
+            node.addEventListener('mouseenter', showTooltip);
+            node.addEventListener('mouseleave', hideTooltip);
+            
+            return node;
+        }
+        
+        // Create network edge with curved lines to avoid overlap
+        function createNetworkEdge(relationship, index) {
+            const fromNode = networkNodes.find(node => node.dataset.personName === relationship.from);
+            const toNode = networkNodes.find(node => node.dataset.personName === relationship.to);
+            
+            if (!fromNode || !toNode) return null;
+            
+            const edge = document.createElement('div');
+            edge.className = 'network-edge';
+            edge.dataset.edgeId = index;
+            edge.dataset.from = relationship.from;
+            edge.dataset.to = relationship.to;
+            
+            // Determine strength class
+            let strengthClass = 'low-strength';
+            if (relationship.strength === 'High') {
+                strengthClass = 'high-strength';
+            } else if (relationship.strength === 'Medium') {
+                strengthClass = 'medium-strength';
+            }
+            
+            edge.classList.add(strengthClass);
+            
+            // Create curved SVG line
+            createCurvedEdge(edge, fromNode, toNode, strengthClass);
+            
+            return edge;
+        }
+        
+        // Create ORGANIZATIONAL CHART CONNECTIONS - Vertical Tree Structure
+        function createCurvedEdge(edge, fromNode, toNode, strengthClass) {
+            const container = document.getElementById('networkContainer');
+            const containerRect = container.getBoundingClientRect();
+            
+            const fromRect = fromNode.getBoundingClientRect();
+            const toRect = toNode.getBoundingClientRect();
+            
+            const fromX = fromRect.left - containerRect.left + fromRect.width / 2;
+            const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
+            const toX = toRect.left - containerRect.left + toRect.width / 2;
+            const toY = toRect.top - containerRect.top + toRect.height / 2;
+            
+            // Create ORGANIZATIONAL CHART STYLE connections
+            // Vertical line down from source, then horizontal, then vertical to target
+            const midY = fromY + (toY - fromY) / 2;
+            const pathData = `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`;
+            
+            // Create SVG element
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.style.position = 'absolute';
+            svg.style.left = '0';
+            svg.style.top = '0';
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.pointerEvents = 'none';
+            svg.style.zIndex = '1';
+            
+            // Add main path - ORGANIZATIONAL CHART STYLE
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            
+            // Set color and width based on strength
+            if (strengthClass === 'high-strength') {
+                path.setAttribute('stroke', '#2c3e50');
+                path.setAttribute('stroke-width', '2');
+            } else if (strengthClass === 'medium-strength') {
+                path.setAttribute('stroke', '#3498db');
+                path.setAttribute('stroke-width', '2');
+            } else {
+                path.setAttribute('stroke', '#95a5a6');
+                path.setAttribute('stroke-width', '1');
+            }
+            
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            
+            svg.appendChild(path);
+            edge.appendChild(svg);
+        }
+        
+        // Get person photo from profiling data (ENHANCED DEBUG)
+        function getPersonPhoto(personName) {
+            console.log('=== PHOTO DEBUG START ===');
+            console.log('Looking for photo for:', personName);
+            console.log('Selected profiling items:', selectedProfilingItems);
+            console.log('All profiling data:', profilingData);
+            
+            // Try to find photo in selected profiling items first
+            const profilingItem = selectedProfilingItems.find(item => 
+                item.nama && item.nama.toLowerCase().includes(personName.toLowerCase())
+            );
+            
+            console.log('Found profiling item:', profilingItem);
+            
+            if (profilingItem) {
+                console.log('Profiling item fields:', Object.keys(profilingItem));
+                console.log('foto_url:', profilingItem.foto_url);
+                console.log('foto:', profilingItem.foto);
+                console.log('face:', profilingItem.face);
+                console.log('image:', profilingItem.image);
+                
+                // Check multiple possible photo fields with better validation
+                const photoUrl = profilingItem.foto_url || profilingItem.foto || profilingItem.face || profilingItem.image;
+                console.log('Photo URL from selected item:', photoUrl);
+                if (photoUrl && photoUrl.trim() !== '' && photoUrl !== 'null' && photoUrl !== 'undefined') {
+                    // Check if it's a valid URL or path
+                    if (photoUrl.startsWith('http') || photoUrl.startsWith('/') || photoUrl.startsWith('./')) {
+                        console.log('✅ Valid photo URL found in selected item:', photoUrl);
+                        return photoUrl;
+                    } else {
+                        console.log('❌ Invalid photo URL format:', photoUrl);
+                    }
+                } else {
+                    console.log('❌ No valid photo URL in selected item');
+                }
+            }
+            
+            // Try to find in all profiling data
+            const allProfilingItem = profilingData.find(item => 
+                item.nama && item.nama.toLowerCase().includes(personName.toLowerCase())
+            );
+            
+            console.log('Found all profiling item:', allProfilingItem);
+            
+            if (allProfilingItem) {
+                console.log('All profiling item fields:', Object.keys(allProfilingItem));
+                console.log('foto_url:', allProfilingItem.foto_url);
+                console.log('foto:', allProfilingItem.foto);
+                console.log('face:', allProfilingItem.face);
+                console.log('image:', allProfilingItem.image);
+                
+                // Check multiple possible photo fields with better validation
+                const photoUrl = allProfilingItem.foto_url || allProfilingItem.foto || allProfilingItem.face || allProfilingItem.image;
+                console.log('Photo URL from all data:', photoUrl);
+                if (photoUrl && photoUrl.trim() !== '' && photoUrl !== 'null' && photoUrl !== 'undefined') {
+                    // Check if it's a valid URL or path
+                    if (photoUrl.startsWith('http') || photoUrl.startsWith('/') || photoUrl.startsWith('./')) {
+                        console.log('✅ Valid photo URL found in all data:', photoUrl);
+                        return photoUrl;
+                    } else {
+                        console.log('❌ Invalid photo URL format:', photoUrl);
+                    }
+                } else {
+                    console.log('❌ No valid photo URL in all data');
+                }
+            }
+            
+            // Try to find in persons array (from AI analysis)
+            const personData = persons.find(p => 
+                p.name && p.name.toLowerCase().includes(personName.toLowerCase())
+            );
+            
+            if (personData && personData.photo) {
+                console.log('Photo URL from person data:', personData.photo);
+                if (personData.photo.trim() !== '' && personData.photo !== 'null' && personData.photo !== 'undefined') {
+                    console.log('✅ Valid photo URL found in person data:', personData.photo);
+                    return personData.photo;
+                }
+            }
+            
+            // Return default avatar if no photo found
+            console.log('❌ No photo found, using default avatar');
+            console.log('=== PHOTO DEBUG END ===');
+            return '/static/default-avatar.png';
+        }
+        
+        // Drag functionality
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            dragNode = e.currentTarget;
+            
+            const rect = dragNode.getBoundingClientRect();
+            const containerRect = document.getElementById('networkContainer').getBoundingClientRect();
+            
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            
+            dragNode.style.zIndex = '1000';
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+        }
+        
+        function drag(e) {
+            if (!isDragging || !dragNode) return;
+            
+            const container = document.getElementById('networkContainer');
+            const containerRect = container.getBoundingClientRect();
+            
+            let x = e.clientX - containerRect.left - dragOffset.x;
+            let y = e.clientY - containerRect.top - dragOffset.y;
+            
+            // Keep node within container bounds
+            x = Math.max(0, Math.min(x, containerRect.width - 80));
+            y = Math.max(0, Math.min(y, containerRect.height - 80));
+            
+            dragNode.style.left = x + 'px';
+            dragNode.style.top = y + 'px';
+            
+            // Update edges
+            updateEdgesForNode(dragNode);
+        }
+        
+        function endDrag() {
+            isDragging = false;
+            if (dragNode) {
+                dragNode.style.zIndex = '10';
+                dragNode = null;
+            }
+            
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+        
+        // Update edges when node moves
+        function updateEdgesForNode(node) {
+            const nodeName = node.dataset.personName;
+            const nodeRect = node.getBoundingClientRect();
+            const containerRect = document.getElementById('networkContainer').getBoundingClientRect();
+            
+            const nodeX = nodeRect.left - containerRect.left + 40; // Center of node
+            const nodeY = nodeRect.top - containerRect.top + 40;
+            
+            networkEdges.forEach(edge => {
+                const fromNode = networkNodes.find(n => n.dataset.personName === edge.dataset.from);
+                const toNode = networkNodes.find(n => n.dataset.personName === edge.dataset.to);
+                
+                if (fromNode && toNode && (fromNode === node || toNode === node)) {
+                    updateEdgePosition(edge, fromNode, toNode);
+                }
+            });
+        }
+        
+        // Update edge position
+        function updateEdgePosition(edge, fromNode, toNode) {
+            const fromRect = fromNode.getBoundingClientRect();
+            const toRect = toNode.getBoundingClientRect();
+            const containerRect = document.getElementById('networkContainer').getBoundingClientRect();
+            
+            const fromX = fromRect.left - containerRect.left + 40;
+            const fromY = fromRect.top - containerRect.top + 40;
+            const toX = toRect.left - containerRect.left + 40;
+            const toY = toRect.top - containerRect.top + 40;
+            
+            const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+            const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+            
+            edge.style.left = fromX + 'px';
+            edge.style.top = fromY + 'px';
+            edge.style.width = length + 'px';
+            edge.style.transform = `rotate(${angle}deg)`;
+        }
+        
+        // Apply network layout
+        function applyNetworkLayout() {
+            const container = document.getElementById('networkContainer');
+            const containerRect = container.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+            
+            if (currentLayout === 'hierarchical') {
+                applyHierarchicalLayout(containerRect);
+            } else if (currentLayout === 'circular') {
+                applyCircularLayout(containerRect, centerX, centerY);
+            } else {
+                applyGridLayout(containerRect);
+            }
+            
+            // Update all edges
+            networkEdges.forEach(edge => {
+                const fromNode = networkNodes.find(n => n.dataset.personName === edge.dataset.from);
+                const toNode = networkNodes.find(n => n.dataset.personName === edge.dataset.to);
+                if (fromNode && toNode) {
+                    updateEdgePosition(edge, fromNode, toNode);
+                }
+            });
+        }
+        
+        // AI-POWERED ORGANIZATIONAL CHART LAYOUT - Vertical Tree Structure
+        function applyHierarchicalLayout(containerRect) {
+            const centerX = containerRect.width / 2;
+            const nodeWidth = 140;
+            const nodeHeight = 70;
+            const verticalSpacing = 180; // Space between levels
+            const horizontalSpacing = 200; // Space between nodes at same level
+            const startY = 100; // Top margin
+            
+            // Categorize nodes by AI-determined priority
+            const highPriorityNodes = networkNodes.filter(node => node.classList.contains('high-priority'));
+            const mediumPriorityNodes = networkNodes.filter(node => node.classList.contains('medium-priority'));
+            const lowPriorityNodes = networkNodes.filter(node => node.classList.contains('low-priority'));
+            
+            console.log('AI Organizational chart layout nodes:', { 
+                high: highPriorityNodes.length, 
+                medium: mediumPriorityNodes.length, 
+                low: lowPriorityNodes.length 
+            });
+            
+            // Clear all positions first
+            networkNodes.forEach(node => {
+                node.style.left = '0px';
+                node.style.top = '0px';
+            });
+            
+            // LEVEL 1 - HIGH PRIORITY (Top Management - CEO/President)
+            if (highPriorityNodes.length > 0) {
+                const totalWidth = Math.max(0, (highPriorityNodes.length - 1) * horizontalSpacing);
+                const startX = centerX - totalWidth / 2;
+                
+                highPriorityNodes.forEach((node, index) => {
+                    const x = startX + (index * horizontalSpacing) - nodeWidth/2;
+                    const y = startY;
+                    node.style.left = x + 'px';
+                    node.style.top = y + 'px';
+                });
+            }
+            
+            // LEVEL 2 - MEDIUM PRIORITY (Middle Management - Directors/Managers)
+            if (mediumPriorityNodes.length > 0) {
+                const totalWidth = Math.max(0, (mediumPriorityNodes.length - 1) * horizontalSpacing);
+                const startX = centerX - totalWidth / 2;
+                const y = startY + verticalSpacing;
+                
+                mediumPriorityNodes.forEach((node, index) => {
+                    const x = startX + (index * horizontalSpacing) - nodeWidth/2;
+                    node.style.left = x + 'px';
+                    node.style.top = y + 'px';
+                });
+            }
+            
+            // LEVEL 3 - LOW PRIORITY (Staff/Operational - Employees)
+            if (lowPriorityNodes.length > 0) {
+                const totalWidth = Math.max(0, (lowPriorityNodes.length - 1) * horizontalSpacing);
+                const startX = centerX - totalWidth / 2;
+                const y = startY + (verticalSpacing * 2);
+                
+                lowPriorityNodes.forEach((node, index) => {
+                    const x = startX + (index * horizontalSpacing) - nodeWidth/2;
+                    node.style.left = x + 'px';
+                    node.style.top = y + 'px';
+                });
+            }
+            
+            // Apply AI-powered collision detection
+            adjustNodePositionsAI(containerRect, nodeWidth, nodeHeight);
+            
+            console.log('AI Organizational chart layout applied successfully');
+        }
+        
+        // AI-powered collision detection for organizational chart
+        function adjustNodePositionsAI(containerRect, nodeWidth, nodeHeight) {
+            const minDistance = 100; // Increased minimum distance for better spacing
+            const maxIterations = 100;
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                let hasCollision = false;
+                
+                for (let i = 0; i < networkNodes.length; i++) {
+                    for (let j = i + 1; j < networkNodes.length; j++) {
+                        const node1 = networkNodes[i];
+                        const node2 = networkNodes[j];
+                        
+                        const x1 = parseFloat(node1.style.left) || 0;
+                        const y1 = parseFloat(node1.style.top) || 0;
+                        const x2 = parseFloat(node2.style.left) || 0;
+                        const y2 = parseFloat(node2.style.top) || 0;
+                        
+                        // Calculate distance between centers
+                        const dx = x2 - x1;
+                        const dy = y2 - y1;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Check if nodes are too close
+                        if (distance < minDistance && distance > 0) {
+                            hasCollision = true;
+                            
+                            // Calculate how much to move each node
+                            const overlap = minDistance - distance;
+                            const moveDistance = overlap / 2;
+                            
+                            // Calculate direction to move nodes apart
+                            const moveX = (dx / distance) * moveDistance;
+                            const moveY = (dy / distance) * moveDistance;
+                            
+                            // Move nodes apart while keeping them in bounds
+                            const newX1 = Math.max(20, Math.min(containerRect.width - nodeWidth - 20, x1 - moveX));
+                            const newY1 = Math.max(20, Math.min(containerRect.height - nodeHeight - 20, y1 - moveY));
+                            const newX2 = Math.max(20, Math.min(containerRect.width - nodeWidth - 20, x2 + moveX));
+                            const newY2 = Math.max(20, Math.min(containerRect.height - nodeHeight - 20, y2 + moveY));
+                            
+                            node1.style.left = newX1 + 'px';
+                            node1.style.top = newY1 + 'px';
+                            node2.style.left = newX2 + 'px';
+                            node2.style.top = newY2 + 'px';
+                        }
+                    }
+                }
+                
+                if (!hasCollision) break;
+            }
+            
+            console.log('AI-powered collision detection completed');
+        }
+        
+        // Legacy collision detection function
+        function adjustNodePositionsOrganizational(containerRect, nodeWidth, nodeHeight) {
+            const minDistance = 80; // Minimum distance between nodes
+            const maxIterations = 50;
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                let hasCollision = false;
+                
+                for (let i = 0; i < networkNodes.length; i++) {
+                    for (let j = i + 1; j < networkNodes.length; j++) {
+                        const node1 = networkNodes[i];
+                        const node2 = networkNodes[j];
+                        
+                        const x1 = parseFloat(node1.style.left) || 0;
+                        const y1 = parseFloat(node1.style.top) || 0;
+                        const x2 = parseFloat(node2.style.left) || 0;
+                        const y2 = parseFloat(node2.style.top) || 0;
+                        
+                        // Calculate distance between centers
+                        const dx = x2 - x1;
+                        const dy = y2 - y1;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Check if nodes are too close
+                        if (distance < minDistance && distance > 0) {
+                            hasCollision = true;
+                            
+                            // Calculate how much to move each node
+                            const overlap = minDistance - distance;
+                            const moveDistance = overlap / 2;
+                            
+                            // Calculate direction to move nodes apart
+                            const moveX = (dx / distance) * moveDistance;
+                            const moveY = (dy / distance) * moveDistance;
+                            
+                            // Move nodes apart while keeping them in bounds
+                            const newX1 = Math.max(10, Math.min(containerRect.width - nodeWidth - 10, x1 - moveX));
+                            const newY1 = Math.max(10, Math.min(containerRect.height - nodeHeight - 10, y1 - moveY));
+                            const newX2 = Math.max(10, Math.min(containerRect.width - nodeWidth - 10, x2 + moveX));
+                            const newY2 = Math.max(10, Math.min(containerRect.height - nodeHeight - 10, y2 + moveY));
+                            
+                            node1.style.left = newX1 + 'px';
+                            node1.style.top = newY1 + 'px';
+                            node2.style.left = newX2 + 'px';
+                            node2.style.top = newY2 + 'px';
+                        }
+                    }
+                }
+                
+                if (!hasCollision) break;
+            }
+            
+            console.log('Organizational chart collision detection completed');
+        }
+        
+        // Advanced collision detection with 60px minimum distance
+        function adjustNodePositionsAdvanced(containerRect) {
+            const minDistance = 60; // Minimum 60px distance between nodes
+            const maxIterations = 100;
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                let hasCollision = false;
+                
+                for (let i = 0; i < networkNodes.length; i++) {
+                    for (let j = i + 1; j < networkNodes.length; j++) {
+                        const node1 = networkNodes[i];
+                        const node2 = networkNodes[j];
+                        
+                        const x1 = parseFloat(node1.style.left) || 0;
+                        const y1 = parseFloat(node1.style.top) || 0;
+                        const x2 = parseFloat(node2.style.left) || 0;
+                        const y2 = parseFloat(node2.style.top) || 0;
+                        
+                        // Calculate distance between centers
+                        const dx = x2 - x1;
+                        const dy = y2 - y1;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Check if nodes are too close
+                        if (distance < minDistance && distance > 0) {
+                            hasCollision = true;
+                            
+                            // Calculate how much to move each node
+                            const overlap = minDistance - distance;
+                            const moveDistance = overlap / 2;
+                            
+                            // Calculate direction to move nodes apart
+                            const moveX = (dx / distance) * moveDistance;
+                            const moveY = (dy / distance) * moveDistance;
+                            
+                            // Move nodes apart while keeping them in bounds
+                            const newX1 = Math.max(10, Math.min(containerRect.width - 100, x1 - moveX));
+                            const newY1 = Math.max(10, Math.min(containerRect.height - 100, y1 - moveY));
+                            const newX2 = Math.max(10, Math.min(containerRect.width - 100, x2 + moveX));
+                            const newY2 = Math.max(10, Math.min(containerRect.height - 100, y2 + moveY));
+                            
+                            node1.style.left = newX1 + 'px';
+                            node1.style.top = newY1 + 'px';
+                            node2.style.left = newX2 + 'px';
+                            node2.style.top = newY2 + 'px';
+                        }
+                    }
+                }
+                
+                if (!hasCollision) break;
+            }
+            
+            console.log('Collision detection completed after', iter + 1, 'iterations');
+        }
+        
+        // Legacy collision detection function
+        function adjustNodePositions(containerRect, nodeSize) {
+            const padding = 15; // Increased minimum distance between nodes
+            const maxIterations = 50;
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                let hasCollision = false;
+                
+                for (let i = 0; i < networkNodes.length; i++) {
+                    for (let j = i + 1; j < networkNodes.length; j++) {
+                        const node1 = networkNodes[i];
+                        const node2 = networkNodes[j];
+                        
+                        const rect1 = {
+                            x: parseFloat(node1.style.left) || 0,
+                            y: parseFloat(node1.style.top) || 0,
+                            width: nodeSize,
+                            height: nodeSize
+                        };
+                        
+                        const rect2 = {
+                            x: parseFloat(node2.style.left) || 0,
+                            y: parseFloat(node2.style.top) || 0,
+                            width: nodeSize,
+                            height: nodeSize
+                        };
+                        
+                        // Check for collision
+                        if (isColliding(rect1, rect2, padding)) {
+                            hasCollision = true;
+                            // Move nodes apart
+                            const dx = rect2.x - rect1.x;
+                            const dy = rect2.y - rect1.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance > 0) {
+                                const moveDistance = (nodeSize + padding - distance) / 2;
+                                const moveX = (dx / distance) * moveDistance;
+                                const moveY = (dy / distance) * moveDistance;
+                                
+                                // Move nodes apart
+                                const newX1 = Math.max(0, Math.min(containerRect.width - nodeSize, rect1.x - moveX));
+                                const newY1 = Math.max(0, Math.min(containerRect.height - nodeSize, rect1.y - moveY));
+                                const newX2 = Math.max(0, Math.min(containerRect.width - nodeSize, rect2.x + moveX));
+                                const newY2 = Math.max(0, Math.min(containerRect.height - nodeSize, rect2.y + moveY));
+                                
+                                node1.style.left = newX1 + 'px';
+                                node1.style.top = newY1 + 'px';
+                                node2.style.left = newX2 + 'px';
+                                node2.style.top = newY2 + 'px';
+                            }
+                        }
+                    }
+                }
+                
+                if (!hasCollision) break;
+            }
+        }
+        
+        // Check if two rectangles are colliding
+        function isColliding(rect1, rect2, padding = 0) {
+            return rect1.x < rect2.x + rect2.width + padding &&
+                   rect1.x + rect1.width + padding > rect2.x &&
+                   rect1.y < rect2.y + rect2.height + padding &&
+                   rect1.y + rect1.height + padding > rect2.y;
+        }
+        
+        // Circular layout with better spacing
+        function applyCircularLayout(containerRect, centerX, centerY) {
+            const nodeSize = 90;
+            const minRadius = 120;
+            const maxRadius = Math.min(containerRect.width, containerRect.height) / 2 - nodeSize;
+            
+            // Calculate optimal radius based on number of nodes
+            const optimalRadius = Math.max(minRadius, Math.min(maxRadius, (networkNodes.length * nodeSize) / (2 * Math.PI)));
+            
+            networkNodes.forEach((node, index) => {
+                const angle = (2 * Math.PI * index) / networkNodes.length;
+                const x = centerX + optimalRadius * Math.cos(angle) - nodeSize/2;
+                const y = centerY + optimalRadius * Math.sin(angle) - nodeSize/2;
+                node.style.left = x + 'px';
+                node.style.top = y + 'px';
+            });
+            
+            // Apply collision detection
+            adjustNodePositions(containerRect, nodeSize);
+        }
+        
+        // Grid layout with better spacing
+        function applyGridLayout(containerRect) {
+            const nodeSize = 90;
+            const padding = 30;
+            const cols = Math.ceil(Math.sqrt(networkNodes.length));
+            const rows = Math.ceil(networkNodes.length / cols);
+            
+            // Calculate cell size with padding
+            const cellWidth = (containerRect.width - padding * 2) / cols;
+            const cellHeight = (containerRect.height - padding * 2) / rows;
+            
+            networkNodes.forEach((node, index) => {
+                const row = Math.floor(index / cols);
+                const col = index % cols;
+                const x = padding + (cellWidth * col) + (cellWidth - nodeSize) / 2;
+                const y = padding + (cellHeight * row) + (cellHeight - nodeSize) / 2;
+                node.style.left = x + 'px';
+                node.style.top = y + 'px';
+            });
+        }
+        
+        // Network control functions
+        function resetNetworkLayout() {
+            currentLayout = 'hierarchical';
+            applyNetworkLayout();
+        }
+        
+        function toggleNetworkLayout() {
+            if (currentLayout === 'hierarchical') {
+                currentLayout = 'circular';
+            } else if (currentLayout === 'circular') {
+                currentLayout = 'grid';
+            } else {
+                currentLayout = 'hierarchical';
+            }
+            applyNetworkLayout();
+        }
+        
+        function exportNetworkImage() {
+            const container = document.getElementById('networkContainer');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            
+            // Draw background
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw edges first
+            networkEdges.forEach(edge => {
+                const fromNode = networkNodes.find(n => n.dataset.personName === edge.dataset.from);
+                const toNode = networkNodes.find(n => n.dataset.personName === edge.dataset.to);
+                if (fromNode && toNode) {
+                    const fromRect = fromNode.getBoundingClientRect();
+                    const toRect = toNode.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    
+                    const fromX = fromRect.left - containerRect.left + 40;
+                    const fromY = fromRect.top - containerRect.top + 40;
+                    const toX = toRect.left - containerRect.left + 40;
+                    const toY = toRect.top - containerRect.top + 40;
+                    
+                    ctx.strokeStyle = edge.classList.contains('high-strength') ? '#ff4444' : 
+                                    edge.classList.contains('medium-strength') ? '#ff8800' : '#44ff44';
+                    ctx.lineWidth = edge.classList.contains('high-strength') ? 4 : 
+                                  edge.classList.contains('medium-strength') ? 3 : 2;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(fromX, fromY);
+                    ctx.lineTo(toX, toY);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw nodes
+            networkNodes.forEach(node => {
+                const rect = node.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const x = rect.left - containerRect.left + 40;
+                const y = rect.top - containerRect.top + 40;
+                
+                // Draw node circle
+                ctx.beginPath();
+                ctx.arc(x, y, 40, 0, 2 * Math.PI);
+                
+                if (node.classList.contains('high-priority')) {
+                    ctx.fillStyle = '#ff4444';
+                } else if (node.classList.contains('medium-priority')) {
+                    ctx.fillStyle = '#ff8800';
+                } else {
+                    ctx.fillStyle = '#44ff44';
+                }
+                
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Draw text
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.dataset.personName, x, y + 3);
+            });
+            
+            // Download image
+            const link = document.createElement('a');
+            link.download = 'network-mapping.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Tooltip functions
+        function showTooltip(e) {
+            const node = e.currentTarget;
+            const personName = node.dataset.personName;
+            const person = persons.find(p => p.name === personName);
+            
+            if (!person) return;
+            
+            tooltip.innerHTML = `
+                <div class="tooltip-title">${person.name}</div>
+                <div class="tooltip-detail">Role: ${person.role}</div>
+                <div class="tooltip-detail">Location: ${person.location}</div>
+            `;
+            
+            tooltip.style.left = e.pageX + 10 + 'px';
+            tooltip.style.top = e.pageY - 10 + 'px';
+            tooltip.classList.add('show');
+        }
+        
+        function hideTooltip() {
+            tooltip.classList.remove('show');
+        }
+    </script>
+</body>
+</html>

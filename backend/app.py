@@ -603,9 +603,13 @@ def get_base_url():
     host = request.host
     return f"{protocol}://{host}"
 
+# Import mapping blueprint
+from mapping import mapping_bp
+
 # Register blueprints
 app.register_blueprint(cekplat_bp, url_prefix='/cekplat')
 app.register_blueprint(ai_bp)
+app.register_blueprint(mapping_bp)
 
 # Configuration
 UPLOAD_FOLDER = Path(project_root) / 'uploads'
@@ -2752,10 +2756,15 @@ def get_frontend_config():
 # Authentication routes
 @app.route('/login')
 def login_page():
-    """Serve login page - let JavaScript handle authentication"""
-    # Always serve login page, let JavaScript handle the authentication logic
-    # This prevents server-side redirect conflicts with client-side logic
-    print("Serving login page - JavaScript will handle authentication")
+    """Serve login page. If already authenticated, redirect immediately to dashboard (no flash)."""
+    # Check existing session token from cookie or Authorization header
+    session_token = request.cookies.get('session_token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    if session_token:
+        user = validate_session_token(session_token)
+        if user:
+            # Already authenticated → go straight to dashboard to avoid login flash
+            return redirect('/dashboard')
+    # Not authenticated → show login page
     return send_from_directory(frontend_pages_dir, 'login.html')
 
 @app.route('/dashboard')
@@ -2798,6 +2807,12 @@ def dashboard_stats():
 def profiling_page():
     """Serve profiling page"""
     return send_from_directory(frontend_pages_dir, 'profiling.html')
+
+@app.route('/mapping')
+@require_auth
+def mapping_page():
+    """Serve mapping profiling page"""
+    return send_from_directory(frontend_pages_dir, 'mapping.html')
 
 @app.route('/user-management')
 @require_auth

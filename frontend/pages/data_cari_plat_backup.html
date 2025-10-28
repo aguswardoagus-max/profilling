@@ -30,7 +30,9 @@
             color: white;
             transition: all 0.3s ease;
             z-index: 1000;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .sidebar.collapsed {
@@ -71,6 +73,9 @@
 
         .sidebar-menu {
             padding: 20px 0;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
         }
 
         .menu-item {
@@ -108,11 +113,12 @@
 
         .nav-submenu {
             margin-left: 20px;
-            margin-top: 5px;
+            margin-top: 0;
+            margin-bottom: 8px;
         }
 
         .nav-submenu .menu-item {
-            padding: 10px 25px;
+            padding: 12px 25px;
             font-size: 0.9rem;
         }
 
