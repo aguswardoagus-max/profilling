@@ -66,7 +66,7 @@
             left: 0;
             top: 0;
             height: 100vh;
-            width: 280px;
+            width: 250px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             transition: all 0.3s ease;
@@ -85,7 +85,8 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            flex-shrink: 0;
         }
 
         .sidebar-logo {
@@ -101,11 +102,14 @@
         }
 
         .sidebar-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
             white-space: nowrap;
             opacity: 1;
             transition: opacity 0.3s ease;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
         }
 
         .sidebar.collapsed .sidebar-title {
@@ -120,22 +124,29 @@
         .menu-item {
             display: flex;
             align-items: center;
+            gap: 15px;
             padding: 12px 20px;
             color: rgba(255,255,255,0.8);
             text-decoration: none;
             transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            position: relative;
+            margin-bottom: 2px;
             cursor: pointer;
         }
 
         .menu-item:hover {
             background: rgba(255,255,255,0.1);
             color: white;
+            border-left-color: rgba(255,255,255,0.5);
+            transform: translateX(5px);
         }
 
         .menu-item.active {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.15);
             color: white;
-            border-right: 3px solid white;
+            border-left-color: white;
+            border-left-width: 4px;
         }
 
         .menu-item i {
@@ -147,12 +158,14 @@
 
         .nav-submenu {
             margin-left: 20px;
-            margin-top: 5px;
+            margin-top: 0;
+            margin-bottom: 5px;
         }
 
         .nav-submenu .menu-item {
-            padding: 10px 25px;
+            padding: 8px 25px;
             font-size: 0.9rem;
+            margin-bottom: 1px;
         }
 
         .menu-item span {
@@ -175,6 +188,7 @@
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
             margin-top: auto;
+            background: rgba(0,0,0,0.1);
         }
 
         .user-info {
@@ -182,6 +196,9 @@
             align-items: center;
             gap: 12px;
             margin-bottom: 15px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
         }
 
         .user-avatar {
@@ -198,6 +215,8 @@
         .user-details {
             opacity: 1;
             transition: opacity 0.3s ease;
+            flex: 1;
+            min-width: 0;
         }
 
         .sidebar.collapsed .user-details {
@@ -207,11 +226,19 @@
         .user-name {
             font-weight: 600;
             font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .user-role {
             font-size: 0.8rem;
             opacity: 0.8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .logout-btn {
@@ -243,7 +270,7 @@
 
         /* Main Content */
         .main-content {
-            margin-left: 280px;
+            margin-left: 250px;
             min-height: 100vh;
             transition: all 0.3s ease;
         }
@@ -896,6 +923,10 @@
             <a href="/ai-features" class="menu-item active">
                 <i class="fas fa-robot"></i>
                 <span>AI Features</span>
+            </a>
+            <a href="/mapping" class="menu-item">
+                <i class="fas fa-project-diagram"></i>
+                <span>Mapping Profiling</span>
             </a>
             <a href="/reports" class="menu-item">
                 <i class="fas fa-chart-bar"></i>

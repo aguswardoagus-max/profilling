@@ -603,9 +603,13 @@ def get_base_url():
     host = request.host
     return f"{protocol}://{host}"
 
+# Import mapping blueprint
+from mapping import mapping_bp
+
 # Register blueprints
 app.register_blueprint(cekplat_bp, url_prefix='/cekplat')
 app.register_blueprint(ai_bp)
+app.register_blueprint(mapping_bp)
 
 # Configuration
 UPLOAD_FOLDER = Path(project_root) / 'uploads'
@@ -2798,6 +2802,12 @@ def dashboard_stats():
 def profiling_page():
     """Serve profiling page"""
     return send_from_directory(frontend_pages_dir, 'profiling.html')
+
+@app.route('/mapping')
+@require_auth
+def mapping_page():
+    """Serve mapping profiling page"""
+    return send_from_directory(frontend_pages_dir, 'mapping.html')
 
 @app.route('/user-management')
 @require_auth

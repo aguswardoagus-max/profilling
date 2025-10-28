@@ -67,7 +67,7 @@
             left: 0;
             top: 0;
             height: 100vh;
-            width: 280px;
+            width: 250px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             transition: all 0.3s ease;
@@ -84,7 +84,8 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            flex-shrink: 0;
         }
 
         .sidebar-logo {
@@ -100,11 +101,14 @@
         }
 
         .sidebar-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
             white-space: nowrap;
             opacity: 1;
             transition: opacity 0.3s ease;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
         }
 
         .sidebar.collapsed .sidebar-title {
@@ -113,29 +117,34 @@
 
         .sidebar-menu {
             padding: 20px 0;
+            flex: 1;
         }
 
         .menu-item {
             display: flex;
             align-items: center;
             gap: 15px;
-            padding: 15px 20px;
+            padding: 12px 20px;
             color: rgba(255,255,255,0.8);
             text-decoration: none;
             transition: all 0.3s ease;
             border-left: 3px solid transparent;
+            position: relative;
+            margin-bottom: 2px;
         }
 
         .menu-item:hover {
             background: rgba(255,255,255,0.1);
             color: white;
             border-left-color: rgba(255,255,255,0.5);
+            transform: translateX(5px);
         }
 
         .menu-item.active {
             background: rgba(255,255,255,0.15);
             color: white;
             border-left-color: white;
+            border-left-width: 4px;
         }
 
         .menu-item i {
@@ -147,12 +156,14 @@
 
         .nav-submenu {
             margin-left: 20px;
-            margin-top: 5px;
+            margin-top: 0;
+            margin-bottom: 5px;
         }
 
         .nav-submenu .menu-item {
-            padding: 10px 25px;
+            padding: 8px 25px;
             font-size: 0.9rem;
+            margin-bottom: 1px;
         }
 
         .menu-item span {
@@ -168,7 +179,7 @@
         .menu-divider {
             height: 1px;
             background: rgba(255,255,255,0.1);
-            margin: 10px 20px;
+            margin: 15px 20px;
         }
 
         .sidebar-footer {
@@ -178,13 +189,17 @@
             right: 0;
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.1);
         }
 
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             margin-bottom: 15px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
         }
 
         .user-avatar {
@@ -202,6 +217,8 @@
         .user-details {
             opacity: 1;
             transition: opacity 0.3s ease;
+            flex: 1;
+            min-width: 0;
         }
 
         .sidebar.collapsed .user-details {
@@ -211,11 +228,19 @@
         .user-name {
             font-weight: 600;
             font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .user-role {
             font-size: 0.8rem;
             opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .logout-btn {
@@ -243,7 +268,7 @@
 
         /* Main Content */
         .main-content {
-            margin-left: 280px;
+            margin-left: 250px;
             transition: margin-left 0.3s ease;
             min-height: 100vh;
         }
@@ -562,6 +587,7 @@
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
+                transition: transform 0.3s ease;
             }
 
             .sidebar.mobile-open {
@@ -570,6 +596,14 @@
 
             .main-content {
                 margin-left: 0;
+            }
+            
+            .sidebar-overlay {
+                display: none;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
             }
 
             .topbar {
@@ -817,6 +851,10 @@
                 <i class="fas fa-robot"></i>
                 <span>AI Features</span>
             </a>
+            <a href="/mapping" class="menu-item">
+                <i class="fas fa-project-diagram"></i>
+                <span>Mapping Profiling</span>
+            </a>
             <a href="/reports" class="menu-item">
                 <i class="fas fa-chart-bar"></i>
                 <span>Reports</span>
@@ -1047,80 +1085,6 @@
     </div>
 
     <script>
-        // Authentication middleware
-        async function checkAuthentication() {
-            const sessionToken = localStorage.getItem('session_token');
-            
-            if (!sessionToken) {
-                console.log('No session token found, redirecting to login');
-                // Clear any corrupted data first
-                localStorage.removeItem('session_token');
-                localStorage.removeItem('user_data');
-                sessionStorage.clear();
-                // Use replace to prevent back button issues
-                window.location.replace('/login');
-                return false;
-            }
-            
-            // Check if session token is valid format
-            if (sessionToken.length < 10) {
-                console.log('Invalid session token format, clearing and redirecting to login');
-                localStorage.removeItem('session_token');
-                localStorage.removeItem('user_data');
-                sessionStorage.clear();
-                window.location.replace('/login');
-                return false;
-            }
-            
-            try {
-                console.log('Validating session token...');
-                // Use the simpler check-auth endpoint
-                const response = await fetch('/api/check-auth', {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                console.log('Response status:', response.status);
-                
-                if (!response.ok) {
-                    console.log('Session validation failed with status:', response.status);
-                    localStorage.removeItem('session_token');
-                    localStorage.removeItem('user_data');
-                    sessionStorage.clear();
-                    window.location.replace('/login');
-                    return false;
-                }
-                
-                const data = await response.json();
-                console.log('Session validation response:', data);
-                
-                if (!data.authenticated) {
-                    console.log('Invalid session token, redirecting to login');
-                    localStorage.removeItem('session_token');
-                    localStorage.removeItem('user_data');
-                    sessionStorage.clear();
-                    window.location.replace('/login');
-                    return false;
-                }
-                
-                console.log('Authentication successful');
-                // Hide loading screen after successful authentication
-                document.getElementById('authLoading').classList.add('hidden');
-                return true;
-            } catch (error) {
-                console.error('Authentication check failed:', error);
-                // Clear session data and redirect
-                localStorage.removeItem('session_token');
-                localStorage.removeItem('user_data');
-                sessionStorage.clear();
-                window.location.replace('/login');
-                return false;
-            }
-        }
 
         class DashboardApp {
             constructor() {
@@ -1132,35 +1096,11 @@
                 this.init();
             }
             
-            async init() {
-                // Add timeout to prevent infinite loading
-                const authTimeout = setTimeout(() => {
-                    console.error('Authentication timeout, redirecting to login');
-                    localStorage.removeItem('session_token');
-                    localStorage.removeItem('user_data');
-                    window.location.href = '/login';
-                }, 10000); // 10 second timeout
-                
-                try {
-                    // Check authentication first
-                    const isAuthenticated = await checkAuthentication();
-                    clearTimeout(authTimeout);
-                    
-                    if (!isAuthenticated) {
-                        return; // Stop initialization if not authenticated
-                    }
-                    
-                    this.setupEventListeners();
-                    this.loadUserData();
-                    this.loadDashboardData();
-                    this.checkAuth();
-                } catch (error) {
-                    clearTimeout(authTimeout);
-                    console.error('Dashboard initialization failed:', error);
-                    localStorage.removeItem('session_token');
-                    localStorage.removeItem('user_data');
-                    window.location.href = '/login';
-                }
+            init() {
+                console.log('Dashboard app initializing...');
+                this.setupEventListeners();
+                this.loadUserData();
+                this.loadDashboardData();
             }
 
             setupEventListeners() {
@@ -1178,23 +1118,24 @@
                 });
             }
 
-            checkAuth() {
-                const token = localStorage.getItem('session_token');
-                if (!token) {
-                    window.location.href = '/login';
-                    return;
-                }
-            }
 
             loadUserData() {
                 const userData = localStorage.getItem('user_data');
                 if (userData) {
-                    const user = JSON.parse(userData);
-                    document.getElementById('userName').textContent = user.name || 'Admin User';
-                    document.getElementById('userRole').textContent = user.role || 'Administrator';
-                    
-                    // Set menu visibility based on user role
-                    this.setMenuVisibility(user.role);
+                    try {
+                        const user = JSON.parse(userData);
+                        const userName = document.getElementById('userName');
+                        const userRole = document.getElementById('userRole');
+                        if (userName && userRole) {
+                            userName.textContent = user.username || user.name || 'Admin User';
+                            userRole.textContent = user.role || 'Administrator';
+                        }
+                        
+                        // Set menu visibility based on user role
+                        this.setMenuVisibility(user.role);
+                    } catch (e) {
+                        console.log('Could not parse user data from localStorage');
+                    }
                 }
             }
 
@@ -1594,18 +1535,6 @@
             sessionStorage.clear();
         }
 
-        // Check for redirect loop prevention
-        function checkRedirectLoop() {
-            const redirectCount = sessionStorage.getItem('redirect_count') || 0;
-            if (redirectCount > 3) {
-                console.log('Redirect loop detected, clearing all data and stopping');
-                clearSessionData();
-                alert('Terjadi masalah dengan autentikasi. Silakan login ulang.');
-                return false;
-            }
-            sessionStorage.setItem('redirect_count', parseInt(redirectCount) + 1);
-            return true;
-        }
 
         // Global configuration
         let appConfig = {
@@ -1613,47 +1542,34 @@
             apiBase: window.location.origin + '/api'
         };
 
-        // Load frontend configuration
-        async function loadFrontendConfig() {
-            try {
-                const response = await fetch('/api/frontend-config', {
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
-                });
-                if (response.ok) {
-                    const config = await response.json();
-                    appConfig = { ...appConfig, ...config };
-                    console.log('Frontend config loaded:', appConfig);
-                } else {
-                    console.log('Config response not ok:', response.status);
-                }
-            } catch (error) {
-                console.log('Using default config:', appConfig, 'Error:', error);
-            }
-        }
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Load configuration first
-            await loadFrontendConfig();
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard page loaded, initializing...');
             
-            // Check for redirect loop first
-            if (!checkRedirectLoop()) {
-                return;
+            // Hide loading screen immediately
+            const authLoading = document.getElementById('authLoading');
+            if (authLoading) {
+                authLoading.classList.add('hidden');
             }
             
-            // Clear any potentially corrupted session data first
-            const sessionToken = localStorage.getItem('session_token');
-            if (sessionToken && sessionToken.length < 10) {
-                console.log('Detected corrupted session token, clearing...');
-                clearSessionData();
-                window.location.replace('/login');
-                return;
+            // Load user data from localStorage
+            const userData = localStorage.getItem('user_data');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    const userName = document.getElementById('userName');
+                    const userRole = document.getElementById('userRole');
+                    if (userName && userRole) {
+                        userName.textContent = user.username || 'Admin User';
+                        userRole.textContent = user.role || 'Administrator';
+                    }
+                } catch (e) {
+                    console.log('Could not parse user data from localStorage');
+                }
             }
             
+            // Initialize dashboard app
             window.dashboardApp = new DashboardApp();
         });
     </script>
