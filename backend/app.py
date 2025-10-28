@@ -2365,7 +2365,7 @@ def get_phone_data(nik, token=None):
         print(f"Error getting phone data for NIK {nik}: {e}")
         return None
 
-def get_phone_data_by_number(phone_number, token=None):
+def get_phone_data_by_number(phone_number, token=None, limit=100):
     """Get phone data by phone number (reverse lookup)"""
     try:
         if not token:
@@ -2392,7 +2392,7 @@ def get_phone_data_by_number(phone_number, token=None):
         }
         
         # Use correct parameter name 'q' instead of 'msisdn'
-        params = {'q': phone_number}
+        params = {'q': phone_number, 'limit': limit}
         
         print(f"Searching phone data for number: {phone_number}")
         print(f"URL: {url}")
@@ -3534,12 +3534,13 @@ def api_search():
             "no_kab": data.get('no_kab', ''),
             "no_kec": data.get('no_kec', ''),
             "no_desa": data.get('no_desa', ''),
-            "page": data.get('page', '1')
+            "page": data.get('page', '1'),
+            "limit": data.get('limit', '100')  # Tambahkan parameter limit dengan default 100
         }
         
         # Route based on search type
         if search_type == 'phone':
-            return perform_phone_search(token, data, user_data)
+            return perform_phone_search(token, params, data, user_data)
         elif search_type == 'face':
             return perform_face_search(token, params, data, user_data)
         else:
@@ -3549,14 +3550,15 @@ def api_search():
     except Exception as e:
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
-def perform_phone_search(token, data, user_data):
+def perform_phone_search(token, params, data, user_data):
     """Perform phone number search"""
     try:
         phone_number = data.get('phone_number')
         phone_operator = data.get('phone_operator', '')
         
         # Get phone data from API
-        phone_data = get_phone_data_by_number(phone_number, token)
+        limit = params.get('limit', 100)
+        phone_data = get_phone_data_by_number(phone_number, token, limit)
         
         if phone_data:
             results = []
