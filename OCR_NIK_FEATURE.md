@@ -101,3 +101,4 @@ python backend/install_ocr_dependencies.py
 - [ ] Batch processing untuk multiple foto
 - [ ] Confidence threshold configuration
 - [ ] OCR result caching untuk foto yang sama
+
