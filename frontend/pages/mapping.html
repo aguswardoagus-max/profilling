@@ -18,9 +18,9 @@
             color: white;
             transition: all 0.3s ease;
             z-index: 1000;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         .sidebar-header {
@@ -58,19 +58,21 @@
         .sidebar-menu {
             padding: 20px 0;
             flex: 1;
+            overflow-y: auto;
+            min-height: 0;
         }
 
         .menu-item {
             display: flex;
             align-items: center;
             gap: 15px;
-            padding: 12px 20px;
+            padding: 15px 20px;
             color: rgba(255,255,255,0.8);
             text-decoration: none;
             transition: all 0.3s ease;
             border-left: 3px solid transparent;
             position: relative;
-            margin-bottom: 2px;
+            margin-bottom: 8px;
         }
 
         .menu-item:hover {
@@ -97,26 +99,27 @@
         .nav-submenu {
             margin-left: 20px;
             margin-top: 0;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .nav-submenu .menu-item {
-            padding: 8px 25px;
+            padding: 12px 25px;
             font-size: 0.9rem;
-            margin-bottom: 1px;
+            margin-bottom: 6px;
         }
 
 
         .menu-divider {
             height: 1px;
             background: rgba(255,255,255,0.1);
-            margin: 15px 20px;
+            margin: 20px 20px;
         }
 
         .sidebar-footer {
             padding: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
             background: rgba(0,0,0,0.1);
+            margin-top: auto;
         }
 
         .user-info {
