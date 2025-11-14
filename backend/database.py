@@ -109,6 +109,28 @@ class UserDatabase:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ''')
             
+            # API Keys table for multiple API key management with rotation
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS api_keys (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    api_key VARCHAR(255) NOT NULL,
+                    api_type VARCHAR(50) NOT NULL DEFAULT 'GOOGLE_CSE',
+                    status ENUM('active', 'quota_exceeded', 'disabled', 'error') NOT NULL DEFAULT 'active',
+                    usage_count INT DEFAULT 0,
+                    last_used TIMESTAMP NULL,
+                    quota_exceeded_at TIMESTAMP NULL,
+                    error_message TEXT,
+                    description VARCHAR(255),
+                    priority INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_api_type (api_type),
+                    INDEX idx_status (status),
+                    INDEX idx_priority (priority),
+                    INDEX idx_status_priority (status, priority)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ''')
+            
             # Profiling data table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS profiling_data (
@@ -1039,6 +1061,287 @@ class UserDatabase:
             return True
         except Error as e:
             print(f"Error logging export audit: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+
+    # System Settings Methods
+    def get_setting(self, setting_key: str) -> Optional[str]:
+        """Get a system setting value by key"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return None
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT setting_value FROM system_settings WHERE setting_key = %s
+            ''', (setting_key,))
+            
+            result = cursor.fetchone()
+            return result[0] if result else None
+        except Error as e:
+            print(f"Error getting setting: {e}")
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+
+    def update_setting(self, setting_key: str, setting_value: str, description: str = None) -> bool:
+        """Update or insert a system setting"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            # Check if setting exists
+            cursor.execute('SELECT id FROM system_settings WHERE setting_key = %s', (setting_key,))
+            exists = cursor.fetchone()
+            
+            if exists:
+                # Update existing setting
+                if description:
+                    cursor.execute('''
+                        UPDATE system_settings 
+                        SET setting_value = %s, description = %s, updated_at = NOW()
+                        WHERE setting_key = %s
+                    ''', (setting_value, description, setting_key))
+                else:
+                    cursor.execute('''
+                        UPDATE system_settings 
+                        SET setting_value = %s, updated_at = NOW()
+                        WHERE setting_key = %s
+                    ''', (setting_value, setting_key))
+            else:
+                # Insert new setting
+                cursor.execute('''
+                    INSERT INTO system_settings (setting_key, setting_value, description)
+                    VALUES (%s, %s, %s)
+                ''', (setting_key, setting_value, description))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error updating setting: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+
+    # API Keys Management Methods
+    def add_api_key(self, api_key: str, api_type: str = 'GOOGLE_CSE', description: str = None, priority: int = 0) -> bool:
+        """Add a new API key (check for duplicates first)"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            # Check if API key already exists
+            cursor.execute('''
+                SELECT id FROM api_keys 
+                WHERE api_key = %s AND api_type = %s
+            ''', (api_key, api_type))
+            
+            existing = cursor.fetchone()
+            if existing:
+                # API key already exists, update it instead
+                cursor.execute('''
+                    UPDATE api_keys 
+                    SET status = 'active', 
+                        description = %s, 
+                        priority = %s,
+                        updated_at = NOW(),
+                        quota_exceeded_at = NULL,
+                        error_message = NULL
+                    WHERE id = %s
+                ''', (description, priority, existing[0]))
+                conn.commit()
+                return True
+            
+            # Insert new API key
+            cursor.execute('''
+                INSERT INTO api_keys (api_key, api_type, description, priority, status)
+                VALUES (%s, %s, %s, %s, 'active')
+            ''', (api_key, api_type, description, priority))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error adding API key: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+
+    def get_active_api_key(self, api_type: str = 'GOOGLE_CSE') -> Optional[str]:
+        """Get the next active API key (with rotation)"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return None
+            
+            cursor = conn.cursor()
+            
+            # Get active API key ordered by priority (higher first), then by last_used (oldest first for rotation)
+            cursor.execute('''
+                SELECT api_key, id FROM api_keys
+                WHERE api_type = %s AND status = 'active'
+                ORDER BY priority DESC, last_used ASC, id ASC
+                LIMIT 1
+            ''', (api_type,))
+            
+            result = cursor.fetchone()
+            if result:
+                api_key, key_id = result
+                # Update usage count and last_used
+                cursor.execute('''
+                    UPDATE api_keys 
+                    SET usage_count = usage_count + 1, last_used = NOW()
+                    WHERE id = %s
+                ''', (key_id,))
+                conn.commit()
+                return api_key
+            
+            return None
+        except Error as e:
+            print(f"Error getting active API key: {e}")
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+
+    def mark_api_key_quota_exceeded(self, api_key: str, error_message: str = None) -> bool:
+        """Mark API key as quota exceeded"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE api_keys 
+                SET status = 'quota_exceeded', 
+                    quota_exceeded_at = NOW(),
+                    error_message = %s
+                WHERE api_key = %s
+            ''', (error_message, api_key))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error marking API key quota exceeded: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+
+    def mark_api_key_error(self, api_key: str, error_message: str) -> bool:
+        """Mark API key as error"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE api_keys 
+                SET status = 'error', 
+                    error_message = %s,
+                    updated_at = NOW()
+                WHERE api_key = %s
+            ''', (error_message, api_key))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error marking API key error: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+
+    def get_all_api_keys(self, api_type: str = 'GOOGLE_CSE') -> List[Dict]:
+        """Get all API keys for a type"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor(dictionary=True)
+            
+            cursor.execute('''
+                SELECT id, api_key, status, usage_count, last_used, quota_exceeded_at, 
+                       error_message, description, priority, created_at
+                FROM api_keys
+                WHERE api_type = %s
+                ORDER BY priority DESC, created_at DESC
+            ''', (api_type,))
+            
+            results = cursor.fetchall()
+            
+            # Mask API keys for security
+            for result in results:
+                if result['api_key'] and len(result['api_key']) > 14:
+                    result['api_key_masked'] = f"{result['api_key'][:10]}...{result['api_key'][-4:]}"
+                else:
+                    result['api_key_masked'] = "***"
+                # Don't expose full API key
+                result['api_key'] = None
+            
+            return results
+        except Error as e:
+            print(f"Error getting API keys: {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+
+    def update_api_key_status(self, key_id: int, status: str) -> bool:
+        """Update API key status"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE api_keys 
+                SET status = %s, updated_at = NOW()
+                WHERE id = %s
+            ''', (status, key_id))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error updating API key status: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+
+    def delete_api_key(self, key_id: int) -> bool:
+        """Delete an API key"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('DELETE FROM api_keys WHERE id = %s', (key_id,))
+            
+            conn.commit()
+            return True
+        except Error as e:
+            print(f"Error deleting API key: {e}")
             return False
         finally:
             if cursor:

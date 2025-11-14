@@ -1360,6 +1360,35 @@
 
                     <div class="settings-card">
                         <div class="card-header">
+                            <div class="card-icon security">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <div class="card-title">API Keys</div>
+                        </div>
+                        <div class="card-description">
+                            Manage API keys for external services. Only administrators can update these settings.
+                        </div>
+                        <div class="form-group">
+                            <label>Google CSE API Key</label>
+                            <input type="password" id="googleCseApiKey" placeholder="Enter Google CSE API Key" style="font-family: monospace;">
+                            <small style="color: #6b7280; display: block; margin-top: 5px;">
+                                <span id="apiKeyStatus">Loading...</span>
+                            </small>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="saveApiKey()">
+                                <i class="fas fa-save"></i>
+                                Save API Key
+                            </button>
+                            <button class="btn btn-secondary" onclick="loadApiKey()">
+                                <i class="fas fa-sync"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header">
                             <div class="card-icon notifications">
                                 <i class="fas fa-cogs"></i>
                             </div>
@@ -1517,6 +1546,9 @@
                 if (settings.timezone) document.getElementById('timezone').value = settings.timezone;
                 if (settings.theme) document.getElementById('theme').value = settings.theme;
                 if (settings.autoCollapse) document.getElementById('autoCollapse').checked = settings.autoCollapse;
+                
+                // Load API key
+                loadApiKey();
             }
 
             handleGlobalSearch(query) {
@@ -1764,6 +1796,113 @@
                 app.showLoading(false);
                 app.showAlert('System settings saved successfully!');
             }, 1000);
+        }
+
+        // API Key Management Functions
+        async function loadApiKey() {
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    app.showAlert('Please login to view API keys', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/settings/api-key', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const statusEl = document.getElementById('apiKeyStatus');
+                    if (data.has_api_key) {
+                        let statusText = `Current key: ${data.api_key_masked} (${data.key_length} characters)`;
+                        if (data.total_api_keys > 0) {
+                            statusText += ` | Total: ${data.total_api_keys} API key(s) in rotation system`;
+                        }
+                        statusEl.textContent = statusText;
+                        statusEl.style.color = '#10b981';
+                    } else {
+                        statusEl.textContent = 'No API key configured';
+                        statusEl.style.color = '#ef4444';
+                    }
+                    // Don't populate the input field for security
+                    document.getElementById('googleCseApiKey').value = '';
+                } else {
+                    document.getElementById('apiKeyStatus').textContent = 'Error loading API key';
+                    document.getElementById('apiKeyStatus').style.color = '#ef4444';
+                }
+            } catch (error) {
+                console.error('Error loading API key:', error);
+                document.getElementById('apiKeyStatus').textContent = 'Error loading API key';
+                document.getElementById('apiKeyStatus').style.color = '#ef4444';
+            }
+        }
+
+        async function saveApiKey() {
+            const apiKey = document.getElementById('googleCseApiKey').value.trim();
+            
+            if (!apiKey) {
+                app.showAlert('Please enter an API key', 'error');
+                return;
+            }
+
+            // Validate API key format
+            if (!apiKey.startsWith('AIza')) {
+                app.showAlert('Invalid API key format. Google API keys should start with "AIza"', 'error');
+                return;
+            }
+
+            try {
+                app.showLoading(true);
+                
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    app.showAlert('Please login to update API keys', 'error');
+                    app.showLoading(false);
+                    return;
+                }
+
+                const response = await fetch('/api/settings/api-key', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+
+                const data = await response.json();
+                
+                app.showLoading(false);
+                
+                if (data.success) {
+                    let message = data.message || 'API key berhasil disimpan!';
+                    if (data.total_api_keys !== undefined) {
+                        message += ` (Total: ${data.total_api_keys} API key(s), ${data.active_api_keys || 0} aktif)`;
+                    }
+                    if (data.note) {
+                        message += '. ' + data.note;
+                    }
+                    app.showAlert(message, 'success');
+                    // Clear the input field for security
+                    document.getElementById('googleCseApiKey').value = '';
+                    // Reload to show masked key and updated count
+                    loadApiKey();
+                } else {
+                    app.showAlert(data.error || 'Failed to save API key', 'error');
+                }
+            } catch (error) {
+                app.showLoading(false);
+                console.error('Error saving API key:', error);
+                app.showAlert('Error saving API key: ' + error.message, 'error');
+            }
         }
     </script>
 </body>
