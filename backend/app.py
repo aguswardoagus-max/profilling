@@ -4662,12 +4662,17 @@ def api_universal_search():
         
         # First, get the login page to extract CSRF token
         login_page_url = 'http://10.1.54.116/auth/login'
-        login_page_response = session.get(login_page_url, timeout=10)
+        
+        login_page_response = session.get(login_page_url, timeout=5)
         
         if login_page_response.status_code != 200:
+            logger.warning(f"Universal search login page failed: {login_page_response.status_code}")
             return jsonify({
-                'error': f'Gagal mengakses halaman login. Status: {login_page_response.status_code}'
-            }), 500
+                'success': False,
+                'error': f'Gagal mengakses halaman login. Status: {login_page_response.status_code}',
+                'message': 'Server internal tidak dapat diakses.',
+                'data': {}
+            }), 200
         
         # Extract CSRF token from the page (simplified approach)
         import re
@@ -4688,22 +4693,31 @@ def api_universal_search():
                                     timeout=10)
         
         if login_response.status_code != 200:
+            logger.warning(f"Universal search login failed: {login_response.status_code}")
             return jsonify({
-                'error': f'Gagal login ke server universal search. Status: {login_response.status_code}'
-            }), 500
+                'success': False,
+                'error': f'Gagal login ke server universal search. Status: {login_response.status_code}',
+                'message': 'Autentikasi ke server internal gagal.',
+                'data': {}
+            }), 200
         
         # Perform universal search
         search_url = f'http://10.1.54.116/toolkit/api/universal-search-engine/search?input={name}'
         search_response = session.get(search_url, timeout=15)
         
         if search_response.status_code != 200:
+            logger.warning(f"Universal search API failed: {search_response.status_code}")
             return jsonify({
-                'error': f'Gagal melakukan pencarian universal. Status: {search_response.status_code}'
-            }), 500
+                'success': False,
+                'error': f'Gagal melakukan pencarian universal. Status: {search_response.status_code}',
+                'message': 'Pencarian di server internal gagal.',
+                'data': {}
+            }), 200
         
         # Parse JSON response
         search_data = search_response.json()
         
+        logger.info(f"Universal search success for: {name}")
         return jsonify({
             'success': True,
             'data': search_data,
@@ -4711,12 +4725,1302 @@ def api_universal_search():
         })
         
     except requests.exceptions.Timeout:
-        return jsonify({'error': 'Timeout: Server universal search tidak merespons'}), 504
-    except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Connection Error: Tidak dapat terhubung ke server universal search'}), 503
+        logger.warning(f"Universal search timeout for: {name}")
+        return jsonify({
+            'success': False,
+            'error': 'Server universal search tidak merespons (timeout)',
+            'message': 'Server internal tidak available. Gunakan Social Media Search untuk pencarian online.',
+            'data': {}
+        }), 200  # Return 200 to avoid frontend error display
+    except requests.exceptions.ConnectionError as e:
+        logger.warning(f"Universal search connection error for: {name} - {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Tidak dapat terhubung ke server universal search',
+            'message': 'Server internal (10.1.54.116) tidak dapat diakses. Fitur ini memerlukan koneksi ke server internal.',
+            'data': {}
+        }), 200  # Return 200 to avoid frontend error display
     except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Request Error: {str(e)}'}), 500
+        logger.warning(f"Universal search request error for: {name} - {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Request Error: {str(e)}',
+            'message': 'Terjadi kesalahan saat menghubungi server internal.',
+            'data': {}
+        }), 200
     except Exception as e:
+        logger.error(f"Universal search unexpected error for: {name} - {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Error: {str(e)}',
+            'message': 'Terjadi kesalahan pada sistem. Silakan gunakan Social Media Search.',
+            'data': {}
+        }), 200
+
+@app.route('/api/social-media-search', methods=['POST'])
+def api_social_media_search():
+    """API endpoint untuk Google CSE social media search dengan images"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        search_type = data.get('type', 'web')  # 'web' or 'image'
+        
+        if not name:
+            return jsonify({'error': 'Nama diperlukan untuk pencarian social media'}), 400
+        
+        import requests
+        import urllib.parse
+        
+        # Google Custom Search Engine API
+        CSE_ID = '7693f5093e95e4c28'
+        # Get API key from environment variable
+        API_KEY = os.getenv('GOOGLE_CSE_API_KEY') or request.args.get('key')
+        if not API_KEY:
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+        
+        # Build search query untuk social media - format lebih beragam untuk hasil yang seimbang
+        # Gunakan nama dengan quotes untuk exact match, tapi tanpa bias ke social media
+        query = name if 'site:' in name else f'"{name}"'  # Support advanced queries
+        
+        # Google CSE API endpoint
+        search_url = 'https://www.googleapis.com/customsearch/v1'
+        
+        # OPTIMIZED: Maximum coverage untuk hasil yang lebih banyak dan detail
+        # 10 pages × 10 results = 100 results per query (MAXIMUM COVERAGE!)
+        all_results = []
+        pages_to_fetch = 10  # 10 pages = 100 results (Maximum untuk hasil yang lebih banyak!)
+        
+        for page in range(pages_to_fetch):
+            start_index = (page * 10) + 1  # Google CSE uses 1-based indexing
+            
+            # Prepare parameters
+            params = {
+                'key': API_KEY,
+                'cx': CSE_ID,
+                'q': query,
+                'num': 10,  # Standard 10 results per query (free tier limit)
+                'start': start_index,  # Pagination
+                'safe': 'active',
+                # TIDAK menambahkan filter social media agar hasil lebih beragam
+            }
+            
+            # Add searchType for images
+            if search_type == 'image':
+                params['searchType'] = 'image'
+            
+            # Log request for debugging
+            logger.info(f"Google CSE Request Page {page+1}/{pages_to_fetch} - Query: {query}, Start: {start_index}, Type: {search_type}")
+            
+            try:
+                # Make request to Google CSE
+                response = requests.get(search_url, params=params, timeout=15)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    items = data.get('items', [])
+                    all_results.extend(items)
+                    logger.info(f"✓ Page {page+1}: Got {len(items)} results (total so far: {len(all_results)})")
+                    
+                    # If this page has less than 10 results, stop fetching
+                    if len(items) < 10:
+                        logger.info(f"Last page reached (got {len(items)} < 10 results)")
+                        break
+                else:
+                    error_text = response.text[:200] if hasattr(response, 'text') else 'N/A'
+                    logger.warning(f"Page {page+1} failed with status {response.status_code}: {error_text}")
+                    
+                    # If it's a quota error (429), stop trying more pages
+                    if response.status_code == 429:
+                        logger.error(f"❌ QUOTA EXCEEDED! Stopping multi-page fetch at page {page+1}")
+                        break
+                    
+                    # Continue to next page even if one fails
+                    continue
+                    
+            except Exception as page_error:
+                logger.error(f"Error fetching page {page+1}: {str(page_error)}")
+                # Continue to next page
+                continue
+        
+        logger.info(f"=== TOTAL RESULTS FETCHED: {len(all_results)} ===")
+        
+        # Now process the combined results (use first response for metadata)
+        # Re-fetch first page for standard error handling
+        params = {
+            'key': API_KEY,
+            'cx': CSE_ID,
+            'q': query,
+            'num': 10,
+            'safe': 'active',
+        }
+        if search_type == 'image':
+            params['searchType'] = 'image'
+            
+        response = requests.get(search_url, params=params, timeout=15)
+        
+        # Log API key being used (first 20 chars only for security)
+        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
+        
+        # Better error handling with detailed logging
+        if response.status_code != 200:
+            error_details = {}
+            error_message = 'Unknown error'
+            try:
+                error_json = response.json()
+                error_message = error_json.get('error', {}).get('message', 'Unknown error')
+                error_code = error_json.get('error', {}).get('code', response.status_code)
+                error_details = {
+                    'error': error_message,
+                    'code': error_code,
+                    'errors': error_json.get('error', {}).get('errors', [])
+                }
+                
+                # Detailed error logging
+                logger.error(f"❌ Google CSE API Error {error_code}: {error_message}")
+                logger.error(f"   Query: {query}")
+                logger.error(f"   CSE ID: {CSE_ID}")
+                logger.error(f"   API Key: {API_KEY[:20]}... (truncated)")
+                logger.error(f"   Full error: {json.dumps(error_json, indent=2)}")
+                
+                # Try fallback: Use Google Search directly (scraping) if API fails
+                logger.warning(f"Google CSE API failed, trying fallback Google Search for: {query}")
+                try:
+                    # Use Google Search HTML scraping as fallback
+                    google_search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=10"
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                    search_response = requests.get(google_search_url, headers=headers, timeout=10)
+                    
+                    if search_response.status_code == 200:
+                        # Parse HTML results (simplified - just return empty for now)
+                        # In production, you'd want to use BeautifulSoup or similar
+                        logger.info("Fallback Google Search successful, but HTML parsing not implemented")
+                        # For now, return empty results with message
+                        return jsonify({
+                            'success': False,
+                            'error': error_message,
+                            'details': error_details,
+                            'message': 'Google CSE API tidak tersedia. Gunakan tab "Web" atau "Gambar" untuk pencarian langsung melalui Google CSE widget.',
+                            'fallback': 'widget',
+                            'data': {
+                                'web': [],
+                                'images': [],
+                                'social_links': []
+                            }
+                        }), 200
+                except Exception as fallback_error:
+                    logger.error(f"Fallback Google Search also failed: {str(fallback_error)}")
+                
+                # Provide more helpful error messages based on error code
+                if 'quota' in error_message.lower() or error_code == 429:
+                    error_message = 'Quota Google CSE API habis. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                elif 'invalid' in error_message.lower() or error_code == 400:
+                    error_message = 'API key atau CSE ID tidak valid. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                elif error_code == 403:
+                    error_message = 'Akses ditolak oleh Google CSE API. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+            except:
+                error_details = {
+                    'error': response.text[:500],
+                    'status_code': response.status_code
+                }
+                error_message = f'Error dari Google CSE API: {response.status_code}'
+            
+            logger.error(f"Google CSE Error Details: {json.dumps(error_details, indent=2)}")
+            
+            # Return 200 with success: false so frontend can read the error message
+            return jsonify({
+                'success': False,
+                'error': error_message,
+                'error_code': error_code,
+                'details': error_details,
+                'message': 'Google CSE API error. Gunakan tab "Categorized" atau "Social Links" untuk hasil dari Universal Search (Internal).',
+                'fallback': 'universal_search',
+                'data': {
+                    'web': [],
+                    'images': [],
+                    'social_links': []
+                }
+            }), 200  # Return 200 so frontend can read the error message
+        
+        # Check if we have results from multi-page fetch
+        if len(all_results) > 0:
+            logger.info(f"✅ Using {len(all_results)} results from multi-page fetch")
+            # Create a mock search_data structure for processing
+            search_data = {
+                'items': all_results,
+                'searchInformation': {
+                    'totalResults': str(len(all_results)),
+                    'searchTime': 0.5
+                }
+            }
+            items_to_process = all_results
+        else:
+            # Fallback to single page response
+            logger.warning("⚠️ No results from multi-page fetch, using single page response")
+            search_data = response.json()
+            items_to_process = search_data.get('items', [])
+        
+        # Format results - USE ALL_RESULTS from multiple pages!
+        results = {
+            'web': [],
+            'images': [],
+            'social_links': []
+        }
+        
+        logger.info(f"Processing {len(items_to_process)} items (from {len(all_results)} multi-page results)")
+        
+        if items_to_process:
+            for item in items_to_process:
+                result_item = {
+                    'title': item.get('title', 'No Title'),
+                    'link': item.get('link', ''),
+                    'snippet': item.get('snippet', ''),
+                    'htmlSnippet': item.get('htmlSnippet', ''),  # HTML formatted snippet
+                    'displayLink': item.get('displayLink', ''),
+                    'formattedUrl': item.get('formattedUrl', ''),
+                    'cacheId': item.get('cacheId', ''),  # For cached version link
+                    'kind': item.get('kind', ''),  # Result type
+                    'htmlTitle': item.get('htmlTitle', ''),  # HTML formatted title
+                    'pagemap': item.get('pagemap', {})  # Full pagemap data for thumbnails, metatags, etc.
+                }
+                
+                # Add image data if available (for image search results)
+                if 'image' in item:
+                    result_item['image'] = {
+                        'src': item['image'].get('src', ''),
+                        'width': item['image'].get('width', 0),
+                        'height': item['image'].get('height', 0)
+                    }
+                    results['images'].append(result_item)
+                
+                # Enhanced pagemap extraction for profile/post images
+                if 'pagemap' in item:
+                    pagemap = item['pagemap']
+                    result_item['pagemap'] = pagemap
+                    
+                    # Extract all possible images from pagemap (prioritized)
+                    extracted_images = []
+                    
+                    # 1. CSE Image (highest quality, from Google)
+                    if 'cse_image' in pagemap and pagemap['cse_image']:
+                        for img in pagemap['cse_image']:
+                            if img.get('src'):
+                                extracted_images.append({
+                                    'src': img.get('src'),
+                                    'width': img.get('width', 0),
+                                    'height': img.get('height', 0),
+                                    'type': 'cse_image'
+                                })
+                    
+                    # 2. Metatags (Open Graph, Twitter Cards - profile/post images)
+                    if 'metatags' in pagemap and pagemap['metatags']:
+                        for meta in pagemap['metatags']:
+                            # Open Graph image (best for social media)
+                            if 'og:image' in meta and meta['og:image']:
+                                extracted_images.append({
+                                    'src': meta['og:image'],
+                                    'type': 'og_image'
+                                })
+                            # Twitter image
+                            if 'twitter:image' in meta and meta['twitter:image']:
+                                extracted_images.append({
+                                    'src': meta['twitter:image'],
+                                    'type': 'twitter_image'
+                                })
+                            # Image property
+                            if 'image' in meta and meta['image']:
+                                extracted_images.append({
+                                    'src': meta['image'],
+                                    'type': 'meta_image'
+                                })
+                    
+                    # 3. CSE Thumbnail
+                    if 'cse_thumbnail' in pagemap and pagemap['cse_thumbnail']:
+                        for thumb in pagemap['cse_thumbnail']:
+                            if thumb.get('src'):
+                                extracted_images.append({
+                                    'src': thumb.get('src'),
+                                    'width': thumb.get('width', 0),
+                                    'height': thumb.get('height', 0),
+                                    'type': 'thumbnail'
+                                })
+                    
+                    # 4. Store best image (prioritize og:image, then cse_image, then others)
+                    if extracted_images:
+                        # Sort by priority
+                        priority_order = {'og_image': 1, 'twitter_image': 2, 'cse_image': 3, 'meta_image': 4, 'thumbnail': 5}
+                        extracted_images.sort(key=lambda x: priority_order.get(x.get('type', ''), 99))
+                        result_item['best_image'] = extracted_images[0]
+                        result_item['all_images'] = extracted_images  # Store all for frontend
+                
+                # ========== LOCATION-BASED RELEVANCE SCORING ==========
+                # Detect location from query and result content
+                result_item['location_score'] = 0
+                result_item['detected_locations'] = []
+                result_item['content_type'] = 'general'
+                
+                # Extract location keywords from query
+                query_lower = name.lower() if name else ''
+                result_text = f"{result_item['title']} {result_item['snippet']} {result_item['link']}".lower()
+                
+                # Indonesian provinces and major cities
+                provinces = [
+                    'aceh', 'sumatera utara', 'sumatera barat', 'riau', 'jambi', 'sumatera selatan',
+                    'bengkulu', 'lampung', 'kepulauan bangka belitung', 'kepulauan riau',
+                    'dki jakarta', 'jakarta', 'jawa barat', 'jawa tengah', 'jawa timur',
+                    'di yogyakarta', 'yogyakarta', 'banten', 'bali', 'nusa tenggara barat',
+                    'nusa tenggara timur', 'kalimantan barat', 'kalimantan tengah',
+                    'kalimantan selatan', 'kalimantan timur', 'kalimantan utara',
+                    'sulawesi utara', 'sulawesi tengah', 'sulawesi selatan', 'sulawesi tenggara',
+                    'gorontalo', 'sulawesi barat', 'maluku', 'maluku utara', 'papua barat', 'papua'
+                ]
+                
+                major_cities = [
+                    'jakarta', 'surabaya', 'bandung', 'medan', 'semarang', 'makassar',
+                    'palembang', 'tangerang', 'depok', 'bekasi', 'yogyakarta', 'bogor',
+                    'malang', 'surakarta', 'batam', 'pekanbaru', 'padang', 'denpasar',
+                    'banjarmasin', 'pontianak', 'samarinda', 'jambi', 'cirebon', 'sukabumi',
+                    'tasikmalaya', 'serang', 'mataram', 'kupang', 'manado', 'palu', 'kendari'
+                ]
+                
+                # Check for location matches in query
+                query_locations = []
+                for prov in provinces:
+                    if prov in query_lower:
+                        query_locations.append(prov)
+                        result_item['detected_locations'].append(prov.title())
+                for city in major_cities:
+                    if city in query_lower:
+                        query_locations.append(city)
+                        result_item['detected_locations'].append(city.title())
+                
+                # Check for location matches in result content
+                content_locations = []
+                for prov in provinces:
+                    if prov in result_text:
+                        content_locations.append(prov)
+                        if prov.title() not in result_item['detected_locations']:
+                            result_item['detected_locations'].append(prov.title())
+                for city in major_cities:
+                    if city in result_text:
+                        content_locations.append(city)
+                        if city.title() not in result_item['detected_locations']:
+                            result_item['detected_locations'].append(city.title())
+                
+                # Calculate location relevance score
+                # Higher score = more relevant to query location
+                if query_locations:
+                    # Exact match in title = highest score
+                    if any(loc in result_item['title'].lower() for loc in query_locations):
+                        result_item['location_score'] = 100
+                    # Match in snippet = high score
+                    elif any(loc in result_item['snippet'].lower() for loc in query_locations):
+                        result_item['location_score'] = 80
+                    # Match in URL = medium score
+                    elif any(loc in result_item['link'].lower() for loc in query_locations):
+                        result_item['location_score'] = 60
+                    # Match in content = low score
+                    elif content_locations:
+                        result_item['location_score'] = 40
+                else:
+                    # No location in query, but location found in result = bonus
+                    if content_locations:
+                        result_item['location_score'] = 20
+                
+                # ========== CONTENT TYPE DETECTION ==========
+                # Detect content type: news, social_media, blog, forum, official, video, posting
+                link_lower = result_item['link'].lower()
+                title_lower = result_item['title'].lower()
+                snippet_lower = result_item['snippet'].lower()
+                
+                # News sites
+                news_keywords = ['berita', 'news', 'kompas', 'detik', 'tribun', 'liputan6', 'cnn', 'bbc', 'antaranews', 'republika', 'tempo']
+                if any(kw in link_lower or kw in title_lower for kw in news_keywords):
+                    result_item['content_type'] = 'news'
+                
+                # Social media
+                social_domains = [
+                    'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 
+                    'tiktok.com', 'youtube.com', 'pinterest.com', 'snapchat.com', 'telegram.org',
+                    'whatsapp.com', 'reddit.com', 'tumblr.com', 'discord.com', 'twitch.tv',
+                    'medium.com', 'quora.com', 'flickr.com', 'vimeo.com', 'weibo.com',
+                    'vk.com', 'line.me', 'github.com', 'behance.net', 'dribbble.com'
+                ]
+                if any(domain in link_lower for domain in social_domains):
+                    result_item['content_type'] = 'social_media'
+                    results['social_links'].append(result_item)
+                
+                # Blog
+                blog_keywords = ['blog', 'wordpress', 'blogspot', 'medium.com', 'substack']
+                if any(kw in link_lower for kw in blog_keywords) and result_item['content_type'] == 'general':
+                    result_item['content_type'] = 'blog'
+                
+                # Forum
+                forum_keywords = ['forum', 'kaskus', 'reddit', 'quora', 'stackoverflow']
+                if any(kw in link_lower for kw in forum_keywords) and result_item['content_type'] == 'general':
+                    result_item['content_type'] = 'forum'
+                
+                # Official/Government
+                official_keywords = ['pemerintah', 'government', '.go.id', 'kemenkumham', 'kemenkominfo', 'kemendagri']
+                if any(kw in link_lower or kw in title_lower for kw in official_keywords):
+                    result_item['content_type'] = 'official'
+                
+                # Video
+                video_keywords = ['youtube.com', 'vimeo.com', 'dailymotion', 'tiktok.com']
+                if any(kw in link_lower for kw in video_keywords):
+                    result_item['content_type'] = 'video'
+                
+                # Posting (social media posts, articles)
+                posting_keywords = ['post', 'status', 'update', 'artikel', 'article']
+                if any(kw in snippet_lower or kw in title_lower for kw in posting_keywords) and result_item['content_type'] in ['general', 'social_media']:
+                    result_item['content_type'] = 'posting'
+                
+                results['web'].append(result_item)
+        
+        # ========== SORT BY LOCATION RELEVANCE ==========
+        # Sort results by location_score (highest first), then by content type priority
+        content_type_priority = {
+            'news': 1,
+            'official': 2,
+            'social_media': 3,
+            'posting': 4,
+            'blog': 5,
+            'forum': 6,
+            'video': 7,
+            'general': 8
+        }
+        
+        def sort_key(item):
+            location_score = item.get('location_score', 0)
+            content_type = item.get('content_type', 'general')
+            type_priority = content_type_priority.get(content_type, 99)
+            # Higher location_score = better, lower type_priority = better
+            return (-location_score, type_priority)
+        
+        results['web'].sort(key=sort_key)
+        results['social_links'].sort(key=sort_key)
+        
+        logger.info(f"✓ ADVANCED SEARCH SUCCESS - Found {len(results['web'])} web results, {len(results['images'])} images, {len(results['social_links'])} social links")
+        logger.info(f"✓ Location-based ranking applied - Top results prioritized by location relevance")
+        
+        # DEBUG: Log response structure
+        logger.info(f"📤 Returning response: success=True, web_results={len(results['web'])}, images={len(results['images'])}, social_links={len(results['social_links'])}")
+        
+        response_data = {
+            'success': True,
+            'data': results,
+            'search_name': name,
+            'total_results': search_data.get('searchInformation', {}).get('totalResults', '0'),
+            'location_ranking': True  # Flag to indicate location-based ranking is applied
+        }
+        
+        # Log sample results for debugging
+        if len(results['web']) > 0:
+            sample_result = results['web'][0]
+            logger.info(f"📋 Sample result: title='{sample_result.get('title', 'N/A')[:50]}', link='{sample_result.get('link', 'N/A')[:50]}'")
+        
+        return jsonify(response_data)
+        
+    except requests.exceptions.Timeout:
+        logger.error("❌ Google CSE Timeout - API tidak merespons dalam 15 detik")
+        return jsonify({
+            'success': False, 
+            'error': 'Timeout: Google CSE tidak merespons',
+            'error_type': 'timeout',
+            'message': 'Google CSE API timeout. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+            'fallback': 'universal_search',
+            'data': {
+                'web': [],
+                'images': [],
+                'social_links': []
+            }
+        }), 200  # Return 200 so frontend can read the error
+    except requests.exceptions.ConnectionError:
+        logger.error("❌ Google CSE Connection Error - Tidak dapat terhubung")
+        return jsonify({
+            'success': False, 
+            'error': 'Connection Error: Tidak dapat terhubung ke Google CSE',
+            'error_type': 'connection_error',
+            'message': 'Tidak dapat terhubung ke Google CSE API. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+            'fallback': 'universal_search',
+            'data': {
+                'web': [],
+                'images': [],
+                'social_links': []
+            }
+        }), 200  # Return 200 so frontend can read the error
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ JSON Decode Error: {str(e)}")
+        logger.error(f"   Response text: {response.text[:500] if 'response' in locals() else 'N/A'}")
+        return jsonify({
+            'success': False, 
+            'error': f'Error parsing response: {str(e)}',
+            'error_type': 'json_decode_error',
+            'message': 'Error parsing Google CSE response. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+            'fallback': 'universal_search',
+            'data': {
+                'web': [],
+                'images': [],
+                'social_links': []
+            }
+        }), 200  # Return 200 so frontend can read the error
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in social media search: {str(e)}", exc_info=True)
+        logger.error(f"   Error type: {type(e).__name__}")
+        logger.error(f"   Error args: {e.args}")
+        return jsonify({
+            'success': False, 
+            'error': f'Error: {str(e)}',
+            'error_type': type(e).__name__,
+            'message': 'Unexpected error. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+            'fallback': 'universal_search',
+            'data': {
+                'web': [],
+                'images': [],
+                'social_links': []
+            }
+        }), 200  # Return 200 so frontend can read the error
+
+@app.route('/api/test-google-cse', methods=['GET', 'POST'])
+def test_google_cse():
+    """Test endpoint untuk memverifikasi Google CSE API"""
+    try:
+        import requests
+        import urllib.parse
+        
+        CSE_ID = '7693f5093e95e4c28'
+        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
+        if not API_KEY:
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+        
+        # Test query
+        test_query = request.args.get('q', 'test') or (request.get_json() or {}).get('q', 'test')
+        query = f'"{test_query}"'
+        
+        search_url = 'https://www.googleapis.com/customsearch/v1'
+        params = {
+            'key': API_KEY,
+            'cx': CSE_ID,
+            'q': query,
+            'num': 1,  # Just 1 result for testing
+            'safe': 'active',
+        }
+        
+        logger.info(f"🧪 Testing Google CSE API with query: {query}")
+        logger.info(f"   CSE ID: {CSE_ID}")
+        logger.info(f"   API Key: {API_KEY[:20]}...")
+        
+        response = requests.get(search_url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            items = data.get('items', [])
+            search_info = data.get('searchInformation', {})
+            
+            logger.info(f"✅ Google CSE API Test SUCCESS!")
+            logger.info(f"   Total Results: {search_info.get('totalResults', 'N/A')}")
+            logger.info(f"   Items Found: {len(items)}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Google CSE API is working correctly',
+                'test_query': query,
+                'total_results': search_info.get('totalResults', '0'),
+                'items_found': len(items),
+                'sample_result': items[0] if items else None,
+                'api_key_status': 'valid',
+                'cse_id_status': 'valid'
+            }), 200
+        else:
+            error_json = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+            error_message = error_json.get('error', {}).get('message', f'HTTP {response.status_code}')
+            error_code = error_json.get('error', {}).get('code', response.status_code)
+            
+            logger.error(f"❌ Google CSE API Test FAILED!")
+            logger.error(f"   Status Code: {response.status_code}")
+            logger.error(f"   Error Code: {error_code}")
+            logger.error(f"   Error Message: {error_message}")
+            
+            return jsonify({
+                'success': False,
+                'message': 'Google CSE API test failed',
+                'test_query': query,
+                'status_code': response.status_code,
+                'error_code': error_code,
+                'error_message': error_message,
+                'api_key_status': 'invalid' if error_code in [400, 403] else 'unknown',
+                'cse_id_status': 'invalid' if error_code == 400 else 'unknown',
+                'quota_exceeded': error_code == 429,
+                'details': error_json
+            }), 200
+            
+    except Exception as e:
+        logger.error(f"❌ Google CSE API Test Error: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Test error: {str(e)}',
+            'error_type': type(e).__name__
+        }), 200
+
+@app.route('/api/google-cse-widget', methods=['POST'])
+def api_google_cse_widget():
+    """API endpoint untuk fetch Google CSE Widget (UNLIMITED! NO API KEY NEEDED!)"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        search_type = data.get('type', 'web')  # 'web' or 'image'
+        
+        if not name:
+            return jsonify({'error': 'Nama diperlukan untuk pencarian'}), 400
+        
+        import urllib.parse
+        import re
+        
+        # Google CSE Widget Configuration (UNLIMITED - NO API KEY!)
+        CSE_ID = '7693f5093e95e4c28'
+        encoded_query = urllib.parse.quote(name)
+        
+        # Build Google CSE Widget URL (UNLIMITED!)
+        if search_type == 'image':
+            widget_url = f'https://cse.google.com/cse?cx={CSE_ID}&q={encoded_query}&tbm=isch'
+        else:
+            widget_url = f'https://cse.google.com/cse?cx={CSE_ID}&q={encoded_query}'
+        
+        logger.info(f"Fetching Google CSE Widget (UNLIMITED): {widget_url}")
+        
+        # Fetch widget HTML dengan proper headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://cse.google.com/',
+        }
+        
+        try:
+            response = requests.get(widget_url, headers=headers, timeout=15)
+            
+            if response.status_code != 200:
+                logger.warning(f"Google CSE Widget fetch failed: {response.status_code}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Failed to fetch widget (status {response.status_code})',
+                    'data': {'web': [], 'images': []}
+                }), 200
+            
+            html_content = response.text
+            html_length = len(html_content)
+            
+            logger.info(f"Google CSE Widget HTML fetched: {html_length} bytes")
+            
+            # Check if HTML contains results (widget might need JavaScript)
+            if html_length < 1000 or 'gsc-webResult' not in html_content.lower():
+                logger.warning("Widget HTML seems empty or doesn't contain results structure - trying Google Search directly")
+                # Fallback: Use Google Search directly (more reliable for scraping)
+                return _fallback_google_search(name, search_type)
+            
+            # Parse widget HTML untuk extract results
+            results = {'web': [], 'images': []}
+            
+            # Method 1: Extract dari Google CSE Widget structure (gsc-webResult)
+            cse_pattern = r'<div[^>]*class=["\'][^"\']*gsc-webResult[^"\']*["\'][^>]*>.*?<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?<div[^>]*class=["\'][^"\']*gs-title[^"\']*["\'][^>]*>(.*?)</div>.*?<div[^>]*class=["\'][^"\']*gs-snippet[^"\']*["\'][^>]*>(.*?)</div>'
+            cse_matches = re.findall(cse_pattern, html_content, re.DOTALL | re.IGNORECASE)
+            logger.info(f"Method 1 (CSE Widget): Found {len(cse_matches)} matches")
+            
+            for match in cse_matches[:20]:
+                url = match[0] if len(match) > 0 else ''
+                title = re.sub(r'<[^>]+>', '', match[1] if len(match) > 1 else 'No Title').strip()
+                snippet = re.sub(r'<[^>]+>', '', match[2] if len(match) > 2 else '').strip()
+                
+                if url and url.startswith('http'):
+                    result_item = {
+                        'title': title or 'No Title',
+                        'link': url,
+                        'snippet': snippet,
+                        'displayLink': urllib.parse.urlparse(url).netloc,
+                        'formattedUrl': url
+                    }
+                    if search_type == 'image':
+                        results['images'].append(result_item)
+                    else:
+                        results['web'].append(result_item)
+            
+            # Method 2: Extract dari standard Google search structure
+            if len(results['web']) == 0 and len(results['images']) == 0:
+                google_pattern = r'<div[^>]*class=["\'][^"\']*g[^"\']*["\'][^>]*>.*?<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?<h3[^>]*>(.*?)</h3>.*?<span[^>]*>(.*?)</span>'
+                google_matches = re.findall(google_pattern, html_content, re.DOTALL | re.IGNORECASE)
+                logger.info(f"Method 2 (Standard Google): Found {len(google_matches)} matches")
+                
+                for match in google_matches[:20]:
+                    url = match[0] if len(match) > 0 else ''
+                    title = re.sub(r'<[^>]+>', '', match[1] if len(match) > 1 else 'No Title').strip()
+                    snippet = re.sub(r'<[^>]+>', '', match[2] if len(match) > 2 else '').strip()
+                    
+                    if url and url.startswith('http'):
+                        result_item = {
+                            'title': title or 'No Title',
+                            'link': url,
+                            'snippet': snippet,
+                            'displayLink': urllib.parse.urlparse(url).netloc,
+                            'formattedUrl': url
+                        }
+                        if search_type == 'image':
+                            results['images'].append(result_item)
+                        else:
+                            results['web'].append(result_item)
+            
+            # If still no results, try fallback
+            if len(results['web']) == 0 and len(results['images']) == 0:
+                logger.warning("No results from widget HTML - trying Google Search directly")
+                return _fallback_google_search(name, search_type)
+            
+            # Remove duplicates
+            seen_urls = set()
+            unique_results = []
+            for item in (results['images'] if search_type == 'image' else results['web']):
+                if item['link'] not in seen_urls:
+                    seen_urls.add(item['link'])
+                    unique_results.append(item)
+            
+            if search_type == 'image':
+                results['images'] = unique_results[:20]
+            else:
+                results['web'] = unique_results[:20]
+            
+            logger.info(f"Google CSE Widget (UNLIMITED): {len(unique_results)} results parsed")
+            
+            return jsonify({
+                'success': True,
+                'data': results,
+                'source': 'google_cse_widget_unlimited',
+                'message': f'Found {len(unique_results)} results (UNLIMITED - No quota!)'
+            }), 200
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching Google CSE Widget: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Network error: {str(e)}',
+                'data': {'web': [], 'images': []}
+            }), 200
+            
+    except Exception as e:
+        logger.error(f"Error in google-cse-widget endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {'web': [], 'images': []}
+        }), 200
+
+def _fallback_google_search(name, search_type):
+    """Fallback: Google Search directly (UNLIMITED - More reliable for scraping!)"""
+    try:
+        import urllib.parse
+        import re
+        
+        encoded_query = urllib.parse.quote(name)
+        
+        # Use Google Search directly (more reliable than widget)
+        if search_type == 'image':
+            search_url = f'https://www.google.com/search?q={encoded_query}&tbm=isch&num=20'
+        else:
+            search_url = f'https://www.google.com/search?q={encoded_query}&num=20'
+        
+        logger.info(f"Fallback: Fetching Google Search directly: {search_url}")
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.google.com/',
+        }
+        
+        response = requests.get(search_url, headers=headers, timeout=15)
+        
+        if response.status_code == 429:
+            # Rate limited - return helpful message
+            logger.warning("Google Search rate limited (429)")
+            return jsonify({
+                'success': False,
+                'error': 'Google Search rate limited (too many requests)',
+                'message': 'Google Search temporarily blocked requests. Please wait a few minutes and try again, or use tab "Categorized" for internal results.',
+                'data': {'web': [], 'images': []}
+            }), 200
+        
+        if response.status_code != 200:
+            logger.warning(f"Google Search fallback failed: {response.status_code}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch Google Search (status {response.status_code})',
+                'message': 'Google Search is temporarily unavailable. Please try again later or use tab "Categorized" for internal results.',
+                'data': {'web': [], 'images': []}
+            }), 200
+        
+        html_content = response.text
+        logger.info(f"Google Search HTML fetched: {len(html_content)} bytes")
+        
+        results = {'web': [], 'images': []}
+        
+        # Multiple patterns untuk Google Search results
+        patterns = [
+            # Pattern 1: Standard Google result structure
+            r'<div[^>]*class=["\'][^"\']*g[^"\']*["\'][^>]*>.*?<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?<h3[^>]*>(.*?)</h3>.*?<span[^>]*>(.*?)</span>',
+            # Pattern 2: Alternative structure
+            r'<div[^>]*class=["\'][^"\']*yuRUbf[^"\']*["\'][^>]*>.*?<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?<h3[^>]*>(.*?)</h3>',
+            # Pattern 3: With snippet
+            r'<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?<h3[^>]*>(.*?)</h3>.*?<div[^>]*class=["\'][^"\']*VwiC3b[^"\']*["\'][^>]*>(.*?)</div>',
+        ]
+        
+        all_matches = []
+        for i, pattern in enumerate(patterns):
+            matches = re.findall(pattern, html_content, re.DOTALL | re.IGNORECASE)
+            logger.info(f"Pattern {i+1}: Found {len(matches)} matches")
+            all_matches.extend(matches[:20])
+        
+        for match in all_matches[:20]:
+            url = match[0] if len(match) > 0 else ''
+            title = re.sub(r'<[^>]+>', '', match[1] if len(match) > 1 else 'No Title').strip()
+            snippet = re.sub(r'<[^>]+>', '', match[2] if len(match) > 2 else '').strip() if len(match) > 2 else ''
+            
+            # Clean URL (remove /url?q= prefix)
+            if '/url?q=' in url:
+                url = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get('q', [url])[0]
+            
+            if url and url.startswith('http'):
+                result_item = {
+                    'title': title or 'No Title',
+                    'link': url,
+                    'snippet': snippet,
+                    'displayLink': urllib.parse.urlparse(url).netloc,
+                    'formattedUrl': url
+                }
+                if search_type == 'image':
+                    results['images'].append(result_item)
+                else:
+                    results['web'].append(result_item)
+        
+        # Remove duplicates
+        seen_urls = set()
+        unique_results = []
+        for item in (results['images'] if search_type == 'image' else results['web']):
+            if item['link'] not in seen_urls:
+                seen_urls.add(item['link'])
+                unique_results.append(item)
+        
+        if search_type == 'image':
+            results['images'] = unique_results[:20]
+        else:
+            results['web'] = unique_results[:20]
+        
+        logger.info(f"Google Search fallback: {len(unique_results)} results parsed")
+        
+        return jsonify({
+            'success': True,
+            'data': results,
+            'source': 'google_search_fallback',
+            'message': f'Found {len(unique_results)} results (UNLIMITED - Google Search direct!)'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Google Search fallback error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Fallback failed: {str(e)}',
+            'data': {'web': [], 'images': []}
+        }), 200
+
+def _fallback_html_scraping(name, search_type):
+    """Fallback method: HTML scraping (less reliable)"""
+    try:
+        import urllib.parse
+        import re
+        
+        encoded_query = urllib.parse.quote(name)
+        
+        # Use Google Search directly
+        if search_type == 'image':
+            search_url = f'https://www.google.com/search?q={encoded_query}&tbm=isch&num=20'
+        else:
+            search_url = f'https://www.google.com/search?q={encoded_query}&num=20'
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        
+        response = requests.get(search_url, headers=headers, timeout=15)
+        
+        if response.status_code != 200:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch (status {response.status_code})',
+                'data': {'web': [], 'images': []}
+            }), 200
+        
+        html_content = response.text
+        
+        # Parse HTML untuk extract results
+        results = {'web': [], 'images': []}
+        
+        # Method: Extract dari div dengan class g (Google search result structure)
+        result_pattern = r'<div[^>]*class=["\'][^"\']*g[^"\']*["\'][^>]*>.*?<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?<h3[^>]*>(.*?)</h3>.*?<span[^>]*>(.*?)</span>'
+        result_matches = re.findall(result_pattern, html_content, re.DOTALL | re.IGNORECASE)
+        
+        for match in result_matches[:20]:  # Limit to 20 results
+            url = match[0] if len(match) > 0 else ''
+            title = re.sub(r'<[^>]+>', '', match[1] if len(match) > 1 else 'No Title').strip()
+            snippet = re.sub(r'<[^>]+>', '', match[2] if len(match) > 2 else '').strip()
+            
+            if url and url.startswith('http'):
+                result_item = {
+                    'title': title or 'No Title',
+                    'link': url,
+                    'snippet': snippet,
+                    'displayLink': urllib.parse.urlparse(url).netloc,
+                    'formattedUrl': url
+                }
+                if search_type == 'image':
+                    results['images'].append(result_item)
+                else:
+                    results['web'].append(result_item)
+        
+        # Remove duplicates
+        seen_urls = set()
+        unique_results = []
+        for item in (results['images'] if search_type == 'image' else results['web']):
+            if item['link'] not in seen_urls:
+                seen_urls.add(item['link'])
+                unique_results.append(item)
+        
+        if search_type == 'image':
+            results['images'] = unique_results[:20]
+        else:
+            results['web'] = unique_results[:20]
+        
+        logger.info(f"Fallback HTML scraping: {len(unique_results)} results")
+        
+        return jsonify({
+            'success': True,
+            'data': results,
+            'source': 'html_scraping_fallback',
+            'message': f'Found {len(unique_results)} results (fallback method)'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Fallback HTML scraping error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Fallback failed: {str(e)}',
+            'data': {'web': [], 'images': []}
+        }), 200
+
+@app.route('/api/social-searcher-style', methods=['POST'])
+def api_social_searcher_style():
+    """API endpoint untuk Social Searcher style - Platform-specific searches dengan anti-blocking logic"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        
+        if not name:
+            return jsonify({'error': 'Nama diperlukan untuk pencarian'}), 400
+        
+        import urllib.parse
+        import re
+        import time
+        import random
+        
+        # Google CSE Configuration - USE API (not scraping!)
+        CSE_ID = '7693f5093e95e4c28'
+        # Get API key from environment variable
+        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
+        if not API_KEY:
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+        
+        # Platform-specific search queries dengan fokus pada profil dengan gambar
+        platforms = {
+            'facebook': f'"{name}" site:facebook.com profile',
+            'instagram': f'"{name}" site:instagram.com profile',
+            'twitter': f'"{name}" (site:twitter.com OR site:x.com) profile',
+            'linkedin': f'"{name}" site:linkedin.com profile',
+            'tiktok': f'"{name}" site:tiktok.com profile',
+            'pinterest': f'"{name}" site:pinterest.com profile',
+        }
+        
+        all_results = {}
+        
+        logger.info(f"Social Searcher Style: Starting platform-specific searches for '{name}'")
+        
+        # Process each platform dengan delay untuk avoid rate limiting
+        for platform, query in platforms.items():
+            try:
+                # Random delay antara 0.3-0.8 detik untuk avoid rate limiting (reduced untuk speed)
+                if platform != 'facebook':  # Skip delay untuk platform pertama
+                    delay = random.uniform(0.3, 0.8)  # Reduced untuk speed
+                    logger.info(f"  Waiting {delay:.2f}s before {platform} search...")
+                    time.sleep(delay)
+                
+                logger.info(f"  Searching {platform}: {query}")
+                
+                # Use Google CSE API (not scraping!)
+                api_url = 'https://www.googleapis.com/customsearch/v1'
+                params = {
+                    'key': API_KEY,
+                    'cx': CSE_ID,
+                    'q': query,
+                    'num': 10  # Max 10 results per platform
+                }
+                
+                # Retry logic dengan exponential backoff
+                max_retries = 2
+                retry_delay = 1
+                
+                for attempt in range(max_retries):
+                    try:
+                        response = requests.get(api_url, params=params, timeout=15)
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            
+                            # Parse results dari API dengan ekstraksi gambar
+                            results = []
+                            if 'items' in data:
+                                for item in data['items']:
+                                    result_item = {
+                                        'title': item.get('title', 'No Title'),
+                                        'link': item.get('link', ''),
+                                        'snippet': item.get('snippet', ''),
+                                        'displayLink': item.get('displayLink', urllib.parse.urlparse(item.get('link', '')).netloc),
+                                        'platform': platform
+                                    }
+                                    
+                                    # Extract images from pagemap
+                                    if 'pagemap' in item:
+                                        pagemap = item['pagemap']
+                                        result_item['pagemap'] = pagemap
+                                        
+                                        # Extract all possible images
+                                        extracted_images = []
+                                        
+                                        # CSE Image
+                                        if 'cse_image' in pagemap and pagemap['cse_image']:
+                                            for img in pagemap['cse_image']:
+                                                if img.get('src'):
+                                                    extracted_images.append({
+                                                        'src': img.get('src'),
+                                                        'width': img.get('width', 0),
+                                                        'height': img.get('height', 0),
+                                                        'type': 'cse_image'
+                                                    })
+                                        
+                                        # Metatags (Open Graph, Twitter Cards)
+                                        if 'metatags' in pagemap and pagemap['metatags']:
+                                            for meta in pagemap['metatags']:
+                                                if 'og:image' in meta and meta['og:image']:
+                                                    extracted_images.append({
+                                                        'src': meta['og:image'],
+                                                        'type': 'og_image'
+                                                    })
+                                                if 'twitter:image' in meta and meta['twitter:image']:
+                                                    extracted_images.append({
+                                                        'src': meta['twitter:image'],
+                                                        'type': 'twitter_image'
+                                                    })
+                                        
+                                        # Store best image
+                                        if extracted_images:
+                                            priority_order = {'og_image': 1, 'twitter_image': 2, 'cse_image': 3}
+                                            extracted_images.sort(key=lambda x: priority_order.get(x.get('type', ''), 99))
+                                            result_item['best_image'] = extracted_images[0]
+                                            result_item['all_images'] = extracted_images
+                                    
+                                    # Add direct image if available
+                                    if 'image' in item:
+                                        result_item['image'] = {
+                                            'src': item['image'].get('src', ''),
+                                            'width': item['image'].get('width', 0),
+                                            'height': item['image'].get('height', 0)
+                                        }
+                                    
+                                    results.append(result_item)
+                            
+                            # Remove duplicates
+                            seen_urls = set()
+                            unique_results = []
+                            for item in results:
+                                if item['link'] not in seen_urls:
+                                    seen_urls.add(item['link'])
+                                    unique_results.append(item)
+                            
+                            all_results[platform] = unique_results[:10]  # Max 10 per platform
+                            if len(unique_results) > 0:
+                                logger.info(f"  ✓ {platform}: Found {len(unique_results)} results")
+                            else:
+                                logger.warning(f"  ⚠️ {platform}: No results found")
+                            break  # Success, exit retry loop
+                        
+                        elif response.status_code == 429:
+                            # Rate limited - wait longer
+                            wait_time = retry_delay * (2 ** attempt)
+                            logger.warning(f"  {platform}: API quota exceeded (429), waiting {wait_time}s...")
+                            if attempt < max_retries - 1:
+                                time.sleep(wait_time)
+                                continue
+                            else:
+                                logger.warning(f"  {platform}: Max retries reached, skipping...")
+                                all_results[platform] = []
+                                break
+                        
+                        else:
+                            error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                            error_msg = error_data.get('error', {}).get('message', f'HTTP {response.status_code}')
+                            logger.warning(f"  {platform}: API error: {error_msg}")
+                            if attempt < max_retries - 1:
+                                time.sleep(retry_delay * (2 ** attempt))
+                                continue
+                            else:
+                                all_results[platform] = []
+                                break
+                    
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"  {platform}: Request error: {str(e)}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay * (2 ** attempt))
+                            continue
+                        else:
+                            all_results[platform] = []
+                            break
+            
+            except Exception as e:
+                logger.error(f"  {platform}: Error: {str(e)}")
+                all_results[platform] = []
+        
+        # Combine all results
+        combined_results = []
+        for platform, results in all_results.items():
+            combined_results.extend(results)
+        
+        logger.info(f"Social Searcher Style: Total {len(combined_results)} results from {len([r for r in all_results.values() if r])} platforms")
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'web': combined_results,
+                'by_platform': all_results
+            },
+            'source': 'social_searcher_style',
+            'message': f'Found {len(combined_results)} results from {len([r for r in all_results.values() if r])} platforms (Social Searcher style)'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in social-searcher-style endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {'web': [], 'by_platform': {}}
+        }), 200
+
+@app.route('/api/ai-analysis', methods=['POST'])
+def api_ai_analysis():
+    """API endpoint untuk AI analysis dengan akurasi tinggi"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        search_results = data.get('search_results', {})
+        social_links = data.get('social_links', [])
+        
+        if not name:
+            return jsonify({'error': 'Nama diperlukan untuk analisis AI'}), 400
+        
+        # AI Analysis Logic
+        analysis = {
+            'confidence_score': 0.0,
+            'verification_status': 'unverified',
+            'social_media_presence': {},
+            'risk_assessment': {},
+            'recommendations': [],
+            'summary': ''
+        }
+        
+        # Analyze social media presence
+        platforms = {
+            'facebook': 0,
+            'instagram': 0,
+            'twitter': 0,
+            'linkedin': 0,
+            'tiktok': 0
+        }
+        
+        for link in social_links:
+            link_url = link.get('link', '').lower()
+            if 'facebook.com' in link_url:
+                platforms['facebook'] += 1
+            elif 'instagram.com' in link_url:
+                platforms['instagram'] += 1
+            elif 'twitter.com' in link_url or 'x.com' in link_url:
+                platforms['twitter'] += 1
+            elif 'linkedin.com' in link_url:
+                platforms['linkedin'] += 1
+            elif 'tiktok.com' in link_url:
+                platforms['tiktok'] += 1
+        
+        analysis['social_media_presence'] = platforms
+        
+        # Calculate confidence score
+        total_links = sum(platforms.values())
+        if total_links > 0:
+            # Higher confidence with more verified social media presence
+            analysis['confidence_score'] = min(0.95, 0.60 + (total_links * 0.05))
+        else:
+            analysis['confidence_score'] = 0.30
+        
+        # Verification status
+        if total_links >= 3:
+            analysis['verification_status'] = 'highly_verified'
+        elif total_links >= 2:
+            analysis['verification_status'] = 'verified'
+        elif total_links >= 1:
+            analysis['verification_status'] = 'partially_verified'
+        else:
+            analysis['verification_status'] = 'unverified'
+        
+        # Risk assessment
+        analysis['risk_assessment'] = {
+            'level': 'low' if total_links > 0 else 'medium',
+            'factors': []
+        }
+        
+        if total_links == 0:
+            analysis['risk_assessment']['factors'].append('Tidak ditemukan profil social media aktif')
+        else:
+            analysis['risk_assessment']['factors'].append(f'Ditemukan {total_links} profil social media')
+        
+        # Recommendations
+        if total_links == 0:
+            analysis['recommendations'].append('Lakukan verifikasi tambahan melalui sumber data lain')
+            analysis['recommendations'].append('Periksa data dari database resmi')
+        else:
+            analysis['recommendations'].append('Verifikasi informasi melalui profil social media yang ditemukan')
+            analysis['recommendations'].append('Cross-check dengan data identitas resmi')
+        
+        # Generate summary
+        platform_names = []
+        for platform, count in platforms.items():
+            if count > 0:
+                platform_names.append(f"{platform.capitalize()}({count})")
+        
+        if platform_names:
+            analysis['summary'] = f"Analisis AI menunjukkan {name} memiliki kehadiran di {len(platform_names)} platform social media: {', '.join(platform_names)}. Skor kepercayaan: {analysis['confidence_score']*100:.1f}%."
+        else:
+            analysis['summary'] = f"Analisis AI tidak menemukan kehadiran social media yang signifikan untuk {name}. Skor kepercayaan: {analysis['confidence_score']*100:.1f}%."
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in AI analysis: {str(e)}", exc_info=True)
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
 def clean_text_for_pdf(text):

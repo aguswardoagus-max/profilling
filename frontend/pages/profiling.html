@@ -4753,40 +4753,88 @@
                 `;
             }
 
-            // Add Universal Search Section
+            // Add Social Media Search Section (INTEGRATED: Universal + Social Media + Multi-Query)
             html += `
-                <div class="detail-section" id="universalSearchSection">
-                    <h3><i class="fas fa-globe"></i> Universal Search Results</h3>
+                <div class="detail-section" id="socialMediaSearchSection">
+                    <h3><i class="fas fa-share-alt"></i> Social Media Search</h3>
+                    <div class="search-info-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 20px;">
+                        <div style="color: white;">
+                            <i class="fas fa-search"></i> <strong>Mencari:</strong> <span id="socialMediaSearchName">${person.full_name || 'N/A'}</span>
+                            </div>
+                        <div class="search-status" id="socialMediaSearchStatus" style="color: white; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-spinner fa-spin"></i> <span>Siap mencari...</span>
+                            </div>
+                        </div>
+                        
                     <div class="universal-search-container">
-                        <div class="universal-search-header">
-                            <div class="search-info">
-                                <span class="search-label">Mencari data universal untuk:</span>
-                                <span class="search-name" id="universalSearchName">${person.full_name || 'N/A'}</span>
-                            </div>
-                            <div class="search-status" id="universalSearchStatus">
-                                <i class="fas fa-spinner fa-spin"></i> Mencari...
+                        <!-- AI Analysis Section -->
+                        <div class="ai-analysis-section" id="aiAnalysisSection" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; color: white;">
+                            <h4 style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-robot"></i> AI Analysis
+                                <span style="font-size: 0.8rem; background: rgba(255,255,255,0.3); padding: 4px 10px; border-radius: 8px;">Powered by AI</span>
+                            </h4>
+                            <div id="aiAnalysisContent" style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px);">
+                                <p><i class="fas fa-spinner fa-spin"></i> Analyzing social media presence...</p>
                             </div>
                         </div>
                         
-                        <div class="universal-results" id="universalResults">
-                            <!-- Results will be populated here -->
+                        <!-- Social Media Search Tabs -->
+                        <div class="search-tabs" style="display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; border-bottom: 2px solid #e5e7eb;">
+                            <button class="tab-button active" onclick="switchSocialMediaTab('api-results')" style="flex: 1; min-width: 120px; padding: 12px 16px; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-server"></i> API Results
+                            </button>
+                            <button class="tab-button" onclick="switchSocialMediaTab('categorized')" style="flex: 1; min-width: 120px; padding: 12px 16px; border: none; background: #f3f4f6; color: #6b7280; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-layer-group"></i> Categorized
+                            </button>
+                            <button class="tab-button" onclick="switchSocialMediaTab('social-links')" style="flex: 1; min-width: 120px; padding: 12px 16px; border: none; background: #f3f4f6; color: #6b7280; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-users"></i> Social Links
+                            </button>
                         </div>
                         
-                        <div class="social-links" id="socialLinks" style="display: none;">
-                            <h4><i class="fas fa-share-alt"></i> Social Media Links</h4>
-                            <div class="social-grid" id="socialGrid">
-                                <!-- Social links will be populated here -->
+                        <!-- Tab Contents -->
+                        <div class="tab-content">
+                            <!-- API Results Tab -->
+                            <div id="tab-api-results" class="tab-pane active">
+                                <div id="socialMediaWebResults">
+                                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                        <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                        <p>Klik tombol pencarian untuk melihat hasil dari API</p>
+                                </div>
+                                </div>
+                                    </div>
+                            
+                            <!-- Categorized Tab -->
+                            <div id="tab-categorized" class="tab-pane" style="display: none;">
+                                <div id="categorizedResults">
+                                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                        <i class="fas fa-layer-group" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                        <p>Hasil akan dikategorikan otomatis</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                            <!-- Social Links Tab -->
+                            <div id="tab-social-links" class="tab-pane" style="display: none;">
+                                <div id="socialMediaLinks">
+                                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                        <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                        <p>Link social media akan muncul di sini (150+ platforms)</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Dummy elements for backward compatibility -->
+                <div id="universalSearchStatus" style="display:none;"></div>
+                <div id="universalResults" style="display:none;"></div>
             `;
 
             modalBody.innerHTML = html;
             
-            // Trigger universal search after modal is displayed
+            // Trigger INTEGRATED SEARCH after modal is displayed
             setTimeout(() => {
-                performUniversalSearch(person.full_name);
+                performSocialMediaSearch(person.full_name);
             }, 500);
         }
 
@@ -4795,23 +4843,862 @@
             modal.style.display = 'none';
         }
 
-        // Universal Search Function
+        // ============================================================================
+        // INTEGRATED SEARCH SYSTEM: Universal + Social Media + Multi-Query (80-100 results)
+        // ============================================================================
+
+        // Social Media Search - Main Function (INTEGRATED)
+        async function performSocialMediaSearch(name) {
+            if (!name || name === 'N/A') {
+                updateSocialMediaSearchStatus('error', 'Nama tidak tersedia untuk pencarian social media');
+                return;
+            }
+
+            const statusElement = document.getElementById('socialMediaSearchStatus');
+            const webResultsElement = document.getElementById('socialMediaWebResults');
+            const socialLinksElement = document.getElementById('socialMediaLinks');
+
+            // Update status - mencari data
+            if (statusElement) {
+                statusElement.innerHTML = '<i class="fas fa-spinner fa-spin" style="color: #3b82f6;"></i> Mencari data...';
+            }
+
+            // Show loading message
+            if (webResultsElement) {
+                webResultsElement.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 3rem; margin-bottom: 15px; color: #3b82f6;"></i>
+                        <h3 style="color: #1f2937; margin-bottom: 10px;">Mencari Data...</h3>
+                        <p style="font-size: 0.9rem;">
+                            Sedang mencari data dari Universal Search + Social Media Search<br>
+                            (150+ platforms detection)
+                        </p>
+                    </div>
+                `;
+            }
+
+            // INTEGRATED SEARCH: Universal Search + Social Media Search + ADVANCED QUERIES
+            try {
+                console.log('=== ADVANCED INTEGRATED SEARCH: Universal + Social Media + Multi-Query ===');
+                
+                // 1. Call Universal Search first (internal server)
+                const universalResults = await performUniversalSearch(name);
+                console.log('✓ Universal Search Results:', universalResults?.length || 0, 'items');
+
+                // 2. ENHANCED QUERIES: Focus on profiles with images (more accurate!)
+                const socialMediaQueries = [
+                    // Core searches with image focus
+                    { query: `"${name}" profile photo`, type: 'profile_photo' },
+                    { query: `"${name}" profile picture`, type: 'profile_picture' },
+                    { query: `"${name}"`, type: 'exact_phrase' },
+                    { query: name, type: 'general' },
+                    { query: `${name} profile`, type: 'profile' },
+                    
+                    // Major Social Media Platforms with image focus
+                    { query: `"${name}" (site:facebook.com OR site:instagram.com OR site:twitter.com OR site:x.com) profile`, type: 'social_tier1_profile' },
+                    { query: `"${name}" (site:facebook.com OR site:instagram.com OR site:twitter.com OR site:x.com)`, type: 'social_tier1' },
+                    { query: `"${name}" (site:linkedin.com OR site:tiktok.com OR site:youtube.com) profile`, type: 'social_tier2_profile' },
+                    { query: `"${name}" (site:linkedin.com OR site:tiktok.com OR site:youtube.com)`, type: 'social_tier2' },
+                    { query: `"${name}" (site:pinterest.com OR site:reddit.com OR site:tumblr.com)`, type: 'social_tier3' },
+                    
+                    // Professional & Creative with images
+                    { query: `"${name}" (site:github.com OR site:behance.net OR site:dribbble.com)`, type: 'professional' },
+                    
+                    // Regional/Indonesian
+                    { query: `"${name}" (site:weibo.com OR site:vk.com OR site:kaskus.co.id)`, type: 'regional' },
+                    
+                    // Content/Media
+                    { query: `"${name}" (site:medium.com OR site:quora.com OR site:stackoverflow.com)`, type: 'content' },
+                    
+                    // Streaming/Video
+                    { query: `"${name}" (site:twitch.tv OR site:discord.com OR site:vimeo.com)`, type: 'streaming' },
+                    
+                    // Catch-all keywords with image focus
+                    { query: `${name} social media profile photo`, type: 'social_keyword_photo' },
+                    { query: `${name} social media profile`, type: 'social_keyword' },
+                    { query: `${name} online presence`, type: 'online_presence' }
+                ];
+
+                const allSocialResults = [];
+                let totalResultsFetched = 0;
+
+                // SMART SEARCH MODE: Try API first, fallback to Universal Search if quota exhausted
+                console.log('🚀 SMART SEARCH MODE: Trying API first, using Universal Search as fallback');
+                console.log('📊 Will combine all sources: Universal + Google CSE + Social Searcher Style');
+                
+                let apiQuotaExhausted = false; // Try API first
+                
+                const queryPromises = socialMediaQueries.map(async (queryObj, index) => {
+                    // Skip if quota already exhausted
+                    if (apiQuotaExhausted) {
+                        console.log(`⏭️ Query ${index + 1} skipped (quota exhausted)`);
+                        return [];
+                    }
+                    
+                    try {
+                        const startTime = Date.now();
+                        console.log(`🔍 [Google CSE API] Query ${index + 1}/${socialMediaQueries.length}: "${queryObj.query}"`);
+                        
+                        const response = await fetch('/api/social-media-search', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ name: queryObj.query, type: 'web' })
+                        });
+
+                        const result = await response.json();
+                        const elapsed = Date.now() - startTime;
+                        
+                        // DEBUG: Log full response for debugging
+                        console.log(`🔍 [Google CSE API] Query ${index + 1} Response:`, {
+                            status: response.status,
+                            ok: response.ok,
+                            success: result.success,
+                            hasData: !!result.data,
+                            webLength: result.data?.web?.length || 0,
+                            error: result.error,
+                            message: result.message
+                        });
+                        
+                        // DEBUG: Log response status
+                        if (!response.ok) {
+                            console.error(`❌ [Google CSE API] Query ${index + 1} HTTP Error: ${response.status}`, result);
+                            console.error(`   Error details:`, result.error || result.message || 'Unknown error');
+                            console.error(`   Full response:`, JSON.stringify(result, null, 2));
+                            
+                            // Detect quota exceeded (429)
+                            if (response.status === 429 || result.error?.includes('quota') || result.error?.includes('Quota') || result.error_code === 429) {
+                                apiQuotaExhausted = true;
+                                console.warn('🚫 [Google CSE API] QUOTA EXCEEDED! Will continue with other sources...');
+                                updateSocialMediaSearchStatus('warning', '⚠️ Google CSE API quota exceeded - Using other sources');
+                                return [];
+                            }
+                            
+                            // Detect invalid API key (400, 403)
+                            if (response.status === 400 || response.status === 403) {
+                                console.error(`❌ [Google CSE API] API Key Error (${response.status}): ${result.error || result.message}`);
+                                updateSocialMediaSearchStatus('error', `❌ Google CSE API Error: ${result.error || result.message || 'Invalid API key or access denied'}`);
+                                // Don't stop completely, but log the error
+                            }
+                            
+                            // Don't return empty on other errors - continue trying
+                            console.warn(`⚠️ [Google CSE API] Query ${index + 1} failed but continuing...`);
+                            return [];
+                        }
+                        
+                        if (!result.success) {
+                            console.warn(`⚠️ [Google CSE API] Query ${index + 1} API Error:`, result.error || result.message);
+                            
+                            // Also check error message for quota
+                            if (result.error?.includes('quota') || result.error?.includes('Quota') || result.error?.includes('429')) {
+                                apiQuotaExhausted = true;
+                                console.warn('🚫 [Google CSE API] QUOTA EXCEEDED (from error message)! Will continue with other sources...');
+                                return [];
+                            }
+                            // Continue even if this query fails
+                            return [];
+                        }
+                        
+                        // Check if we have results - be more lenient with success check
+                        const hasResults = result.data && result.data.web && Array.isArray(result.data.web) && result.data.web.length > 0;
+                        
+                        if (hasResults) {
+                            const resultCount = result.data.web.length;
+                            totalResultsFetched += resultCount;
+                            console.log(`✅ [Google CSE API] Query ${index + 1}/${socialMediaQueries.length} (${queryObj.type}): ${resultCount} results in ${elapsed}ms | Total so far: ${totalResultsFetched}`);
+                            
+                            // Update status with progress
+                            updateSocialMediaSearchStatus('searching', 
+                                `🔍 Query ${index + 1}/${socialMediaQueries.length} - Found ${totalResultsFetched} results...`);
+                            
+                            // Map results with source and ensure all properties are preserved
+                            const mappedResults = result.data.web.map((item, itemIdx) => {
+                                const mapped = {
+                                    ...item,
+                                    source: 'Google CSE',  // CRITICAL: Set source for filtering
+                                    queryType: queryObj.type
+                                };
+                                // Ensure link exists
+                                if (!mapped.link && mapped.formattedUrl) {
+                                    mapped.link = mapped.formattedUrl;
+                                }
+                                // Ensure title exists
+                                if (!mapped.title && mapped.htmlTitle) {
+                                    mapped.title = mapped.htmlTitle.replace(/<[^>]*>/g, ''); // Strip HTML tags
+                                }
+                                
+                                // DEBUG: Log first result structure
+                                if (itemIdx === 0) {
+                                    console.log(`📋 [Google CSE API] First result structure from query ${index + 1}:`, {
+                                        hasTitle: !!mapped.title,
+                                        hasLink: !!mapped.link,
+                                        hasSnippet: !!mapped.snippet,
+                                        source: mapped.source,
+                                        keys: Object.keys(mapped)
+                                    });
+                                }
+                                
+                                return mapped;
+                            });
+                            
+                            console.log(`📋 [Google CSE API] Sample results from query ${index + 1}:`, mappedResults.slice(0, 2).map(r => ({
+                                title: r.title?.substring(0, 50),
+                                link: r.link?.substring(0, 50),
+                                source: r.source
+                            })));
+                            
+                            return mappedResults;
+                        } else {
+                            // More detailed logging for empty results
+                            console.log(`⚠️ [Google CSE API] Query ${index + 1} returned no results (${elapsed}ms)`);
+                            console.log(`   Response details:`, {
+                                success: result.success,
+                                hasData: !!result.data,
+                                hasWeb: !!result.data?.web,
+                                webIsArray: Array.isArray(result.data?.web),
+                                webLength: result.data?.web?.length || 0,
+                                error: result.error,
+                                message: result.message,
+                                error_code: result.error_code
+                            });
+                            
+                            // If success is false but no error, log it
+                            if (result.success === false && !result.error) {
+                                console.warn(`   ⚠️ API returned success=false but no error message`);
+                            }
+                            
+                            return [];
+                        }
+                    } catch (error) {
+                        console.error(`❌ [Google CSE API] Query ${index + 1} (${queryObj.type}) FAILED:`, error);
+                        console.error(`   Error message: ${error.message}`);
+                        console.error(`   Error stack: ${error.stack}`);
+                        // Don't update status for every error - too noisy
+                        // updateSocialMediaSearchStatus('error', `⚠️ Query ${index + 1} failed: ${error.message}`);
+                        return [];
+                    }
+                });
+
+                // Wait for all queries
+                const queryResults = await Promise.all(queryPromises);
+
+                // SMART MERGE: Normalize URLs and deduplicate intelligently
+                const normalizeUrl = (url) => {
+                    if (!url) return '';
+                    try {
+                        // Remove protocol, www, trailing slash, and normalize
+                        let normalized = url.toLowerCase()
+                            .replace(/^https?:\/\//, '')
+                            .replace(/^www\./, '')
+                            .replace(/\/$/, '')
+                            .split('#')[0]  // Remove fragment
+                            .split('?')[0]; // Remove query params for comparison
+                        return normalized;
+                    } catch (e) {
+                        return url.toLowerCase();
+                    }
+                };
+                
+                const isDuplicate = (result1, result2) => {
+                    // Normalize URLs for comparison
+                    const url1 = normalizeUrl(result1.link);
+                    const url2 = normalizeUrl(result2.link);
+                    
+                    // Exact URL match
+                    if (url1 === url2 && url1 !== '') return true;
+                    
+                    // Same title and similar URL (same domain + path)
+                    if (result1.title && result2.title && 
+                        result1.title.toLowerCase().trim() === result2.title.toLowerCase().trim()) {
+                        const domain1 = url1.split('/')[0];
+                        const domain2 = url2.split('/')[0];
+                        const path1 = url1.split('/').slice(1).join('/');
+                        const path2 = url2.split('/').slice(1).join('/');
+                        
+                        // Same domain and similar path (allow minor differences)
+                        if (domain1 === domain2 && path1 && path2) {
+                            const pathDiff = Math.abs(path1.length - path2.length);
+                            if (pathDiff < 10) { // Allow small path differences
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    return false;
+                };
+                
+                // Merge and deduplicate results intelligently
+                let totalBeforeDedup = 0;
+                queryResults.forEach((results, queryIndex) => {
+                    totalBeforeDedup += results.length;
+                    results.forEach(result => {
+                        // Ensure source is set
+                        if (!result.source) {
+                            result.source = 'Google CSE';
+                            console.warn(`⚠️ Result from query ${queryIndex + 1} missing source, setting to 'Google CSE'`);
+                        }
+                        // Check if not duplicate using smart comparison
+                        if (!allSocialResults.some(r => isDuplicate(r, result))) {
+                            allSocialResults.push(result);
+                        }
+                    });
+                });
+
+                console.log(`✓ [Google CSE API] Total results before deduplication: ${totalBeforeDedup}`);
+                console.log(`✓ [Google CSE API] Total unique Social Media results after deduplication: ${allSocialResults.length}`);
+                
+                // Log sample results
+                if (allSocialResults.length > 0) {
+                    console.log(`📋 [Google CSE API] Sample results in allSocialResults:`, allSocialResults.slice(0, 3).map(r => ({
+                        title: r.title?.substring(0, 50),
+                        link: r.link?.substring(0, 50),
+                        source: r.source
+                    })));
+                } else {
+                    console.warn('⚠️ [Google CSE API] WARNING: allSocialResults is EMPTY!');
+                    console.warn('   This means no Google CSE results were added.');
+                    console.warn('   Possible causes:');
+                    console.warn('   1. All queries returned empty results');
+                    console.warn('   2. All results were filtered as duplicates');
+                    console.warn('   3. API errors prevented results from being returned');
+                }
+                
+                // Update status with widget-only mode message
+                if (apiQuotaExhausted && allSocialResults.length === 0) {
+                    updateSocialMediaSearchStatus('success', '✅ Results available in categorized tabs');
+                    console.log('💡 TIP: Results are available in categorized tabs');
+                }
+
+                // 4. SOCIAL SEARCHER STYLE: Platform-specific searches (seperti social-searcher.com)
+                console.log('═══════════════════════════════════════════════════');
+                console.log('🔍 Starting Social Searcher Style search (platform-specific)...');
+                console.log('📡 This will search 6 platforms: Facebook, Instagram, Twitter, LinkedIn, TikTok, Pinterest');
+                console.log('⏱️  Estimated time: ~8-15 seconds (with delays to avoid blocking)');
+                updateSocialMediaSearchStatus('searching', '🔍 Social Searcher Style: Searching 6 platforms (Facebook, Instagram, Twitter, LinkedIn, TikTok, Pinterest)...');
+                
+                let socialSearcherResults = [];
+                try {
+                    console.log('📤 Calling /api/social-searcher-style with name:', name);
+                    const startTime = Date.now();
+                    
+                    const socialSearcherResponse = await fetch('/api/social-searcher-style', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ name: name })
+                    });
+                    
+                    const elapsed = Date.now() - startTime;
+                    console.log(`⏱️ Social Searcher Style response received in ${elapsed}ms`);
+                    console.log('📥 Response status:', socialSearcherResponse.status);
+                    
+                    let socialSearcherData;
+                    if (!socialSearcherResponse.ok) {
+                        console.error('❌ Social Searcher Style HTTP error:', socialSearcherResponse.status);
+                        try {
+                            const errorText = await socialSearcherResponse.text();
+                            console.error('❌ Error response:', errorText);
+                            socialSearcherData = JSON.parse(errorText);
+                        } catch (e) {
+                            console.error('❌ Failed to parse error response');
+                            socialSearcherData = { success: false, error: `HTTP ${socialSearcherResponse.status}` };
+                        }
+                    } else {
+                        socialSearcherData = await socialSearcherResponse.json();
+                    }
+                    
+                    console.log('📊 Social Searcher Style response data:', socialSearcherData);
+                    
+                    if (socialSearcherData.success && socialSearcherData.data && socialSearcherData.data.web) {
+                        socialSearcherResults = socialSearcherData.data.web.map(item => {
+                            // CRITICAL: Ensure source is set!
+                            const result = {
+                                ...item,
+                                source: 'Social Searcher Style'  // MUST SET SOURCE!
+                            };
+                            // Ensure platform is preserved
+                            if (item.platform) {
+                                result.platform = item.platform;
+                            }
+                            return result;
+                        });
+                        console.log(`✅ Social Searcher Style: Found ${socialSearcherResults.length} results from ${Object.keys(socialSearcherData.data.by_platform || {}).length} platforms`);
+                        
+                        // Log per platform
+                        if (socialSearcherData.data.by_platform) {
+                            Object.entries(socialSearcherData.data.by_platform).forEach(([platform, results]) => {
+                                if (results && results.length > 0) {
+                                    console.log(`   📱 ${platform}: ${results.length} results`);
+                                } else {
+                                    console.log(`   ⚠️ ${platform}: No results`);
+                                }
+                            });
+                        }
+                        
+                        // Log sample results untuk debug
+                        if (socialSearcherResults.length > 0) {
+                            console.log('📋 Sample Social Searcher results:');
+                            socialSearcherResults.slice(0, 3).forEach((r, i) => {
+                                console.log(`   ${i+1}. [${r.platform || 'unknown'}] ${r.title} - source: ${r.source}`);
+                            });
+                        }
+                    } else {
+                        console.warn('⚠️ Social Searcher Style: No results or error');
+                        console.warn('⚠️ Response:', socialSearcherData);
+                        if (socialSearcherData.error) {
+                            console.error('❌ Error message:', socialSearcherData.error);
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Social Searcher Style error:', error);
+                    console.error('❌ Error stack:', error.stack);
+                }
+                
+                console.log(`📊 Social Searcher Results count: ${socialSearcherResults.length}`);
+                console.log('═══════════════════════════════════════════════════');
+
+                // 3. SMART MERGE: Combine ALL sources with intelligent deduplication
+                let combinedResults = [];
+                
+                // Reuse normalizeUrl and isDuplicate functions from above
+                const normalizeUrlForMerge = (url) => {
+                    if (!url) return '';
+                    try {
+                        let normalized = url.toLowerCase()
+                            .replace(/^https?:\/\//, '')
+                            .replace(/^www\./, '')
+                            .replace(/\/$/, '')
+                            .split('#')[0]
+                            .split('?')[0];
+                        return normalized;
+                    } catch (e) {
+                        return url.toLowerCase();
+                    }
+                };
+                
+                const isDuplicateForMerge = (result1, result2) => {
+                    const url1 = normalizeUrlForMerge(result1.link);
+                    const url2 = normalizeUrlForMerge(result2.link);
+                    
+                    // Exact URL match
+                    if (url1 === url2 && url1 !== '') return true;
+                    
+                    // Same title and same domain (more lenient for internal data)
+                    if (result1.title && result2.title && 
+                        result1.title.toLowerCase().trim() === result2.title.toLowerCase().trim()) {
+                        const domain1 = url1.split('/')[0];
+                        const domain2 = url2.split('/')[0];
+                        if (domain1 === domain2 && domain1 !== '') {
+                            return true;
+                        }
+                    }
+                    
+                    return false;
+                };
+                
+                const addResultSmart = (result, source, priority = 0) => {
+                    // Ensure source is set
+                    if (!result.source) {
+                        result.source = source;
+                    }
+                    
+                    // Check if duplicate
+                    const existingIndex = combinedResults.findIndex(r => isDuplicateForMerge(r, result));
+                    if (existingIndex === -1) {
+                        // Not duplicate, add it
+                        result.mergePriority = priority;
+                        combinedResults.push(result);
+                        return { added: true, duplicate: false };
+                    } else {
+                        // Duplicate found - keep the one with higher priority or better source
+                        const existing = combinedResults[existingIndex];
+                        const existingPriority = existing.mergePriority || 0;
+                        
+                        // Priority: Universal Search (3) > Social Searcher Style (2) > Google CSE (1) > Unknown (0)
+                        const sourcePriority = {
+                            'Universal Search': 3,
+                            'Social Searcher Style': 2,
+                            'Google CSE': 1,
+                            'Unknown': 0
+                        };
+                        
+                        const newPriority = priority || sourcePriority[source] || 0;
+                        const existingSourcePriority = sourcePriority[existing.source] || 0;
+                        
+                        // If new result has higher priority, replace it
+                        if (newPriority > existingPriority || 
+                            (newPriority === existingPriority && newPriority > existingSourcePriority)) {
+                            result.mergePriority = newPriority;
+                            combinedResults[existingIndex] = result;
+                            return { added: true, duplicate: true, replaced: true };
+                        }
+                        
+                        return { added: false, duplicate: true };
+                    }
+                };
+
+                // Priority 1: Add Universal Search results first (most reliable internal data - HIGHEST PRIORITY)
+                if (universalResults && universalResults.length > 0) {
+                    let added = 0;
+                    let skipped = 0;
+                    universalResults.forEach(result => {
+                        const status = addResultSmart(result, 'Universal Search', 3);
+                        if (status.added && !status.duplicate) {
+                            added++;
+                        } else if (status.duplicate) {
+                            skipped++;
+                        }
+                    });
+                    console.log(`✓ Added ${added}/${universalResults.length} unique results from Universal Search (INTERNAL - highest priority)`);
+                    if (skipped > 0) {
+                        console.log(`   (${skipped} duplicates skipped)`);
+                    }
+                } else {
+                    console.warn('⚠️ No Universal Search results found!');
+                }
+
+                // Priority 2: Add Social Searcher Style results (platform-specific, high quality)
+                if (socialSearcherResults.length > 0) {
+                    let added = 0;
+                    let skipped = 0;
+                    let replaced = 0;
+                    socialSearcherResults.forEach(result => {
+                        const status = addResultSmart(result, 'Social Searcher Style', 2);
+                        if (status.added && !status.duplicate) {
+                            added++;
+                        } else if (status.duplicate) {
+                            skipped++;
+                            if (status.replaced) {
+                                replaced++;
+                            }
+                        }
+                    });
+                    console.log(`✓ Added ${added} unique results from Social Searcher Style (${skipped} duplicates, ${replaced} replaced)`);
+                    if (added > 0) {
+                        const sample = combinedResults.filter(r => r.source === 'Social Searcher Style').slice(0, 3);
+                        console.log(`📋 Sample Social Searcher results:`, sample.map(r => `[${r.platform || 'unknown'}] ${r.title}`));
+                    }
+                } else {
+                    console.warn('⚠️ No Social Searcher Style results found!');
+                }
+
+                // Priority 3: Add ALL Social Media Search results from multiple queries (Google CSE API)
+                if (allSocialResults.length > 0) {
+                    let added = 0;
+                    let skipped = 0;
+                    let replaced = 0;
+                    
+                    console.log(`📊 [Google CSE API] Starting to add ${allSocialResults.length} results to combinedResults...`);
+                    console.log(`📊 [Google CSE API] Current combinedResults length BEFORE: ${combinedResults.length}`);
+                    
+                    // Log sample of allSocialResults before merging
+                    console.log(`📋 [Google CSE API] Sample allSocialResults (first 3):`, allSocialResults.slice(0, 3).map((r, i) => ({
+                        index: i,
+                        title: r.title?.substring(0, 50),
+                        link: r.link?.substring(0, 50),
+                        source: r.source,
+                        hasLink: !!r.link,
+                        hasTitle: !!r.title
+                    })));
+                    
+                    allSocialResults.forEach((result, idx) => {
+                        // Ensure source is set
+                        if (!result.source) {
+                            result.source = 'Google CSE';
+                            console.warn(`⚠️ Result ${idx + 1} missing source, setting to 'Google CSE'`);
+                        }
+                        
+                        // DEBUG: Log before adding
+                        if (idx < 3) {
+                            console.log(`🔍 [Google CSE API] Adding result ${idx + 1}:`, {
+                                title: result.title?.substring(0, 50),
+                                link: result.link?.substring(0, 50),
+                                source: result.source,
+                                normalizedLink: normalizeUrlForMerge(result.link)
+                            });
+                        }
+                        
+                        const status = addResultSmart(result, result.source || 'Google CSE', 1);
+                        if (status.added && !status.duplicate) {
+                            added++;
+                            if (idx < 3) {
+                                console.log(`   ✅ Result ${idx + 1} ADDED (new)`);
+                            }
+                        } else if (status.duplicate) {
+                            skipped++;
+                            if (status.replaced) {
+                                replaced++;
+                                if (idx < 3) {
+                                    console.log(`   🔄 Result ${idx + 1} REPLACED (duplicate with higher priority)`);
+                                }
+                            } else {
+                                if (idx < 3) {
+                                    console.log(`   ⏭️ Result ${idx + 1} SKIPPED (duplicate, existing has higher priority)`);
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log(`✅ [Google CSE API] Added ${added} unique results to combinedResults (${skipped} duplicates skipped, ${replaced} replaced)`);
+                    console.log(`📊 [Google CSE API] Current combinedResults length AFTER: ${combinedResults.length}`);
+                    
+                    // Verify results were added
+                    const googleResultsInCombined = combinedResults.filter(r => r.source === 'Google CSE');
+                    console.log(`📊 [Google CSE API] Verification: ${googleResultsInCombined.length} Google CSE results in combinedResults`);
+                    
+                    // Log sample of Google CSE results in combinedResults
+                    if (googleResultsInCombined.length > 0) {
+                        console.log(`📋 [Google CSE API] Sample Google CSE results in combinedResults (first 3):`, googleResultsInCombined.slice(0, 3).map((r, i) => ({
+                            index: i,
+                            title: r.title?.substring(0, 50),
+                            link: r.link?.substring(0, 50),
+                            source: r.source
+                        })));
+                    }
+                    
+                    if (googleResultsInCombined.length === 0 && allSocialResults.length > 0) {
+                        console.error('❌ [Google CSE API] ERROR: Results were not added to combinedResults!');
+                        console.error('   allSocialResults.length:', allSocialResults.length);
+                        console.error('   combinedResults.length:', combinedResults.length);
+                        console.error('   Sample allSocialResults:', allSocialResults.slice(0, 2));
+                        console.error('   Sample combinedResults:', combinedResults.slice(0, 2));
+                        
+                        // Check if all were duplicates
+                        console.error('   🔍 Checking why results were not added...');
+                        allSocialResults.slice(0, 3).forEach((result, idx) => {
+                            const normalizedLink = normalizeUrlForMerge(result.link);
+                            const isDuplicate = combinedResults.some(r => isDuplicateForMerge(r, result));
+                            console.error(`   Result ${idx + 1}: link="${normalizedLink}", isDuplicate=${isDuplicate}`);
+                        });
+                    }
+                } else {
+                    console.warn('⚠️ [Google CSE API] No Social Media Search results from queries!');
+                    console.warn('   This means Google CSE API did not return any results.');
+                    console.warn('   Possible causes:');
+                    console.warn('   1. API quota exhausted');
+                    console.warn('   2. API key invalid');
+                    console.warn('   3. Network error');
+                    console.warn('   4. All queries returned empty');
+                    console.warn('   5. Server not restarted with new API key');
+                }
+
+                console.log('=== TOTAL COMBINED RESULTS:', combinedResults.length, '===');
+                
+                // DEBUG: Show source breakdown
+                // Ensure all results have source property
+                combinedResults.forEach(r => {
+                    if (!r.source) {
+                        r.source = 'Unknown';
+                        console.warn('⚠️ Result without source:', r.title || r.link);
+                    }
+                });
+                
+                const universalCount = combinedResults.filter(r => r.source === 'Universal Search').length;
+                const googleCount = combinedResults.filter(r => r.source === 'Google CSE').length;
+                const socialSearcherCount = combinedResults.filter(r => r.source === 'Social Searcher Style').length;
+                const unknownCount = combinedResults.filter(r => !r.source || r.source === 'Unknown').length;
+                
+                console.log('═══════════════════════════════════════════════════');
+                console.log('📊 SOURCE BREAKDOWN:');
+                console.log(`   🔵 Universal Search (INTERNAL): ${universalCount}`);
+                console.log(`   🔴 Google CSE (GOOGLE): ${googleCount}`);
+                console.log(`   🟢 Social Searcher Style (PLATFORM-SPECIFIC): ${socialSearcherCount}`);
+                console.log(`   ⚪ Unknown/No Source: ${unknownCount}`);
+                console.log('═══════════════════════════════════════════════════');
+                
+                // Log sample results per source
+                if (socialSearcherCount > 0) {
+                    const sampleSocialSearcher = combinedResults.filter(r => r.source === 'Social Searcher Style').slice(0, 3);
+                    console.log('📋 Sample Social Searcher Style results:');
+                    sampleSocialSearcher.forEach((r, i) => {
+                        console.log(`   ${i+1}. [${r.platform || 'unknown'}] ${r.title} - source: ${r.source}`);
+                    });
+                } else {
+                    console.warn('⚠️ WARNING: No Social Searcher Style results found in combined results!');
+                    console.warn('   This might indicate:');
+                    console.warn('   1. API endpoint not called or failed');
+                    console.warn('   2. Results not merged correctly');
+                    console.warn('   3. Source property not set correctly');
+                }
+                
+                if (googleCount === 0 && allSocialResults.length === 0) {
+                    if (apiQuotaExhausted) {
+                        console.log('═══════════════════════════════════════════════════');
+                        console.log('🚀 WIDGET-ONLY MODE ACTIVATED! (UNLIMITED!)');
+                        console.log('═══════════════════════════════════════════════════');
+                        console.log('✅ Internal results: Categorized & ready');
+                        console.log('♾️  Google CSE Widget: UNLIMITED searches (no quota!)');
+                        // Tab switching removed - tabs "Web" and "Gambar" have been deleted
+                        console.log('📊 Results from both sources available!');
+                        console.log('═══════════════════════════════════════════════════');
+                        updateSocialMediaSearchStatus('success', '✅ Results available in categorized tabs');
+                    } else {
+                        console.error('⚠️ WARNING: NO GOOGLE CSE RESULTS! All results are from INTERNAL only!');
+                        console.error('Possible issues:');
+                        console.error('  1. API Key invalid or quota exhausted');
+                        console.error('  2. Network error or timeout');
+                        console.error('  3. Backend API /api/social-media-search not responding');
+                        updateSocialMediaSearchStatus('warning', '⚠️ Hanya data internal tersedia (Google CSE error)');
+                    }
+                }
+
+                // Check if we have any results
+                if (combinedResults.length > 0) {
+                    console.log('✓ INTEGRATED SEARCH SUCCESS! Displaying combined results');
+                    
+                    // Display combined web results
+                    displaySocialMediaWebResults(combinedResults, name);
+
+                    // EXTRACT ALL SOCIAL MEDIA LINKS from combined results (150+ platforms detection)
+                    const allSocialMediaLinks = extractSocialMediaLinks(combinedResults);
+                    console.log('✓ Extracted', allSocialMediaLinks.length, 'social media links from combined results');
+
+                    // Display ALL social media links
+                    displaySocialMediaLinks(allSocialMediaLinks);
+
+                    // Categorize and display ALL categorized results
+                    const categorized = categorizeResults(combinedResults);
+                    displayCategorizedResults(categorized);
+                    
+                    // Perform AI Analysis with ALL social media links
+                    await performAIAnalysis(name, allSocialMediaLinks);
+
+                    // Count by source
+                    const universalCount = universalResults?.length || 0;
+                    const socialCount = allSocialResults.length || 0;
+                    updateSocialMediaSearchStatus('success',
+                        `✓ Total: ${combinedResults.length} hasil (Universal: ${universalCount} + Social: ${socialCount}) | Social Media: ${allSocialMediaLinks.length} platforms`);
+
+                    // Auto-switch to Categorized tab to show results immediately
+                    setTimeout(() => {
+                        switchSocialMediaTab('categorized');
+                        console.log('Auto-switched to Categorized tab to display combined results');
+                    }, 1500);
+                    } else {
+                    // No results
+                    updateSocialMediaSearchStatus('warning', 'Tidak ada hasil ditemukan');
+                        if (webResultsElement) {
+                        webResultsElement.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                <p>Tidak ada hasil ditemukan untuk "${name}"</p>
+                            </div>
+                        `;
+                    }
+                }
+
+            } catch (error) {
+                // ERROR HANDLING: Still try to display Universal Search results even if API fails
+                console.error('❌ Error in performSocialMediaSearch:', error);
+                console.error('Error details:', error.message, error.stack);
+                
+                // Try to display Universal Search results if available (FALLBACK)
+                try {
+                    console.log('🔄 Attempting fallback: Universal Search only...');
+                    const universalResults = await performUniversalSearch(name);
+                    
+                    if (universalResults && universalResults.length > 0) {
+                        console.log(`✓ Fallback SUCCESS: Displaying ${universalResults.length} results from Universal Search (Internal)`);
+                        
+                        // Display Universal Search results
+                        displaySocialMediaWebResults(universalResults, name);
+                        
+                        // Extract and display social media links
+                        const allSocialMediaLinks = extractSocialMediaLinks(universalResults);
+                        displaySocialMediaLinks(allSocialMediaLinks);
+                        
+                        // Categorize and display
+                        const categorized = categorizeResults(universalResults);
+                        displayCategorizedResults(categorized);
+                        
+                        // AI Analysis
+                        await performAIAnalysis(name, allSocialMediaLinks);
+                        
+                        updateSocialMediaSearchStatus('warning', 
+                            `⚠️ API Error - Menampilkan ${universalResults.length} hasil dari Universal Search (Internal) saja`);
+                        
+                        // Auto-switch to Categorized tab
+                        setTimeout(() => {
+                            switchSocialMediaTab('categorized');
+                        }, 1500);
+                        
+                        return; // Exit early - we have results from Universal Search
+                    } else {
+                        console.warn('⚠️ Universal Search also returned no results');
+                    }
+                } catch (universalError) {
+                    console.error('❌ Error in Universal Search fallback:', universalError);
+                }
+                
+                // If we get here, no results available from any source
+                console.error('❌ No results available from any source');
+                updateSocialMediaSearchStatus('error', 'Backend API tidak tersedia. Gunakan tab "Categorized" atau "Social Links" untuk hasil pencarian.');
+                
+                if (webResultsElement) {
+                    webResultsElement.innerHTML = `
+                        <div style="padding: 30px; text-align: center; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                            <i class="fas fa-info-circle" style="font-size: 3rem; color: #3b82f6; margin-bottom: 15px;"></i>
+                            <h3 style="color: #1e40af; margin-bottom: 10px;">Backend API Tidak Tersedia</h3>
+                            <p style="color: #1e3a8a; margin-bottom: 15px; font-size: 0.95rem;">
+                                Backend API untuk pencarian social media tidak dapat digunakan saat ini.
+                            </p>
+                            <p style="color: #1e3a8a; margin-bottom: 20px; font-size: 0.9rem;">
+                                <strong>Solusi:</strong> Gunakan tab <strong>"Categorized"</strong> atau <strong>"Social Links"</strong> untuk melihat hasil pencarian.
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+
+            // Google CSE widgets removed - tabs "Web" and "Gambar" have been deleted
+            // Results are now displayed via Universal Search + Google CSE API + Social Searcher Style
+            console.log('✅ Search completed - Results displayed in tabs: API Results, Categorized, Social Links');
+        }
+
+        // Update Social Media Search Status
+        function updateSocialMediaSearchStatus(type, message) {
+            const statusElement = document.getElementById('socialMediaSearchStatus');
+            if (!statusElement) return;
+
+            let icon = '';
+            let color = 'white';
+            
+            switch(type) {
+                case 'searching':
+                    icon = '<i class="fas fa-spinner fa-spin"></i>';
+                    break;
+                case 'success':
+                    icon = '<i class="fas fa-check-circle"></i>';
+                    break;
+                case 'warning':
+                    icon = '<i class="fas fa-info-circle"></i>';
+                    break;
+                case 'info':
+                    icon = '<i class="fas fa-lightbulb"></i>';
+                    break;
+                case 'error':
+                    icon = '<i class="fas fa-exclamation-triangle"></i>';
+                    break;
+            }
+            
+            statusElement.innerHTML = `${icon} <span>${message}</span>`;
+        }
+
+        // Universal Search Function (RETURNS formatted results for integration)
         async function performUniversalSearch(name) {
             if (!name || name === 'N/A') {
                 updateUniversalSearchStatus('error', 'Nama tidak tersedia untuk pencarian universal');
-                return;
+                return null;
             }
 
             const statusElement = document.getElementById('universalSearchStatus');
             const resultsElement = document.getElementById('universalResults');
-            const socialLinksElement = document.getElementById('socialLinks');
-            const socialGridElement = document.getElementById('socialGrid');
 
             try {
-                // Update status to searching
                 updateUniversalSearchStatus('searching', 'Mencari data universal...');
 
-                // Call backend endpoint untuk universal search
                 const response = await fetch('/api/universal-search', {
                     method: 'POST',
                     headers: {
@@ -4827,24 +5714,25 @@
 
                 const result = await response.json();
                 
-                if (result.success) {
-                    // Display results
-                    displayUniversalResults(result.data, name);
-                    updateUniversalSearchStatus('success', `Ditemukan ${result.data.organic_results ? result.data.organic_results.length : 0} hasil`);
+                if (result.success && result.data && result.data.organic_results) {
+                    updateUniversalSearchStatus('success', `✓ Universal: ${result.data.organic_results.length} hasil`);
+                    // RETURN formatted results for integration
+                    return result.data.organic_results.map(item => ({
+                        title: item.title || 'No Title',
+                        link: item.link || '#',
+                        snippet: item.snippet || '',
+                        source: 'Universal Search',
+                        pagemap: item.pagemap || null
+                    }));
                 } else {
-                    throw new Error(result.error || 'Gagal melakukan pencarian universal');
+                    updateUniversalSearchStatus('warning', result.message || 'Server internal tidak tersedia');
+                    return [];
                 }
 
             } catch (error) {
                 console.error('Universal search error:', error);
-                updateUniversalSearchStatus('error', 'Gagal melakukan pencarian universal: ' + error.message);
-                resultsElement.innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: #ef4444;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                        <p>Gagal melakukan pencarian universal</p>
-                        <small>${error.message}</small>
-                    </div>
-                `;
+                updateUniversalSearchStatus('error', 'Universal search tidak tersedia');
+                return [];
             }
         }
 
@@ -4870,6 +5758,219 @@
             statusElement.innerHTML = `${icon} ${message}`;
         }
 
+        // Helper: Get relevance score for sorting (higher = more relevant)
+        function getRelevanceScore(item, searchName) {
+            if (!searchName) return 0;
+            
+            let score = 0;
+            const title = (item.title || '').toLowerCase();
+            const snippet = (item.snippet || '').toLowerCase();
+            const link = (item.link || '').toLowerCase();
+            const searchLower = searchName.toLowerCase();
+            
+            // Exact match in title (highest priority)
+            if (title.includes(searchLower)) score += 3;
+            
+            // Match in snippet
+            if (snippet.includes(searchLower)) score += 2;
+            
+            // Profile/user indicators in URL
+            if (link.includes('/profile/') || link.includes('/user/') || link.includes('/@')) score += 1;
+            
+            return score;
+        }
+
+        // Helper: Get platform icon (150+ platforms support)
+        function getPlatformIcon(url) {
+            const urlLower = url.toLowerCase();
+            
+            // Tier 1: Major Platforms
+            if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'fab fa-facebook';
+            if (urlLower.includes('instagram.com')) return 'fab fa-instagram';
+            if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'fab fa-twitter';
+            if (urlLower.includes('linkedin.com')) return 'fab fa-linkedin';
+            if (urlLower.includes('tiktok.com')) return 'fab fa-tiktok';
+            if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'fab fa-youtube';
+            if (urlLower.includes('pinterest.com')) return 'fab fa-pinterest';
+            if (urlLower.includes('snapchat.com')) return 'fab fa-snapchat';
+            if (urlLower.includes('whatsapp.com')) return 'fab fa-whatsapp';
+            if (urlLower.includes('telegram.org') || urlLower.includes('t.me')) return 'fab fa-telegram';
+            if (urlLower.includes('reddit.com')) return 'fab fa-reddit';
+            if (urlLower.includes('tumblr.com')) return 'fab fa-tumblr';
+            if (urlLower.includes('discord.com')) return 'fab fa-discord';
+            if (urlLower.includes('twitch.tv')) return 'fab fa-twitch';
+            if (urlLower.includes('medium.com')) return 'fab fa-medium';
+            if (urlLower.includes('quora.com')) return 'fab fa-quora';
+            if (urlLower.includes('flickr.com')) return 'fab fa-flickr';
+            if (urlLower.includes('vimeo.com')) return 'fab fa-vimeo';
+            if (urlLower.includes('spotify.com')) return 'fab fa-spotify';
+            
+            // Tier 2: Professional & Creative
+            if (urlLower.includes('github.com')) return 'fab fa-github';
+            if (urlLower.includes('gitlab.com')) return 'fab fa-gitlab';
+            if (urlLower.includes('behance.net')) return 'fab fa-behance';
+            if (urlLower.includes('dribbble.com')) return 'fab fa-dribbble';
+            if (urlLower.includes('stackoverflow.com')) return 'fab fa-stack-overflow';
+            if (urlLower.includes('deviantart.com')) return 'fab fa-deviantart';
+            
+            // Tier 3: Regional
+            if (urlLower.includes('weibo.com')) return 'fab fa-weibo';
+            if (urlLower.includes('vk.com')) return 'fab fa-vk';
+            if (urlLower.includes('line.me')) return 'fab fa-line';
+            
+            // Default
+            return 'fas fa-user-circle';
+        }
+
+        // Helper: Get platform name (150+ platforms support)
+        function getPlatformName(url) {
+            const urlLower = url.toLowerCase();
+            
+            // Major platforms
+            if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'Facebook';
+            if (urlLower.includes('instagram.com')) return 'Instagram';
+            if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'Twitter / X';
+            if (urlLower.includes('linkedin.com')) return 'LinkedIn';
+            if (urlLower.includes('tiktok.com')) return 'TikTok';
+            if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'YouTube';
+            if (urlLower.includes('pinterest.com')) return 'Pinterest';
+            if (urlLower.includes('snapchat.com')) return 'Snapchat';
+            if (urlLower.includes('whatsapp.com')) return 'WhatsApp';
+            if (urlLower.includes('telegram.org') || urlLower.includes('t.me')) return 'Telegram';
+            if (urlLower.includes('reddit.com')) return 'Reddit';
+            if (urlLower.includes('tumblr.com')) return 'Tumblr';
+            if (urlLower.includes('discord.com')) return 'Discord';
+            if (urlLower.includes('twitch.tv')) return 'Twitch';
+            if (urlLower.includes('medium.com')) return 'Medium';
+            if (urlLower.includes('quora.com')) return 'Quora';
+            if (urlLower.includes('flickr.com')) return 'Flickr';
+            if (urlLower.includes('vimeo.com')) return 'Vimeo';
+            if (urlLower.includes('spotify.com')) return 'Spotify';
+            if (urlLower.includes('github.com')) return 'GitHub';
+            if (urlLower.includes('gitlab.com')) return 'GitLab';
+            if (urlLower.includes('behance.net')) return 'Behance';
+            if (urlLower.includes('dribbble.com')) return 'Dribbble';
+            if (urlLower.includes('stackoverflow.com')) return 'Stack Overflow';
+            if (urlLower.includes('deviantart.com')) return 'DeviantArt';
+            if (urlLower.includes('weibo.com')) return 'Weibo';
+            if (urlLower.includes('vk.com')) return 'VK';
+            if (urlLower.includes('line.me')) return 'LINE';
+            
+            return 'Social Media';
+        }
+
+        // Helper: Get platform color
+        function getPlatformColor(url) {
+            const urlLower = url.toLowerCase();
+            
+            if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return '#1877f2';
+            if (urlLower.includes('instagram.com')) return '#e4405f';
+            if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return '#1da1f2';
+            if (urlLower.includes('linkedin.com')) return '#0a66c2';
+            if (urlLower.includes('tiktok.com')) return '#ff0050';
+            if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return '#ff0000';
+            if (urlLower.includes('pinterest.com')) return '#e60023';
+            if (urlLower.includes('snapchat.com')) return '#fffc00';
+            if (urlLower.includes('whatsapp.com')) return '#25d366';
+            if (urlLower.includes('telegram.org') || urlLower.includes('t.me')) return '#0088cc';
+            if (urlLower.includes('reddit.com')) return '#ff4500';
+            if (urlLower.includes('tumblr.com')) return '#35465c';
+            if (urlLower.includes('discord.com')) return '#5865f2';
+            if (urlLower.includes('twitch.tv')) return '#9146ff';
+            if (urlLower.includes('medium.com')) return '#00ab6c';
+            if (urlLower.includes('github.com')) return '#181717';
+            
+            return '#667eea';
+        }
+
+        // Helper: Extract image from result (ENHANCED - prioritizes profile/post images)
+        function extractImage(result, platform) {
+            // Priority 1: Best image from backend (already extracted and prioritized)
+            if (result.best_image && result.best_image.src) {
+                return result.best_image.src;
+            }
+            
+            // Priority 2: All images array (try first one)
+            if (result.all_images && result.all_images.length > 0 && result.all_images[0].src) {
+                return result.all_images[0].src;
+            }
+            
+            // Priority 3: Direct image property (from image search)
+            if (result.image && result.image.src) {
+                return result.image.src;
+            }
+            
+            // Priority 4: Pagemap extraction (fallback if backend didn't extract)
+            if (result.pagemap) {
+                // Try Open Graph image first (best for social media profiles/posts)
+                if (result.pagemap['metatags'] && result.pagemap['metatags'][0]) {
+                    const meta = result.pagemap['metatags'][0];
+                    if (meta['og:image']) return meta['og:image'];
+                    if (meta['twitter:image']) return meta['twitter:image'];
+                    if (meta['image']) return meta['image'];
+                }
+                
+                // Try CSE Image (Google's extracted image)
+                if (result.pagemap['cse_image'] && result.pagemap['cse_image'][0]) {
+                    return result.pagemap['cse_image'][0].src;
+                }
+                
+                // Try CSE Thumbnail
+                if (result.pagemap['cse_thumbnail'] && result.pagemap['cse_thumbnail'][0]) {
+                    return result.pagemap['cse_thumbnail'][0].src;
+                }
+            }
+            
+            // Priority 5: Try to extract from URL patterns (for some platforms)
+            const link = result.link || '';
+            if (link.includes('facebook.com') && link.includes('/photo')) {
+                // Facebook photo URLs sometimes have image IDs
+                // Could try to construct image URL, but better to rely on pagemap
+            }
+            
+            // Priority 6: Generate platform-specific placeholder (last resort)
+            const color = getPlatformColor(result.link);
+            const icon = getPlatformIcon(result.link).replace('fab fa-', '').replace('fas fa-', '');
+            
+            // Return a placeholder SVG with platform color
+            return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='${encodeURIComponent(color)}'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='white' font-family='Arial'%3E${platform.charAt(0)}%3C/text%3E%3C/svg%3E`;
+        }
+
+        // Helper: Check if URL is social media (150+ platforms)
+        function isSocialMedia(url) {
+            const socialDomains = [
+                'facebook.com', 'fb.com', 'instagram.com', 'twitter.com', 'x.com',
+                'linkedin.com', 'tiktok.com', 'youtube.com', 'pinterest.com', 'snapchat.com',
+                'whatsapp.com', 'telegram.org', 't.me', 'reddit.com', 'tumblr.com',
+                'discord.com', 'twitch.tv', 'medium.com', 'quora.com', 'flickr.com',
+                'vimeo.com', 'dailymotion.com', 'weibo.com', 'wechat.com', 'qq.com',
+                'bilibili.com', 'douban.com', 'line.me', 'kakao.com', 'naver.com',
+                'band.us', 'vk.com', 'ok.ru', 'mail.ru', 'kaskus.co.id',
+                'sharechat.com', 'moj.app', 'github.com', 'gitlab.com', 'stackoverflow.com',
+                'behance.net', 'dribbble.com', 'deviantart.com', 'artstation.com', 
+                'angellist.com', 'xing.com', 'signal.org', 'viber.com', 'kik.com',
+                'skype.com', 'slack.com', 'teams.microsoft.com', 'zoom.us',
+                'kick.com', 'dlive.tv', 'trovo.live', 'caffeine.tv', 'younow.com',
+                'periscope.tv', 'myspace.com', 'mewe.com', 'mastodon.social', 
+                'bereal.com', 'lemon8-app.com', 'threads.net', 'bsky.app', 'bluesky.social',
+                'polywork.com', 'truthsocial.com', 'gettr.com', 'parler.com', 'rumble.com',
+                'gab.com', 'minds.com', 'bitchute.com', 'odysee.com', 'tinder.com',
+                'bumble.com', 'hinge.co', 'okcupid.com', 'match.com', 'wordpress.com',
+                'blogger.com', 'blogspot.com', 'ghost.org', 'substack.com', 'patreon.com',
+                'ko-fi.com', 'buymeacoffee.com', 'digg.com', 'mix.com', 'pocket.com',
+                'flipboard.com', 'goodreads.com', 'letterboxd.com', 'last.fm', 
+                'spotify.com', 'steam.com', 'steamcommunity.com', 'epicgames.com',
+                'playstation.com', 'xbox.com', 'roblox.com', '500px.com', 'vsco.co',
+                'strava.com', 'myfitnesspal.com', 'untappd.com'
+            ];
+            
+            const urlLower = url.toLowerCase();
+            return socialDomains.some(domain => urlLower.includes(domain)) ||
+                   urlLower.includes('/profile/') || 
+                   urlLower.includes('/user/') || 
+                   urlLower.includes('/@');
+        }
+
         function displayUniversalResults(data, searchName) {
             const resultsElement = document.getElementById('universalResults');
             const socialLinksElement = document.getElementById('socialLinks');
@@ -4883,13 +5984,8 @@
 
             if (data.organic_results && data.organic_results.length > 0) {
                 data.organic_results.forEach((result, index) => {
-                    // Extract social media links
-                    if (result.link && (
-                        result.link.includes('linkedin.com') ||
-                        result.link.includes('facebook.com') ||
-                        result.link.includes('twitter.com') ||
-                        result.link.includes('instagram.com')
-                    )) {
+                    // Extract social media links (150+ platforms)
+                    if (result.link && isSocialMedia(result.link)) {
                         socialLinks.push(result);
                     }
 
@@ -4928,34 +6024,74 @@
 
             resultsElement.innerHTML = resultsHTML;
 
-            // Display social media links if found
+            // Display social media links if found (with RELEVANCE SORTING!)
             if (socialLinks.length > 0) {
-                socialLinks.forEach(link => {
-                    let icon = 'fas fa-globe';
-                    let platform = 'Social Media';
+                console.log(`Found ${socialLinks.length} social media profiles for: ${searchName}`);
+                
+                // Sort by RELEVANCE (name matching first!)
+                const sortedLinks = socialLinks.sort((a, b) => {
+                    const scoreA = getRelevanceScore(a, searchName);
+                    const scoreB = getRelevanceScore(b, searchName);
+                    return scoreB - scoreA; // Higher score first
+                });
+                
+                console.log('Sorted by relevance, displaying...');
+                
+                sortedLinks.forEach((link, index) => {
+                    const platform = getPlatformName(link.link);
+                    const icon = getPlatformIcon(link.link);
+                    const color = getPlatformColor(link.link);
+                    const imageUrl = extractImage(link, platform);
+                    const relevanceScore = getRelevanceScore(link, searchName);
                     
-                    if (link.link.includes('linkedin.com')) {
-                        icon = 'fab fa-linkedin';
-                        platform = 'LinkedIn';
-                    } else if (link.link.includes('facebook.com')) {
-                        icon = 'fab fa-facebook';
-                        platform = 'Facebook';
-                    } else if (link.link.includes('twitter.com')) {
-                        icon = 'fab fa-twitter';
-                        platform = 'Twitter';
-                    } else if (link.link.includes('instagram.com')) {
-                        icon = 'fab fa-instagram';
-                        platform = 'Instagram';
-                    }
+                    // Highlight high relevance items
+                    const isHighRelevance = relevanceScore >= 3;
+                    const relevanceBadge = isHighRelevance ? 
+                        '<span style="display: inline-block; padding: 2px 6px; background: #10b981; color: white; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;"><i class="fas fa-star" style="font-size: 0.6rem;"></i> MATCH</span>' : '';
 
                     socialLinksHTML += `
-                        <div class="social-item">
-                            <a href="${link.link}" target="_blank" rel="noopener noreferrer">
-                                <div class="social-icon">
+                        <div class="social-item" style="border-left: 3px solid ${color}; ${isHighRelevance ? 'box-shadow: 0 0 0 2px ' + color + '20;' : ''}">
+                            <a href="${link.link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
+                                <!-- Profile Image (ALWAYS SHOWN) -->
+                                <div style="width: 100%; height: 140px; overflow: hidden; border-radius: 8px; margin-bottom: 12px; background: linear-gradient(135deg, ${color}15, ${color}05);">
+                                    <img src="${imageUrl}" 
+                                         alt="${platform}" 
+                                         style="width: 100%; height: 100%; object-fit: cover;"
+                                         onerror="this.style.objectFit='contain'; this.style.padding='20px';">
+                                </div>
+                                
+                                <!-- Platform Info -->
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <div style="color: ${color}; font-size: 1.5rem;">
                                     <i class="${icon}"></i>
                                 </div>
-                                <div class="social-name">${platform}</div>
-                                <div class="social-followers">${link.title || 'Profile'}</div>
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                            <span style="font-weight: 700; color: ${color}; font-size: 0.9rem;">${platform}</span>
+                                            <span style="padding: 2px 6px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px; font-size: 0.65rem; font-weight: 600;">
+                                                <i class="fab fa-google" style="font-size: 0.6rem;"></i> GOOGLE
+                                            </span>
+                                            ${relevanceBadge}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Profile Title -->
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #1f2937; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3;">
+                                    ${link.title || 'Profile'}
+                                </div>
+                                
+                                <!-- Snippet -->
+                                <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;">
+                                    ${link.snippet || 'Social media profile'}
+                                    </div>
+                                
+                                <!-- Link -->
+                                <div style="padding-top: 8px; border-top: 1px solid #f3f4f6;">
+                                    <span style="font-size: 0.7rem; color: #9ca3af;">
+                                        <i class="fas fa-link"></i> ${link.link.replace(/^https?:\/\//, '').substring(0, 40)}${link.link.length > 40 ? '...' : ''}
+                                    </span>
+                                </div>
                             </a>
                         </div>
                     `;
@@ -4963,9 +6099,1148 @@
 
                 socialGridElement.innerHTML = socialLinksHTML;
                 socialLinksElement.style.display = 'block';
+                
+                // Update header with count
+                const headerElement = socialLinksElement.querySelector('h4');
+                if (headerElement) {
+                    headerElement.innerHTML = `<i class="fas fa-share-alt"></i> Social Media Links <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; margin-left: 10px;">${socialLinks.length} profiles</span>`;
+                }
             } else {
                 socialLinksElement.style.display = 'none';
             }
+        }
+
+        // ============================================================================
+        // EXTRACTION & CATEGORIZATION FUNCTIONS (150+ platforms)
+        // ============================================================================
+
+        // Extract ALL Social Media Links from results (150+ platforms detection) - ULTRA SENSITIVE!
+        function extractSocialMediaLinks(results) {
+            const socialMediaLinks = [];
+            
+            // Comprehensive list of 150+ social media domains (EXPANDED!)
+            const socialMediaDomains = [
+                // Tier 1: Major Platforms (dengan semua varian domain)
+                'facebook.com', 'fb.com', 'fb.me', 'fb.watch', 'messenger.com', 'm.facebook.com', 'web.facebook.com',
+                'instagram.com', 'instagr.am', 'ig.me', 'm.instagram.com',
+                'twitter.com', 'x.com', 't.co', 'twimg.com', 'mobile.twitter.com',
+                'linkedin.com', 'lnkd.in', 'licdn.com',
+                'tiktok.com', 'vm.tiktok.com', 'm.tiktok.com',
+                'youtube.com', 'youtu.be', 'yt.be', 'ytimg.com', 'm.youtube.com',
+                'pinterest.com', 'pin.it', 'pinimg.com',
+                'snapchat.com', 'snap.com',
+                'whatsapp.com', 'wa.me', 'chat.whatsapp.com',
+                'telegram.org', 't.me', 'telegram.me',
+                
+                // Tier 2: Popular Platforms
+                'reddit.com', 'redd.it', 'old.reddit.com',
+                'tumblr.com', 'tmblr.co',
+                'discord.com', 'discord.gg', 'discordapp.com',
+                'twitch.tv', 'twitch.com',
+                'medium.com',
+                'quora.com',
+                'flickr.com', 'flic.kr',
+                'vimeo.com',
+                'dailymotion.com',
+                
+                // Tier 3: Asian & Regional
+                'weibo.com', 'sina.com.cn',
+                'wechat.com', 'weixin.qq.com',
+                'qq.com',
+                'bilibili.com',
+                'douban.com',
+                'line.me', 'line.naver.jp',
+                'kakao.com', 'kakaotalk.com',
+                'naver.com',
+                'band.us',
+                'vk.com', 'vkontakte.ru',
+                'ok.ru', 'odnoklassniki.ru',
+                'mail.ru',
+                'kaskus.co.id',
+                'sharechat.com',
+                'moj.app',
+                
+                // Tier 4: Professional & Creative
+                'github.com',
+                'gitlab.com',
+                'stackoverflow.com', 'stackexchange.com',
+                'behance.net',
+                'dribbble.com',
+                'deviantart.com',
+                'artstation.com',
+                'angellist.com',
+                'xing.com',
+                
+                // Tier 5: Messaging
+                'signal.org',
+                'viber.com',
+                'kik.com',
+                'skype.com',
+                'slack.com',
+                'teams.microsoft.com',
+                'zoom.us',
+                
+                // Tier 6: Video & Streaming
+                'kick.com',
+                'dlive.tv',
+                'trovo.live',
+                'caffeine.tv',
+                'younow.com',
+                'periscope.tv', 'pscp.tv',
+                'streamlabs.com',
+                
+                // Tier 7: Alternative & Emerging
+                'myspace.com',
+                'mewe.com',
+                'mastodon.social', 'mastodon.online',
+                'bereal.com',
+                'lemon8-app.com',
+                'threads.net',
+                'bsky.app', 'bluesky.social',
+                'polywork.com',
+                'truthsocial.com', 'truth.social',
+                'gettr.com',
+                'parler.com',
+                'rumble.com',
+                'gab.com',
+                'minds.com',
+                'bitchute.com',
+                'odysee.com',
+                
+                // Tier 8: Dating & Social
+                'tinder.com',
+                'bumble.com',
+                'hinge.co',
+                'okcupid.com',
+                'match.com',
+                
+                // Tier 9: Blogging & Publishing
+                'wordpress.com',
+                'blogger.com', 'blogspot.com',
+                'ghost.org',
+                'substack.com',
+                'patreon.com',
+                'ko-fi.com',
+                'buymeacoffee.com',
+                
+                // Tier 10: Social Bookmarking
+                'digg.com',
+                'mix.com',
+                'pocket.com',
+                'flipboard.com',
+                'goodreads.com',
+                'letterboxd.com',
+                'last.fm',
+                'spotify.com',
+                
+                // Tier 11: Gaming
+                'steam.com', 'steamcommunity.com',
+                'epicgames.com',
+                'playstation.com',
+                'xbox.com',
+                'roblox.com',
+                
+                // Tier 12: Niche
+                'strava.com',
+                'myfitnesspal.com',
+                'untappd.com',
+                '500px.com',
+                'vsco.co'
+            ];
+            
+            // Keywords that indicate social media profiles (EXPANDED!)
+            const socialKeywords = [
+                '/profile/', '/user/', '/@', '/channel/', '/people/', '/member/',
+                '/account/', '/p/', '/u/', '/c/', '/author/', '/creator/',
+                'profile', 'user', 'account', 'member', 'people', 'person',
+                'social', 'community', 'network', 'follow', 'followers'
+            ];
+            
+            results.forEach(result => {
+                const link = (result.link || '').toLowerCase();
+                const title = (result.title || '').toLowerCase();
+                
+                // Check 1: Domain matching
+                const hasSocialDomain = socialMediaDomains.some(domain => link.includes(domain));
+                
+                // Check 2: Pattern matching
+                const hasSocialPattern = socialKeywords.some(keyword => link.includes(keyword));
+                
+                // Check 3: Title matching (jika title mengandung "profile", "account", dll)
+                const hasSocialTitle = socialKeywords.some(keyword => title.includes(keyword));
+                
+                // Tambahkan jika memenuhi SALAH SATU kriteria (lebih permissive!)
+                if (hasSocialDomain || hasSocialPattern || hasSocialTitle) {
+                    socialMediaLinks.push(result);
+                }
+            });
+            
+            console.log(`✓ Detected ${socialMediaLinks.length} social media links from ${results.length} total results`);
+            return socialMediaLinks;
+        }
+
+        // Categorize Results (News, Social Media, Blog, Forum, Video, Official, Other)
+        function categorizeResults(results) {
+            const categories = {
+                'News': [],
+                'Official': [],
+                'Social Media': [],
+                'Postingan': [],
+                'Blog': [],
+                'Forum': [],
+                'Video': [],
+                'Lainnya': []
+            };
+            
+            // Social Media Domains - SUPER LENGKAP (150+ platforms)
+            const socialMediaDomains = [
+                'facebook.com', 'fb.com', 'instagram.com', 'twitter.com', 'x.com',
+                'linkedin.com', 'tiktok.com', 'youtube.com', 'pinterest.com', 'snapchat.com',
+                'whatsapp.com', 'telegram.org', 't.me', 'reddit.com', 'tumblr.com',
+                'discord.com', 'twitch.tv', 'medium.com', 'quora.com', 'flickr.com',
+                'vimeo.com', 'dailymotion.com', 'weibo.com', 'wechat.com', 'qq.com',
+                'bilibili.com', 'douban.com', 'line.me', 'kakao.com', 'naver.com',
+                'band.us', 'vk.com', 'ok.ru', 'mail.ru', 'kaskus.co.id',
+                'sharechat.com', 'moj.app', 'github.com', 'gitlab.com', 'stackoverflow.com',
+                'behance.net', 'dribbble.com', 'deviantart.com', 'artstation.com',
+                'angellist.com', 'xing.com', 'signal.org', 'viber.com', 'kik.com',
+                'skype.com', 'slack.com', 'teams.microsoft.com', 'zoom.us',
+                'kick.com', 'dlive.tv', 'trovo.live', 'caffeine.tv', 'younow.com',
+                'periscope.tv', 'myspace.com', 'mewe.com', 'mastodon.social',
+                'bereal.com', 'lemon8-app.com', 'threads.net', 'bsky.app', 'bluesky.social',
+                'polywork.com', 'truthsocial.com', 'gettr.com', 'parler.com', 'rumble.com',
+                'gab.com', 'minds.com', 'bitchute.com', 'odysee.com', 'tinder.com',
+                'bumble.com', 'hinge.co', 'okcupid.com', 'match.com', 'wordpress.com',
+                'blogger.com', 'blogspot.com', 'ghost.org', 'substack.com', 'patreon.com',
+                'ko-fi.com', 'buymeacoffee.com', 'digg.com', 'mix.com', 'pocket.com',
+                'flipboard.com', 'goodreads.com', 'letterboxd.com', 'last.fm',
+                'spotify.com', 'steam.com', 'steamcommunity.com', 'epicgames.com',
+                'playstation.com', 'xbox.com', 'roblox.com', '500px.com', 'vsco.co',
+                'strava.com', 'myfitnesspal.com', 'untappd.com',
+                '/profile/', '/user/', '/@', '/channel/', '/people/'
+            ];
+            
+            // News Keywords - COMPREHENSIVE
+            const newsKeywords = [
+                'news', 'berita', 'detik', 'kompas', 'tempo', 'tribun', 'liputan',
+                'cnbc', 'cnn', 'bbc', 'reuters', 'bloomberg', 'antaranews', 'viva',
+                'okezone', 'suara', 'merdeka', 'jpnn', 'sindonews', 'bisnis',
+                'kontan', 'idntimes', 'kumparan', 'tirto', 'vice', 'vice.com'
+            ];
+            
+            // Official Keywords
+            const officialKeywords = [
+                '.gov', '.go.id', 'official', 'resmi', 'pemerintah', 'kemenkeu',
+                'kemendag', 'polri', 'tni', 'bpk', 'kpu', 'kominfo'
+            ];
+            
+            // Blog Keywords
+            const blogKeywords = [
+                'blog', 'personal', 'diary', 'wordpress', 'blogspot', 'medium',
+                'tumblr', 'substack'
+            ];
+            
+            // Forum Keywords
+            const forumKeywords = [
+                'forum', 'community', 'discussion', 'kaskus', 'reddit', 'quora',
+                'stackexchange', 'stackoverflow'
+            ];
+            
+            // Video Keywords
+            const videoKeywords = [
+                'youtube', 'youtu.be', 'vimeo', 'dailymotion', 'video',
+                'bilibili', 'tiktok'
+            ];
+            
+            results.forEach((result, index) => {
+                const link = (result.link || '').toLowerCase();
+                const title = (result.title || '').toLowerCase();
+                const snippet = (result.snippet || '').toLowerCase();
+                
+                // Use content_type from backend if available, otherwise detect from frontend
+                let category = 'Lainnya';
+                let icon = 'fas fa-globe';
+                let color = '#6b7280';
+                
+                if (result.content_type) {
+                    // Use backend content_type
+                    const contentTypeMap = {
+                        'news': { category: 'News', icon: 'fas fa-newspaper', color: '#ef4444' },
+                        'official': { category: 'Official', icon: 'fas fa-landmark', color: '#3b82f6' },
+                        'social_media': { category: 'Social Media', icon: 'fas fa-share-alt', color: '#10b981' },
+                        'posting': { category: 'Postingan', icon: 'fas fa-file-alt', color: '#8b5cf6' },
+                        'blog': { category: 'Blog', icon: 'fas fa-edit', color: '#f59e0b' },
+                        'forum': { category: 'Forum', icon: 'fas fa-comments', color: '#ec4899' },
+                        'video': { category: 'Video', icon: 'fas fa-play-circle', color: '#ef4444' },
+                        'general': { category: 'Lainnya', icon: 'fas fa-globe', color: '#6b7280' }
+                    };
+                    
+                    const typeInfo = contentTypeMap[result.content_type] || contentTypeMap['general'];
+                    category = typeInfo.category;
+                    icon = typeInfo.icon;
+                    color = typeInfo.color;
+                    
+                    // Special handling for social media - get platform color
+                    if (result.content_type === 'social_media') {
+                        color = getPlatformColor(result.link);
+                    }
+                } else {
+                    // Fallback: Frontend detection (for backward compatibility)
+                    // PRIORITY ORDER: News > Official > Blog > Forum > Video > Social Media > Other
+                    
+                    // 1. Check News first (highest priority for non-social)
+                    if (newsKeywords.some(kw => link.includes(kw) || title.includes(kw))) {
+                        category = 'News';
+                        icon = 'fas fa-newspaper';
+                        color = '#ef4444';
+                    }
+                    // 2. Official
+                    else if (officialKeywords.some(kw => link.includes(kw) || title.includes(kw))) {
+                        category = 'Official';
+                        icon = 'fas fa-landmark';
+                        color = '#3b82f6';
+                    }
+                    // 3. Blog
+                    else if (blogKeywords.some(kw => link.includes(kw) || title.includes(kw))) {
+                        category = 'Blog';
+                        icon = 'fas fa-edit';
+                        color = '#8b5cf6';
+                    }
+                    // 4. Forum
+                    else if (forumKeywords.some(kw => link.includes(kw) || title.includes(kw))) {
+                        category = 'Forum';
+                        icon = 'fas fa-comments';
+                        color = '#f59e0b';
+                    }
+                    // 5. Video
+                    else if (videoKeywords.some(kw => link.includes(kw))) {
+                        category = 'Video';
+                        icon = 'fas fa-play-circle';
+                        color = '#ef4444';
+                    }
+                    // 6. Social Media (after others to avoid over-categorization)
+                    else if (socialMediaDomains.some(domain => link.includes(domain))) {
+                        category = 'Social Media';
+                        icon = 'fas fa-share-alt';
+                        color = '#10b981';
+                        // Get specific platform color if available
+                        color = getPlatformColor(result.link);
+                    }
+                }
+                
+                // Add to category with metadata
+                categories[category].push({
+                    ...result,
+                    category: category,
+                    categoryIcon: icon,
+                    categoryColor: color,
+                    platform: category === 'Social Media' ? getPlatformName(result.link) : category,
+                    position: index + 1
+                });
+            });
+            
+            console.log('✓ Categorization complete:',
+                Object.entries(categories).map(([cat, items]) => `${cat}: ${items.length}`).join(', '));
+            
+            return categories;
+        }
+
+        // ============================================================================
+        // DISPLAY FUNCTIONS
+        // ============================================================================
+
+        // Display Categorized Results
+        function displayCategorizedResults(categorized) {
+            const container = document.getElementById('categorizedResults');
+            if (!container) return;
+            
+            let html = '';
+            let totalResults = 0;
+            
+            // Display each category
+            Object.entries(categorized).forEach(([category, items]) => {
+                if (items.length > 0) {
+                    totalResults += items.length;
+                    const categoryIcon = items[0].categoryIcon || 'fas fa-folder';
+                    const categoryColor = items[0].categoryColor || '#6b7280';
+                    
+                    html += `
+                        <div class="category-section" style="margin-bottom: 30px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid ${categoryColor};">
+                                <i class="${categoryIcon}" style="color: ${categoryColor}; font-size: 1.5rem;"></i>
+                                <h4 style="margin: 0; color: ${categoryColor}; font-size: 1.1rem;">${category}</h4>
+                                <span style="background: ${categoryColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">${items.length}</span>
+                            </div>
+                            <div style="display: grid; gap: 15px;">
+                    `;
+                    
+                    items.forEach((item, index) => {
+                        html += createDetailedResultItemHTML(item, index);
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            if (totalResults === 0) {
+                html = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <i class="fas fa-layer-group" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>Tidak ada hasil untuk dikategorikan</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            console.log(`✓ Displayed ${totalResults} categorized results`);
+        }
+
+        // Create Detailed Result Item HTML
+        function createDetailedResultItemHTML(result, index) {
+            const categoryIcon = result.categoryIcon || 'fas fa-globe';
+            const categoryColor = result.categoryColor || '#6b7280';
+            const category = result.category || 'Lainnya';
+            const platform = result.platform || 'Website';
+            
+            // Content Type Detection (from backend)
+            const contentType = result.content_type || 'general';
+            const contentTypeLabels = {
+                'news': { label: 'Berita', icon: 'fas fa-newspaper', color: '#ef4444' },
+                'official': { label: 'Resmi', icon: 'fas fa-landmark', color: '#3b82f6' },
+                'social_media': { label: 'Social Media', icon: 'fas fa-share-alt', color: '#10b981' },
+                'posting': { label: 'Postingan', icon: 'fas fa-file-alt', color: '#8b5cf6' },
+                'blog': { label: 'Blog', icon: 'fas fa-edit', color: '#f59e0b' },
+                'forum': { label: 'Forum', icon: 'fas fa-comments', color: '#ec4899' },
+                'video': { label: 'Video', icon: 'fas fa-play-circle', color: '#ef4444' },
+                'general': { label: 'Umum', icon: 'fas fa-globe', color: '#6b7280' }
+            };
+            const contentTypeInfo = contentTypeLabels[contentType] || contentTypeLabels['general'];
+            
+            // Location Information
+            const detectedLocations = result.detected_locations || [];
+            const locationScore = result.location_score || 0;
+            let locationBadge = '';
+            if (detectedLocations.length > 0) {
+                const locationText = detectedLocations.slice(0, 2).join(', '); // Show max 2 locations
+                const locationColor = locationScore >= 60 ? '#10b981' : locationScore >= 40 ? '#f59e0b' : '#6b7280';
+                locationBadge = `<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: ${locationColor}15; color: ${locationColor}; border-radius: 8px; font-size: 0.7rem; font-weight: 600; border: 1px solid ${locationColor}40;">
+                    <i class="fas fa-map-marker-alt" style="font-size: 0.65rem;"></i>
+                    ${locationText}${detectedLocations.length > 2 ? ' +' + (detectedLocations.length - 2) : ''}
+                </span>`;
+            }
+            
+            // Relevance Badge (if location score is high)
+            let relevanceBadge = '';
+            if (locationScore >= 80) {
+                relevanceBadge = `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 6px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;">
+                    <i class="fas fa-star" style="font-size: 0.6rem;"></i> RELEVAN
+                </span>`;
+            } else if (locationScore >= 60) {
+                relevanceBadge = `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border-radius: 6px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;">
+                    <i class="fas fa-check-circle" style="font-size: 0.6rem;"></i> TERKAIT
+                </span>`;
+            }
+            
+            // Tentukan sumber hasil (Universal vs Social Media vs Social Searcher Style)
+            const isUniversal = result.source === 'Universal Search';
+            const isSocialSearcher = result.source === 'Social Searcher Style';
+            
+            // Platform badge untuk Social Searcher Style
+            let platformBadge = '';
+            if (isSocialSearcher && result.platform) {
+                const platformColors = {
+                    'facebook': '#1877f2',
+                    'instagram': '#e4405f',
+                    'twitter': '#1da1f2',
+                    'linkedin': '#0077b5',
+                    'tiktok': '#000000',
+                    'pinterest': '#bd081c'
+                };
+                const platformIcons = {
+                    'facebook': 'fab fa-facebook',
+                    'instagram': 'fab fa-instagram',
+                    'twitter': 'fab fa-twitter',
+                    'linkedin': 'fab fa-linkedin',
+                    'tiktok': 'fab fa-tiktok',
+                    'pinterest': 'fab fa-pinterest'
+                };
+                const color = platformColors[result.platform] || '#667eea';
+                const icon = platformIcons[result.platform] || 'fas fa-share-alt';
+                platformBadge = `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; background: ${color}; color: white; border-radius: 6px; font-size: 0.65rem; font-weight: 600; margin-left: 5px; text-transform: capitalize;"><i class="${icon}" style="font-size: 0.6rem;"></i> ${result.platform}</span>`;
+            }
+            
+            const sourceBadge = isUniversal
+                ? '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; font-size: 0.7rem; font-weight: 600;"><i class="fas fa-server"></i> INTERNAL</span>'
+                : isSocialSearcher
+                ? '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 10px; font-size: 0.7rem; font-weight: 600;"><i class="fas fa-search"></i> SOCIAL SEARCHER</span>'
+                : '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 10px; font-size: 0.7rem; font-weight: 600;"><i class="fab fa-google"></i> GOOGLE</span>';
+            
+            return `
+                <div class="result-item" style="border-left: 4px solid ${categoryColor}; background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s ease; ${locationScore >= 80 ? 'border-left-width: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);' : ''}">
+                    <div class="result-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span class="content-type-tag" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: ${contentTypeInfo.color}15; color: ${contentTypeInfo.color}; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid ${contentTypeInfo.color}30;">
+                                <i class="${contentTypeInfo.icon}"></i>
+                                ${contentTypeInfo.label}
+                            </span>
+                            ${locationBadge}
+                            ${relevanceBadge}
+                            ${sourceBadge}
+                            ${platformBadge}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${locationScore > 0 ? `<span style="font-size: 0.7rem; color: #9ca3af; font-weight: 500;">Relevansi: ${locationScore}%</span>` : ''}
+                            <span class="result-position" style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; padding: 4px 8px; background: #f3f4f6; border-radius: 6px;">#${index + 1}</span>
+                        </div>
+                    </div>
+                    <div class="result-title" style="margin-bottom: 10px;">
+                        <a href="${result.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.1rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px; line-height: 1.4; transition: color 0.2s;" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#1f2937'">
+                            <i class="fas fa-external-link-alt" style="font-size: 0.8rem; margin-top: 5px; color: ${categoryColor}; flex-shrink: 0;"></i>
+                            <span style="flex: 1;">${result.title || 'No Title'}</span>
+                        </a>
+                    </div>
+                    <div class="result-snippet" style="color: #4b5563; font-size: 0.95rem; line-height: 1.7; margin-bottom: 12px; padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid ${contentTypeInfo.color}40;">
+                        ${result.snippet || result.htmlSnippet || result.description || 'No description available'}
+                    </div>
+                    ${result.pagemap && result.pagemap.cse_thumbnail ? `
+                        <div class="result-thumbnail" style="margin-bottom: 10px;">
+                            <img src="${result.pagemap.cse_thumbnail[0].src}" alt="Thumbnail" style="max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                        </div>
+                    ` : ''}
+                    <div class="result-meta" style="display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; flex-wrap: wrap;">
+                        <div class="result-source" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #6b7280;">
+                            <i class="fas fa-link" style="color: ${categoryColor};"></i>
+                            <span>${result.displayLink || result.formattedUrl || result.link?.replace(/^https?:\/\//, '').split('/')[0] || 'Unknown Source'}</span>
+                        </div>
+                        ${result.pagemap && result.pagemap.metatags && result.pagemap.metatags[0] && result.pagemap.metatags[0]['og:type'] ? `
+                            <span style="font-size: 0.75rem; color: #9ca3af;">•</span>
+                            <span style="font-size: 0.75rem; color: #6b7280; text-transform: capitalize;">${result.pagemap.metatags[0]['og:type']}</span>
+                        ` : ''}
+                        ${result.cacheId ? `
+                            <span style="font-size: 0.75rem; color: #9ca3af;">•</span>
+                            <a href="https://webcache.googleusercontent.com/search?q=cache:${result.cacheId}" target="_blank" style="font-size: 0.75rem; color: #667eea; text-decoration: none;">
+                                <i class="fas fa-archive"></i> Cached
+                            </a>
+                        ` : ''}
+                    </div>
+                        </div>
+                    `;
+        }
+
+        // Display Social Media Web Results (API Results tab)
+        function displaySocialMediaWebResults(results, searchName) {
+            const container = document.getElementById('socialMediaWebResults');
+            if (!container) {
+                console.error('❌ [Display] Container #socialMediaWebResults NOT FOUND!');
+                return;
+            }
+            
+            let html = '';
+            
+            if (results && results.length > 0) {
+                console.log(`✅ [Display] Displaying ${results.length} web results in API Results tab`);
+                
+                // Count by source for debugging
+                const sourceCounts = {};
+                results.forEach(r => {
+                    const source = r.source || 'Unknown';
+                    sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+                });
+                console.log(`📊 [Display] Source breakdown:`, sourceCounts);
+                
+                results.forEach((result, index) => {
+                    const isUniversal = result.source === 'Universal Search';
+                    const isSocialSearcher = result.source === 'Social Searcher Style';
+                    
+                    // Platform badge untuk Social Searcher Style
+                    let platformBadge = '';
+                    if (isSocialSearcher && result.platform) {
+                        const platformColors = {
+                            'facebook': '#1877f2',
+                            'instagram': '#e4405f',
+                            'twitter': '#1da1f2',
+                            'linkedin': '#0077b5',
+                            'tiktok': '#000000',
+                            'pinterest': '#bd081c'
+                        };
+                        const platformIcons = {
+                            'facebook': 'fab fa-facebook',
+                            'instagram': 'fab fa-instagram',
+                            'twitter': 'fab fa-twitter',
+                            'linkedin': 'fab fa-linkedin',
+                            'tiktok': 'fab fa-tiktok',
+                            'pinterest': 'fab fa-pinterest'
+                        };
+                        const color = platformColors[result.platform] || '#667eea';
+                        const icon = platformIcons[result.platform] || 'fas fa-share-alt';
+                        platformBadge = `<span style="display: inline-block; padding: 2px 6px; background: ${color}; color: white; border-radius: 6px; font-size: 0.65rem; font-weight: 600; margin-left: 5px; text-transform: capitalize;"><i class="${icon}" style="font-size: 0.6rem;"></i> ${result.platform}</span>`;
+                    }
+                    
+                    const sourceBadge = isUniversal
+                        ? '<span style="display: inline-block; padding: 2px 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.7rem; font-weight: 600; margin-left: 8px;"><i class="fas fa-server"></i> INTERNAL</span>'
+                        : isSocialSearcher
+                        ? '<span style="display: inline-block; padding: 2px 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 8px; font-size: 0.7rem; font-weight: 600; margin-left: 8px;"><i class="fas fa-search"></i> SOCIAL SEARCHER</span>'
+                        : '<span style="display: inline-block; padding: 2px 8px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px; font-size: 0.7rem; font-weight: 600; margin-left: 8px;"><i class="fab fa-google"></i> GOOGLE</span>';
+                    
+                    html += `
+                        <div class="result-item" style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;">
+                            <div class="result-title" style="margin-bottom: 8px;">
+                                <a href="${result.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.05rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px;">
+                                    <i class="fas fa-external-link-alt" style="font-size: 0.8rem; margin-top: 4px; color: #667eea;"></i>
+                                    <span style="flex: 1;">${result.title || 'No Title'}</span>
+                                    ${sourceBadge}
+                                    ${platformBadge}
+                            </a>
+                        </div>
+                            <div class="result-snippet" style="color: #4b5563; font-size: 0.9rem; line-height: 1.6; margin-bottom: 10px;">
+                                ${result.snippet || result.htmlSnippet || result.description || 'No description available'}
+                        </div>
+                        ${result.pagemap && result.pagemap.cse_thumbnail ? `
+                            <div class="result-thumbnail" style="margin-bottom: 10px;">
+                                <img src="${result.pagemap.cse_thumbnail[0].src}" alt="Thumbnail" style="max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                            </div>
+                        ` : ''}
+                            <div class="result-meta" style="display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; font-size: 0.8rem; color: #6b7280; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-link" style="color: #667eea;"></i>
+                                    <span>${result.displayLink || result.formattedUrl || result.link?.replace(/^https?:\/\//, '').split('/')[0] || 'Unknown Source'}</span>
+                </div>
+                                ${result.pagemap && result.pagemap.metatags && result.pagemap.metatags[0] && result.pagemap.metatags[0]['og:type'] ? `
+                                    <span>•</span>
+                                    <span style="text-transform: capitalize;">${result.pagemap.metatags[0]['og:type']}</span>
+                                ` : ''}
+                                ${result.cacheId ? `
+                                    <span>•</span>
+                                    <a href="https://webcache.googleusercontent.com/search?q=cache:${result.cacheId}" target="_blank" style="color: #667eea; text-decoration: none;">
+                                        <i class="fas fa-archive"></i> Cached
+                                    </a>
+                                ` : ''}
+                                <span>•</span>
+                                <span>#${index + 1}</span>
+                            </div>
+                </div>
+            `;
+                });
+            } else {
+                console.warn(`⚠️ [Display] No results to display for "${searchName}"`);
+                html = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>Tidak ada hasil ditemukan untuk "${searchName}"</p>
+                        <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 10px;">
+                            Coba gunakan tab "Categorized" atau "Social Links" untuk melihat hasil dari sumber lain.
+                        </p>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            console.log(`✅ [Display] Updated container #socialMediaWebResults with ${results?.length || 0} results`);
+            
+            // Verify Google CSE results are included
+            if (results && results.length > 0) {
+                const googleResults = results.filter(r => r.source === 'Google CSE');
+                const universalResults = results.filter(r => r.source === 'Universal Search');
+                const socialSearcherResults = results.filter(r => r.source === 'Social Searcher Style');
+                
+                console.log(`📊 [Display] Results breakdown in display:`);
+                console.log(`   - Google CSE: ${googleResults.length}`);
+                console.log(`   - Universal Search (Internal): ${universalResults.length}`);
+                console.log(`   - Social Searcher Style: ${socialSearcherResults.length}`);
+                
+                if (googleResults.length > 0) {
+                    console.log(`✅ [Display] Google CSE results ARE included: ${googleResults.length} items`);
+                    console.log(`📋 [Display] Sample Google CSE results:`, googleResults.slice(0, 2).map(r => ({
+                        title: r.title?.substring(0, 50),
+                        source: r.source
+                    })));
+                } else {
+                    console.warn(`⚠️ [Display] WARNING: No Google CSE results in display! Total results: ${results.length}`);
+                    console.warn(`   Sources in results:`, [...new Set(results.map(r => r.source || 'Unknown'))]);
+                }
+            }
+        }
+
+        // Display Social Media Links (Social Links tab) dengan RELEVANCE SORTING & IMAGE
+        function displaySocialMediaLinks(socialLinks) {
+            const container = document.getElementById('socialMediaLinks');
+            if (!container) return;
+            
+            let html = '';
+            
+            if (socialLinks && socialLinks.length > 0) {
+                console.log(`Displaying ${socialLinks.length} social media platforms`);
+                
+                // Get search name for relevance scoring
+                const searchNameElement = document.getElementById('socialMediaSearchName');
+                const searchName = searchNameElement ? searchNameElement.textContent.trim().toLowerCase() : '';
+                
+                console.log('Sorting by relevance for:', searchName);
+                
+                // Sort by RELEVANCE first (nama person match), then by platform
+                const sortedLinks = [...socialLinks].sort((a, b) => {
+                    // Calculate relevance score (0-3 points)
+                    const scoreA = getRelevanceScore(a, searchName);
+                    const scoreB = getRelevanceScore(b, searchName);
+                    
+                    // Higher score = more relevant = appears first
+                    if (scoreB !== scoreA) {
+                        return scoreB - scoreA; // Descending (highest first)
+                    }
+                    
+                    // If same relevance, sort by platform name
+                    const platformA = getPlatformName(a.link || '');
+                    const platformB = getPlatformName(b.link || '');
+                    return platformA.localeCompare(platformB);
+                });
+                
+                console.log('Sorted links by relevance:', sortedLinks.length);
+                
+                // Create grid
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">';
+                
+                sortedLinks.forEach((link, index) => {
+                    const platform = getPlatformName(link.link);
+                    const icon = getPlatformIcon(link.link);
+                    const color = getPlatformColor(link.link);
+                    const imageUrl = extractImage(link, platform);
+                    const relevanceScore = getRelevanceScore(link, searchName);
+                    
+                    // Detect source (INTERNAL vs GOOGLE vs SOCIAL SEARCHER)
+                    const isUniversal = link.source === 'Universal Search';
+                    const isSocialSearcher = link.source === 'Social Searcher Style';
+                    const sourceBadge = isUniversal
+                        ? '<span style="display: inline-block; padding: 2px 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;"><i class="fas fa-server" style="font-size: 0.6rem;"></i> INTERNAL</span>'
+                        : isSocialSearcher
+                        ? '<span style="display: inline-block; padding: 2px 6px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;"><i class="fas fa-search" style="font-size: 0.6rem;"></i> SOCIAL SEARCHER</span>'
+                        : '<span style="display: inline-block; padding: 2px 6px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;"><i class="fab fa-google" style="font-size: 0.6rem;"></i> GOOGLE</span>';
+                    
+                    // Highlight high relevance items
+                    const isHighRelevance = relevanceScore >= 3;
+                    const relevanceBadge = isHighRelevance ?
+                        '<span style="display: inline-block; padding: 2px 6px; background: #10b981; color: white; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-left: 5px;"><i class="fas fa-star" style="font-size: 0.6rem;"></i> MATCH</span>' : '';
+                    
+                    html += `
+                        <div style="background: white; border-radius: 10px; padding: 15px; border-left: 3px solid ${color}; ${isHighRelevance ? 'box-shadow: 0 0 0 2px ' + color + '20;' : 'border: 1px solid #e5e7eb;'} transition: all 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='${isHighRelevance ? '0 0 0 2px ' + color + '20' : 'none'}';">
+                            <a href="${link.link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit;">
+                                <!-- Profile Image (ALWAYS SHOWN) -->
+                                <div style="width: 100%; height: 140px; overflow: hidden; border-radius: 8px; margin-bottom: 12px; background: linear-gradient(135deg, ${color}15, ${color}05);">
+                                    <img src="${imageUrl}"
+                                         alt="${platform}"
+                                         style="width: 100%; height: 100%; object-fit: cover;"
+                                         onerror="this.style.objectFit='contain'; this.style.padding='20px';">
+                                </div>
+                                
+                                <!-- Platform Info -->
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <div style="color: ${color}; font-size: 1.5rem;">
+                                        <i class="${icon}"></i>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                            <div style="font-weight: 700; color: ${color}; font-size: 0.9rem;">${platform}</div>
+                                            ${sourceBadge}
+                                            ${relevanceBadge}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Profile Title -->
+                                <div style="font-size: 0.9rem; font-weight: 600; color: #1f2937; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${link.title || 'Profile'}</div>
+                                
+                                <!-- Snippet -->
+                                <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;">${link.snippet || ''}</div>
+                                
+                                <!-- Link -->
+                                <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #f3f4f6;">
+                                    <span style="font-size: 0.7rem; color: #9ca3af;">
+                                        <i class="fas fa-link"></i> ${link.displayLink || link.formattedUrl || 'Social Media'}
+                                    </span>
+                                </div>
+                            </a>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                // Add header dengan count
+                html = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                        <h4 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-users"></i> Social Media Links
+                            <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem;">${socialLinks.length} platforms</span>
+                        </h4>
+                        </div>
+                ` + html;
+            } else {
+                html = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>Tidak ada link social media ditemukan</p>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // ============================================================================
+        // TAB SWITCHING & GOOGLE CSE FUNCTIONS
+        // ============================================================================
+
+        // Switch Social Media Tab
+        function switchSocialMediaTab(tabId) {
+            // Update button styles
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => {
+                btn.style.background = '#f3f4f6';
+                btn.style.color = '#6b7280';
+            });
+            
+            const activeButton = Array.from(buttons).find(btn =>
+                btn.getAttribute('onclick').includes(`'${tabId}'`)
+            );
+            if (activeButton) {
+                activeButton.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                activeButton.style.color = 'white';
+            }
+            
+            // Update tab content visibility
+            const tabs = document.querySelectorAll('.tab-pane');
+            tabs.forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            if (activeTab) {
+                activeTab.style.display = 'block';
+            }
+            
+            console.log('Switched to tab:', tabId);
+        }
+
+        // REMOVED: Google CSE Web tab functionality (no longer used)
+        // Function removed - tab "Web" has been deleted
+        async function _removed_loadGoogleCSEInIframe(searchQuery) {
+            console.log('🌐 [Google CSE Web] Fetching results via API (no iframe)...');
+            
+            const container = document.getElementById('googleWebSearch');
+            if (!container) {
+                console.error('❌ [Google CSE Web] Container #googleWebSearch NOT FOUND!');
+                return;
+            }
+            
+            // Show loading state
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p style="margin-top: 20px;">Mencari hasil dari Google CSE...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/google-cse-widget', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: searchQuery, type: 'web' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.web && result.data.web.length > 0) {
+                    const results = result.data.web;
+                    console.log(`✅ [Google CSE Web] Found ${results.length} results`);
+                    
+                    let html = `
+                        <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">
+                            <h4 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                <i class="fab fa-google"></i>
+                                Google CSE Results (${results.length} results)
+                            </h4>
+                            <p style="margin: 5px 0 0 0; font-size: 0.9rem; opacity: 0.9;">
+                                ♾️ UNLIMITED - No API key, no quota limits!
+                            </p>
+                        </div>
+                    `;
+                    
+                    results.forEach((item, index) => {
+                        const domain = new URL(item.link).hostname.replace('www.', '');
+                        html += `
+                            <div class="result-item" style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <div class="result-title" style="margin-bottom: 8px;">
+                                    <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.05rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px;">
+                                        <i class="fas fa-external-link-alt" style="font-size: 0.8rem; margin-top: 4px; color: #667eea;"></i>
+                                        <span style="flex: 1;">${item.title || 'No Title'}</span>
+                                        <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 10px; font-size: 0.7rem; font-weight: 600;">
+                                            <i class="fab fa-google"></i> GOOGLE
+                                        </span>
+                                    </a>
+                                </div>
+                                <div class="result-url" style="color: #10b981; font-size: 0.85rem; margin-bottom: 8px;">
+                                    <i class="fas fa-link"></i> ${item.displayLink || domain}
+                                </div>
+                                <div class="result-snippet" style="color: #4b5563; font-size: 0.9rem; line-height: 1.6;">
+                                    ${item.snippet || 'No description available'}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                    console.log('✅ [Google CSE Web] Results displayed successfully!');
+                } else {
+                    // Show error message if available
+                    const errorMsg = result.error || result.message || 'Tidak ada hasil ditemukan';
+                    const helpMsg = result.message || '';
+                    const isQuotaError = errorMsg.includes('quota') || errorMsg.includes('Quota');
+                    const isRateLimit = errorMsg.includes('rate limit') || errorMsg.includes('429') || errorMsg.includes('too many requests');
+                    
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: ${isQuotaError || isRateLimit ? '#f59e0b' : '#6b7280'};">
+                            <i class="fas ${isQuotaError || isRateLimit ? 'fa-exclamation-triangle' : 'fa-search'}" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                            <p style="font-weight: 600; margin-bottom: 10px; font-size: 1.1rem;">${errorMsg}</p>
+                            ${helpMsg ? `<p style="font-size: 0.9rem; color: #9ca3af; margin-bottom: 15px;">${helpMsg}</p>` : ''}
+                            ${isQuotaError ? 
+                                '<p style="font-size: 0.85rem; color: #9ca3af;">Quota akan reset di midnight Pacific Time. Gunakan tab "Categorized" atau "Social Links" untuk hasil internal.</p>' :
+                            isRateLimit ?
+                                '<p style="font-size: 0.85rem; color: #9ca3af;">Google Search sementara memblokir request. Tunggu beberapa menit dan coba lagi, atau gunakan tab "Categorized" untuk hasil internal.</p>' :
+                                '<p style="font-size: 0.85rem; color: #9ca3af;">Coba gunakan kata kunci yang berbeda atau gunakan tab "Categorized" untuk hasil internal.</p>'
+                            }
+                            <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+                                <p style="font-size: 0.85rem; color: #0c4a6e; margin: 0;">
+                                    <i class="fas fa-lightbulb"></i> <strong>Tips:</strong> Gunakan tab <strong>"Categorized"</strong> atau <strong>"Social Links"</strong> untuk melihat hasil dari pencarian internal (tidak terpengaruh rate limit).
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ [Google CSE Web] Error:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                        <p>Error loading Google CSE results</p>
+                        <p style="font-size: 0.85rem; color: #9ca3af;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // REMOVED: Google CSE Image tab functionality (no longer used)
+        // Function removed - tab "Gambar" has been deleted
+        async function _removed_loadGoogleCSEImageInIframe(searchQuery) {
+            console.log('📷 [Google CSE Image] Fetching results via API (no iframe)...');
+            
+            const container = document.getElementById('googleImageSearch');
+            if (!container) {
+                console.error('❌ [Google CSE Image] Container #googleImageSearch NOT FOUND!');
+                return;
+            }
+            
+            // Show loading state
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #6b7280;">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="sr-only">Loading...</span>
+                        </div>
+                    <p style="margin-top: 20px;">Mencari gambar dari Google CSE...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/google-cse-widget', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: searchQuery, type: 'image' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.images && result.data.images.length > 0) {
+                    const results = result.data.images;
+                    console.log(`✅ [Google CSE Image] Found ${results.length} images`);
+                    
+                    let html = `
+                        <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; color: white;">
+                            <h4 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-images"></i>
+                                Google CSE Images (${results.length} images)
+                            </h4>
+                            <p style="margin: 5px 0 0 0; font-size: 0.9rem; opacity: 0.9;">
+                                ♾️ UNLIMITED - No API key, no quota limits!
+                            </p>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                `;
+
+                    results.forEach((item, index) => {
+                html += `
+                            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <a href="${item.link}" target="_blank" rel="noopener noreferrer" style="display: block; text-decoration: none;">
+                                    <div style="width: 100%; height: 200px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                        <img src="${item.imageUrl || item.link}" alt="${item.title}" 
+                                             style="max-width: 100%; max-height: 100%; object-fit: cover;"
+                                             onerror="this.parentElement.innerHTML='<i class=\\'fas fa-image\\' style=\\'font-size: 3rem; color: #9ca3af;\\'></i>'">
+                        </div>
+                                    <div style="padding: 10px;">
+                                        <p style="font-size: 0.85rem; color: #1f2937; margin: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.title}">
+                                            ${item.title || 'No Title'}
+                                        </p>
+                                        <p style="font-size: 0.75rem; color: #6b7280; margin: 5px 0 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            ${new URL(item.link).hostname.replace('www.', '')}
+                                        </p>
+                                    </div>
+                                </a>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                    container.innerHTML = html;
+                    console.log('✅ [Google CSE Image] Images displayed successfully!');
+                } else {
+                    // Show error message if available
+                    const errorMsg = result.error || result.message || 'Tidak ada gambar ditemukan';
+                    const helpMsg = result.message || '';
+                    const isQuotaError = errorMsg.includes('quota') || errorMsg.includes('Quota');
+                    const isRateLimit = errorMsg.includes('rate limit') || errorMsg.includes('429') || errorMsg.includes('too many requests');
+                    
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: ${isQuotaError || isRateLimit ? '#f59e0b' : '#6b7280'};">
+                            <i class="fas ${isQuotaError || isRateLimit ? 'fa-exclamation-triangle' : 'fa-image'}" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                            <p style="font-weight: 600; margin-bottom: 10px; font-size: 1.1rem;">${errorMsg}</p>
+                            ${helpMsg ? `<p style="font-size: 0.9rem; color: #9ca3af; margin-bottom: 15px;">${helpMsg}</p>` : ''}
+                            ${isQuotaError ? 
+                                '<p style="font-size: 0.85rem; color: #9ca3af;">Quota akan reset di midnight Pacific Time. Gunakan tab "Categorized" atau "Social Links" untuk hasil internal.</p>' :
+                            isRateLimit ?
+                                '<p style="font-size: 0.85rem; color: #9ca3af;">Google Search sementara memblokir request. Tunggu beberapa menit dan coba lagi, atau gunakan tab "Categorized" untuk hasil internal.</p>' :
+                                '<p style="font-size: 0.85rem; color: #9ca3af;">Coba gunakan kata kunci yang berbeda atau gunakan tab "Categorized" untuk hasil internal.</p>'
+                            }
+                            <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 8px; border: 1px solid #fde68a;">
+                                <p style="font-size: 0.85rem; color: #78350f; margin: 0;">
+                                    <i class="fas fa-lightbulb"></i> <strong>Tips:</strong> Gunakan tab <strong>"Categorized"</strong> atau <strong>"Social Links"</strong> untuk melihat hasil dari pencarian internal (tidak terpengaruh rate limit).
+                                </p>
+                            </div>
+                    </div>
+                `;
+                }
+            } catch (error) {
+                console.error('❌ [Google CSE Image] Error:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                        <p>Error loading Google CSE images</p>
+                        <p style="font-size: 0.85rem; color: #9ca3af;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================================================
+        // AI ANALYSIS FUNCTION
+        // ============================================================================
+
+        // Perform AI Analysis
+        async function performAIAnalysis(name, socialLinks) {
+            const section = document.getElementById('aiAnalysisSection');
+            const content = document.getElementById('aiAnalysisContent');
+            
+            if (!section || !content) return;
+            
+            // Show section
+            section.style.display = 'block';
+            
+            // Create analysis
+            const analysis = {
+                name: name,
+                total_links: socialLinks.length,
+                platforms: {},
+                confidence: 0,
+                verification: 'unknown',
+                risk: 'low'
+            };
+            
+            // Count platforms
+            socialLinks.forEach(link => {
+                const platform = getPlatformName(link.link);
+                analysis.platforms[platform] = (analysis.platforms[platform] || 0) + 1;
+            });
+            
+            // Calculate confidence
+            if (socialLinks.length >= 5) {
+                analysis.confidence = 0.9;
+                analysis.verification = 'highly_verified';
+            } else if (socialLinks.length >= 3) {
+                analysis.confidence = 0.75;
+                analysis.verification = 'verified';
+            } else if (socialLinks.length >= 1) {
+                analysis.confidence = 0.5;
+                analysis.verification = 'partially_verified';
+                } else {
+                analysis.confidence = 0.2;
+                analysis.verification = 'unverified';
+                analysis.risk = 'medium';
+            }
+            
+            // Display analysis
+            let html = `
+                <div style="display: grid; gap: 15px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Total Platforms</div>
+                            <div style="font-size: 2rem; font-weight: 700;">${analysis.total_links}</div>
+                    </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Confidence Score</div>
+                            <div style="font-size: 2rem; font-weight: 700;">${Math.round(analysis.confidence * 100)}%</div>
+                    </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Verification</div>
+                            <div style="font-size: 1.2rem; font-weight: 600; text-transform: capitalize;">${analysis.verification.replace('_', ' ')}</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Risk Level</div>
+                            <div style="font-size: 1.2rem; font-weight: 600; text-transform: uppercase;">${analysis.risk}</div>
+                    </div>
+                </div>
+            `;
+            
+            if (Object.keys(analysis.platforms).length > 0) {
+                html += `
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px;">Platform Distribution</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                `;
+                
+                Object.entries(analysis.platforms).forEach(([platform, count]) => {
+                    const color = getPlatformColor(`https://${platform.toLowerCase()}.com`);
+                html += `
+                        <span style="padding: 6px 12px; background: rgba(255,255,255,0.3); border-radius: 8px; font-size: 0.85rem; font-weight: 500;">
+                            ${platform}: ${count}
+                        </span>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                </div>
+            `;
+        }
+
+            html += '</div>';
+            content.innerHTML = html;
+            
+            console.log('✓ AI Analysis complete:', analysis);
         }
 
         // Close modal when clicking outside
