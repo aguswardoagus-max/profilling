@@ -513,6 +513,41 @@ FAMILY_API_BASE = config.get('FAMILY_API_BASE', 'http://10.1.54.224:4646/json/cl
 FAMILY_API_ALT = config.get('FAMILY_API_ALT', 'http://10.1.54.116:27682/api/v1/ktp/internal')
 PHONE_API_BASE = config.get('PHONE_API_BASE', 'http://10.1.54.224:4646/json/clearance/phones')
 
+# Helper function to get Google CSE API Key with automatic rotation
+def get_google_cse_api_key(used_key: str = None, error_code: int = None, error_message: str = None):
+    """
+    Get Google CSE API Key with automatic rotation and error handling
+    
+    Args:
+        used_key: The API key that was just used (to mark as quota exceeded if needed)
+        error_code: Error code from API response (429 = quota exceeded)
+        error_message: Error message from API response
+    
+    Returns:
+        Active API key string, or None if no active keys available
+    """
+    # If we got an error, handle it
+    if used_key and error_code:
+        if error_code == 429:  # Quota exceeded
+            logger.warning(f"API key quota exceeded, marking as quota_exceeded: {used_key[:10]}...")
+            db.mark_api_key_quota_exceeded(used_key, error_message)
+        elif error_code in [400, 403]:  # Invalid or forbidden
+            logger.warning(f"API key error ({error_code}), marking as error: {used_key[:10]}...")
+            db.mark_api_key_error(used_key, error_message or f"Error code: {error_code}")
+    
+    # Try to get active API key from api_keys table (with rotation)
+    api_key = db.get_active_api_key('GOOGLE_CSE')
+    if api_key:
+        return api_key
+    
+    # Fall back to system_settings (backward compatibility)
+    db_api_key = db.get_setting('GOOGLE_CSE_API_KEY')
+    if db_api_key:
+        return db_api_key
+    
+    # Fall back to environment variable
+    return os.getenv('GOOGLE_CSE_API_KEY', '')
+
 app = Flask(__name__, 
            static_folder=frontend_static_dir,
            template_folder=frontend_pages_dir)
@@ -3007,6 +3042,167 @@ def api_validate_session():
         print(f"Session validation error: {str(e)}")
         return jsonify({'valid': False, 'error': f'Session validation error: {str(e)}'}), 500
 
+@app.route('/api/settings/api-key', methods=['GET'])
+@require_auth
+def api_get_api_key():
+    """API endpoint untuk mendapatkan Google CSE API Key (masked)"""
+    try:
+        # Get session token from cookie or header
+        session_token = request.cookies.get('session_token')
+        if not session_token:
+            session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        # Validate session (require_auth already does this, but double-check for safety)
+        if session_token:
+            user = validate_session_token(session_token)
+            if not user:
+                return jsonify({'error': 'Invalid or expired session'}), 401
+        
+        # Get all API keys from api_keys table (for multiple API key support)
+        all_api_keys = db.get_all_api_keys('GOOGLE_CSE')
+        
+        # Also get from system_settings for backward compatibility
+        system_setting_key = db.get_setting('GOOGLE_CSE_API_KEY')
+        
+        # Get current active API key
+        current_api_key = get_google_cse_api_key()
+        
+        # Mask current API key for security
+        if current_api_key and len(current_api_key) > 14:
+            masked_key = f"{current_api_key[:10]}...{current_api_key[-4:]}"
+        elif current_api_key:
+            masked_key = "***"
+        else:
+            masked_key = ""
+        
+        return jsonify({
+            'success': True,
+            'api_key_masked': masked_key,
+            'has_api_key': bool(current_api_key),
+            'key_length': len(current_api_key) if current_api_key else 0,
+            'total_api_keys': len(all_api_keys),
+            'api_keys': all_api_keys,  # List of all API keys (masked)
+            'has_system_setting': bool(system_setting_key)
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error getting API key: {str(e)}'}), 500
+
+@app.route('/api/settings/api-key', methods=['POST'])
+@require_auth
+def api_update_api_key():
+    """API endpoint untuk update Google CSE API Key"""
+    try:
+        # Check if user is admin
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not session_token:
+            session_token = request.cookies.get('session_token')
+        
+        user = validate_session_token(session_token)
+        if not user or user.get('role') != 'admin':
+            return jsonify({'error': 'Only administrators can update API keys'}), 403
+        
+        data = request.get_json()
+        api_key = data.get('api_key', '').strip()
+        
+        if not api_key:
+            return jsonify({'error': 'API key is required'}), 400
+        
+        # Validate API key format (Google API keys usually start with AIza)
+        if not api_key.startswith('AIza'):
+            return jsonify({'error': 'Invalid API key format. Google API keys should start with "AIza"'}), 400
+        
+        # Save to api_keys table (for multiple API key support with rotation)
+        # This allows automatic rotation when quota exceeded
+        description = data.get('description', 'Google CSE API Key from Settings')
+        priority = int(data.get('priority', 0))  # Higher priority used first
+        
+        # Add to api_keys table (will create new entry or update existing for rotation support)
+        # add_api_key() will automatically check for duplicates and update if exists
+        success_api_keys = db.add_api_key(
+            api_key=api_key,
+            api_type='GOOGLE_CSE',
+            description=description,
+            priority=priority
+        )
+        
+        # Also save to system_settings for backward compatibility
+        success_settings = db.update_setting(
+            'GOOGLE_CSE_API_KEY',
+            api_key,
+            'Google Custom Search Engine API Key'
+        )
+        
+        if not success_api_keys and not success_settings:
+            return jsonify({'error': 'Failed to save API key to database'}), 500
+        
+        # Also update .env file
+        env_paths = [
+            Path(project_root) / '.env',
+            Path(project_root) / 'backend' / '.env'
+        ]
+        
+        env_updated = False
+        for env_path in env_paths:
+            if env_path.exists():
+                try:
+                    # Read existing .env file
+                    with open(env_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    
+                    # Update or add GOOGLE_CSE_API_KEY
+                    updated = False
+                    new_lines = []
+                    for line in lines:
+                        if line.strip().startswith('GOOGLE_CSE_API_KEY='):
+                            new_lines.append(f'GOOGLE_CSE_API_KEY={api_key}\n')
+                            updated = True
+                        else:
+                            new_lines.append(line)
+                    
+                    # If not found, add it
+                    if not updated:
+                        new_lines.append(f'GOOGLE_CSE_API_KEY={api_key}\n')
+                    
+                    # Write back to file
+                    with open(env_path, 'w', encoding='utf-8') as f:
+                        f.writelines(new_lines)
+                    
+                    env_updated = True
+                    logger.info(f"Updated .env file at {env_path}")
+                    break
+                except Exception as e:
+                    logger.error(f"Error updating .env file at {env_path}: {e}")
+        
+        # Update environment variable for current session
+        os.environ['GOOGLE_CSE_API_KEY'] = api_key
+        
+        # Log activity
+        if user:
+            db.log_activity(
+                user['id'],
+                'settings_update',
+                'Updated Google CSE API Key',
+                request.remote_addr,
+                request.headers.get('User-Agent')
+            )
+        
+        # Count total active API keys
+        all_keys = db.get_all_api_keys('GOOGLE_CSE')
+        active_count = sum(1 for k in all_keys if k.get('status') == 'active')
+        
+        return jsonify({
+            'success': True,
+            'message': f'API key berhasil ditambahkan! Total {len(all_keys)} API key(s), {active_count} aktif',
+            'env_updated': env_updated,
+            'total_api_keys': len(all_keys),
+            'active_api_keys': active_count,
+            'note': 'API key akan otomatis di-rotate jika quota habis. Restart server untuk perubahan .env berlaku penuh.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating API key: {e}")
+        return jsonify({'error': f'Error updating API key: {str(e)}'}), 500
+
 @app.route('/api/debug/session-status', methods=['GET'])
 def debug_session_status():
     """Debug endpoint to check session status"""
@@ -4773,17 +4969,31 @@ def api_social_media_search():
         
         # Google Custom Search Engine API
         CSE_ID = '7693f5093e95e4c28'
-        # Get API key from environment variable
-        API_KEY = os.getenv('GOOGLE_CSE_API_KEY') or request.args.get('key')
-        if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
         
         # Build search query untuk social media - format lebih beragam untuk hasil yang seimbang
         # Gunakan nama dengan quotes untuk exact match, tapi tanpa bias ke social media
         query = name if 'site:' in name else f'"{name}"'  # Support advanced queries
         
-        # Google CSE API endpoint
-        search_url = 'https://www.googleapis.com/customsearch/v1'
+        # Try with multiple API keys (automatic rotation on quota exceeded)
+        max_retries = 5  # Try up to 5 different API keys
+        API_KEY = None
+        last_error = None
+        
+        for attempt in range(max_retries):
+            # Get next active API key
+            API_KEY = get_google_cse_api_key(
+                used_key=API_KEY if attempt > 0 else None,
+                error_code=last_error.get('code') if last_error else None,
+                error_message=last_error.get('message') if last_error else None
+            ) or request.args.get('key')
+            
+            if not API_KEY:
+                break  # No more API keys available
+            
+            logger.info(f"Attempt {attempt + 1}/{max_retries}: Using API key {API_KEY[:10]}...")
+            
+            # Google CSE API endpoint
+            search_url = 'https://www.googleapis.com/customsearch/v1'
         
         # OPTIMIZED: Maximum coverage untuk hasil yang lebih banyak dan detail
         # 10 pages × 10 results = 100 results per query (MAXIMUM COVERAGE!)
@@ -5290,9 +5500,10 @@ def test_google_cse():
         import urllib.parse
         
         CSE_ID = '7693f5093e95e4c28'
-        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
+        # Get API key from database first, then environment variable
+        API_KEY = get_google_cse_api_key()
         if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di Settings page atau file .env'}), 500
         
         # Test query
         test_query = request.args.get('q', 'test') or (request.get_json() or {}).get('q', 'test')
@@ -5732,10 +5943,10 @@ def api_social_searcher_style():
         
         # Google CSE Configuration - USE API (not scraping!)
         CSE_ID = '7693f5093e95e4c28'
-        # Get API key from environment variable
-        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
+        # Get API key from database first, then environment variable
+        API_KEY = get_google_cse_api_key()
         if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di Settings page atau file .env'}), 500
         
         # Platform-specific search queries dengan fokus pada profil dengan gambar
         platforms = {
