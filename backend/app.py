@@ -3085,7 +3085,13 @@ def api_get_api_key():
             'has_system_setting': bool(system_setting_key)
         })
     except Exception as e:
-        return jsonify({'error': f'Error getting API key: {str(e)}'}), 500
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in api_get_api_key: {error_trace}")
+        return jsonify({
+            'success': False,
+            'error': f'Error getting API key: {str(e)}'
+        }), 500
 
 @app.route('/api/settings/api-key', methods=['POST'])
 @require_auth

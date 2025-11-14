@@ -1269,12 +1269,53 @@ class UserDatabase:
 
     def get_all_api_keys(self, api_type: str = 'GOOGLE_CSE') -> List[Dict]:
         """Get all API keys for a type"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
+                print("Warning: No database connection available for get_all_api_keys")
                 return []
             
             cursor = conn.cursor(dictionary=True)
+            
+            # Check if table exists first
+            cursor.execute('''
+                SELECT COUNT(*) as table_exists
+                FROM information_schema.tables 
+                WHERE table_schema = DATABASE() 
+                AND table_name = 'api_keys'
+            ''')
+            table_check = cursor.fetchone()
+            
+            if not table_check or table_check['table_exists'] == 0:
+                print("Warning: api_keys table does not exist. Creating it now...")
+                # Try to create the table
+                try:
+                    cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS api_keys (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            api_key VARCHAR(255) NOT NULL,
+                            api_type VARCHAR(50) NOT NULL DEFAULT 'GOOGLE_CSE',
+                            status ENUM('active', 'quota_exceeded', 'disabled', 'error') NOT NULL DEFAULT 'active',
+                            usage_count INT DEFAULT 0,
+                            last_used TIMESTAMP NULL,
+                            quota_exceeded_at TIMESTAMP NULL,
+                            error_message TEXT,
+                            description VARCHAR(255),
+                            priority INT DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            INDEX idx_api_type (api_type),
+                            INDEX idx_status (status),
+                            INDEX idx_priority (priority),
+                            INDEX idx_status_priority (status, priority)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    ''')
+                    conn.commit()
+                    print("Successfully created api_keys table")
+                except Exception as create_error:
+                    print(f"Error creating api_keys table: {create_error}")
+                    return []
             
             cursor.execute('''
                 SELECT id, api_key, status, usage_count, last_used, quota_exceeded_at, 
@@ -1297,7 +1338,14 @@ class UserDatabase:
             
             return results
         except Error as e:
+            import traceback
             print(f"Error getting API keys: {e}")
+            print(traceback.format_exc())
+            return []
+        except Exception as e:
+            import traceback
+            print(f"Unexpected error getting API keys: {e}")
+            print(traceback.format_exc())
             return []
         finally:
             if cursor:
