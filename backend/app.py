@@ -514,6 +514,11 @@ FAMILY_API_ALT = config.get('FAMILY_API_ALT', 'http://10.1.54.116:27682/api/v1/k
 PHONE_API_BASE = config.get('PHONE_API_BASE', 'http://10.1.54.224:4646/json/clearance/phones')
 
 # Helper function to get Google CSE API Key with automatic rotation
+# Cache untuk menghindari query database berulang saat error
+_db_connection_failed = False
+_db_failure_count = 0
+_last_env_api_key = None
+
 def get_google_cse_api_key(used_key: str = None, error_code: int = None, error_message: str = None):
     """
     Get Google CSE API Key with automatic rotation and error handling
@@ -526,47 +531,52 @@ def get_google_cse_api_key(used_key: str = None, error_code: int = None, error_m
     Returns:
         Active API key string, or None if no active keys available
     """
-    # If we got an error, handle it (but don't block if DB is down)
-    if used_key and error_code:
+    global _db_connection_failed, _db_failure_count, _last_env_api_key
+    
+    # If we got an error, handle it silently (only if DB is available)
+    if used_key and error_code and not _db_connection_failed:
         try:
             if error_code == 429:  # Quota exceeded
-                logger.warning(f"API key quota exceeded, marking as quota_exceeded: {used_key[:10]}...")
                 db.mark_api_key_quota_exceeded(used_key, error_message)
             elif error_code in [400, 403]:  # Invalid or forbidden
-                logger.warning(f"API key error ({error_code}), marking as error: {used_key[:10]}...")
                 db.mark_api_key_error(used_key, error_message or f"Error code: {error_code}")
-        except Exception as e:
-            logger.warning(f"Failed to mark API key status (DB may be down): {e}")
-            # Continue anyway, we'll still try to get a new key
+        except Exception:
+            # Silent fail - DB may be unavailable
+            pass
     
-    # Priority 1: Try to get active API key from api_keys table (with rotation)
-    # But don't fail if database is unavailable - fail fast and fallback
-    try:
-        api_key = db.get_active_api_key('GOOGLE_CSE')
-        if api_key:
-            return api_key
-    except Exception as e:
-        logger.debug(f"Database unavailable for api_keys table: {e}")
-        # Continue to next fallback
-    
-    # Priority 2: Fall back to system_settings (backward compatibility)
-    try:
-        db_api_key = db.get_setting('GOOGLE_CSE_API_KEY')
-        if db_api_key:
-            return db_api_key
-    except Exception as e:
-        logger.debug(f"Database unavailable for system_settings: {e}")
-        # Continue to next fallback
-    
-    # Priority 3: Fall back to environment variable (always available, no DB needed)
-    # This is the most reliable source when database is down
+    # Check environment variable first if DB has been failing
     env_api_key = os.getenv('GOOGLE_CSE_API_KEY', '')
     if env_api_key:
-        logger.info("Using API key from environment variable (database unavailable or no keys in DB)")
+        _last_env_api_key = env_api_key
+    
+    # If DB connection has been failing repeatedly, skip DB and use env var silently
+    if _db_connection_failed and _db_failure_count > 3:
+        if env_api_key:
+            return env_api_key
+        return ''
+    
+    # Try to get active API key from api_keys table (with rotation)
+    # Silent try - no error logging if DB fails
+    api_key = db.get_active_api_key('GOOGLE_CSE')
+    if api_key:
+        # Reset failure counter on success
+        _db_connection_failed = False
+        _db_failure_count = 0
+        return api_key
+    
+    # Fall back to system_settings (backward compatibility)
+    db_api_key = db.get_setting('GOOGLE_CSE_API_KEY')
+    if db_api_key:
+        # Reset failure counter on success
+        _db_connection_failed = False
+        _db_failure_count = 0
+        return db_api_key
+    
+    # Fall back to environment variable (always available, no errors)
+    if env_api_key:
         return env_api_key
     
     # No API key available anywhere
-    logger.error("No API key available from database or environment variable")
     return ''
 
 app = Flask(__name__, 
@@ -3112,6 +3122,99 @@ def api_get_api_key():
         return jsonify({
             'success': False,
             'error': f'Error getting API key: {str(e)}'
+        }), 500
+
+@app.route('/api/settings/api-key/<int:key_id>', methods=['DELETE'])
+@require_auth
+def api_delete_api_key(key_id):
+    """API endpoint untuk menghapus API key"""
+    try:
+        # Check if user is admin
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not session_token:
+            session_token = request.cookies.get('session_token')
+        
+        user = validate_session_token(session_token)
+        if not user or user.get('role') != 'admin':
+            return jsonify({'error': 'Only administrators can delete API keys'}), 403
+        
+        # Delete API key
+        success = db.delete_api_key(key_id)
+        
+        if success:
+            # Log activity
+            try:
+                db.log_user_activity(
+                    user_id=user.get('id'),
+                    activity_type='api_key_deleted',
+                    description=f'Deleted API key ID: {key_id}',
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent', '')
+                )
+            except:
+                pass  # Non-critical
+            
+            return jsonify({
+                'success': True,
+                'message': 'API key deleted successfully'
+            })
+        else:
+            return jsonify({'error': 'API key not found or failed to delete'}), 404
+            
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in api_delete_api_key: {error_trace}")
+        return jsonify({
+            'success': False,
+            'error': f'Error deleting API key: {str(e)}'
+        }), 500
+
+@app.route('/api/settings/api-key/cleanup', methods=['POST'])
+@require_auth
+def api_cleanup_old_api_keys():
+    """API endpoint untuk auto-cleanup API keys yang error lama"""
+    try:
+        # Check if user is admin
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not session_token:
+            session_token = request.cookies.get('session_token')
+        
+        user = validate_session_token(session_token)
+        if not user or user.get('role') != 'admin':
+            return jsonify({'error': 'Only administrators can cleanup API keys'}), 403
+        
+        data = request.get_json() or {}
+        days_old = int(data.get('days_old', 30))  # Default 30 days
+        
+        # Cleanup old error API keys
+        deleted_count = db.cleanup_old_error_api_keys(days_old)
+        
+        # Log activity
+        try:
+            db.log_user_activity(
+                user_id=user.get('id'),
+                activity_type='api_key_cleanup',
+                description=f'Cleaned up {deleted_count} old error API keys (older than {days_old} days)',
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent', '')
+            )
+        except:
+            pass  # Non-critical
+        
+        return jsonify({
+            'success': True,
+            'message': f'Cleaned up {deleted_count} old error API key(s)',
+            'deleted_count': deleted_count
+        })
+            
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in api_cleanup_old_api_keys: {error_trace}")
+        return jsonify({
+            'success': False,
+            'error': f'Error cleaning up API keys: {str(e)}'
         }), 500
 
 @app.route('/api/settings/api-key', methods=['POST'])

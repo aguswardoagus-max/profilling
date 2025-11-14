@@ -1306,6 +1306,19 @@
             background-clip: text;
         }
 
+        .btn-delete-api-key {
+            transition: all 0.3s ease;
+        }
+
+        .btn-delete-api-key:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4) !important;
+        }
+
+        .btn-delete-api-key:active {
+            transform: scale(0.95);
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .api-keys-container {
@@ -2017,6 +2030,12 @@
                     <div class="card-description" style="font-size: 0.95rem; color: #4b5563; margin-bottom: 20px; font-weight: 500;">
                         <i class="fas fa-info-circle" style="margin-right: 8px; color: #667eea;"></i>Pantau status, penggunaan, dan rotasi semua API key secara real-time
                     </div>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px; gap: 10px;">
+                        <button class="btn btn-secondary" onclick="cleanupOldApiKeys()" style="padding: 8px 16px; font-size: 0.85rem; border-radius: 20px;">
+                            <i class="fas fa-broom"></i>
+                            Bersihkan API Keys Lama
+                        </button>
+                    </div>
                     <div id="apiKeysList" style="width: 100%; overflow-x: auto;">
                         <div style="text-align: center; padding: 40px; color: #6b7280;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 15px; color: #667eea;"></i>
@@ -2711,7 +2730,12 @@
                                 <span class="api-key-masked">${key.api_key_masked || '***'}</span>
                                 ${priorityBadge}
                             </div>
-                            <span class="api-key-status ${statusClass}">${statusIcon}${statusLabelId}</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="api-key-status ${statusClass}">${statusIcon}${statusLabelId}</span>
+                                <button class="btn-delete-api-key" onclick="deleteApiKey(${key.id})" title="Hapus API Key" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.75rem; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                         ${description}
                         ${errorMsg}
@@ -2801,6 +2825,86 @@
                 realtimeInterval = setInterval(() => {
                     loadApiKeysList();
                 }, 5000);
+            }
+        }
+
+        async function deleteApiKey(keyId) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus API key ID #${keyId}? Tindakan ini tidak dapat dibatalkan.`)) {
+                return;
+            }
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    app.showAlert('Silakan login untuk menghapus API key', 'error');
+                    return;
+                }
+
+                const response = await fetch(`/api/settings/api-key/${keyId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    app.showAlert(`API key ID #${keyId} berhasil dihapus`, 'success');
+                    // Reload API keys list
+                    loadApiKeysList();
+                    loadApiKey();
+                } else {
+                    app.showAlert(data.error || 'Gagal menghapus API key', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting API key:', error);
+                app.showAlert('Error menghapus API key: ' + error.message, 'error');
+            }
+        }
+
+        async function cleanupOldApiKeys() {
+            if (!confirm('Apakah Anda yakin ingin membersihkan API keys yang error lebih dari 30 hari? Tindakan ini akan menghapus API keys yang sudah lama error.')) {
+                return;
+            }
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    app.showAlert('Silakan login untuk membersihkan API keys', 'error');
+                    return;
+                }
+
+                app.showLoading(true);
+
+                const response = await fetch('/api/settings/api-key/cleanup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ days_old: 30 })
+                });
+
+                const data = await response.json();
+
+                app.showLoading(false);
+
+                if (response.ok && data.success) {
+                    app.showAlert(`Berhasil membersihkan ${data.deleted_count} API key(s) yang lama`, 'success');
+                    // Reload API keys list
+                    loadApiKeysList();
+                    loadApiKey();
+                } else {
+                    app.showAlert(data.error || 'Gagal membersihkan API keys', 'error');
+                }
+            } catch (error) {
+                app.showLoading(false);
+                console.error('Error cleaning up API keys:', error);
+                app.showAlert('Error membersihkan API keys: ' + error.message, 'error');
             }
         }
 

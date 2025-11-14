@@ -12,77 +12,57 @@ class UserDatabase:
         self.connection = None
         self.init_database()
     
-    def get_connection(self):
-        """Get MySQL database connection - Fail gracefully if unavailable"""
-        try:
-            # Check if existing connection is still valid
-            if self.connection is not None:
-                try:
-                    if self.connection.is_connected():
-                        # Connection exists and is connected, return it
-                        return self.connection
-                    else:
-                        # Not connected, close it
+    def get_connection(self, retry_count=3):
+        """Get MySQL database connection with auto-reconnect"""
+        for attempt in range(retry_count):
+            try:
+                # Check if existing connection is still valid
+                if self.connection is not None:
+                    try:
+                        if self.connection.is_connected():
+                            return self.connection
+                        else:
+                            raise Exception("Not connected")
+                    except Exception:
+                        # Silent fail - don't log connection errors
                         try:
                             self.connection.close()
                         except:
                             pass
                         self.connection = None
-                except:
-                    # Error checking connection, reset it
+                
+                # Create new connection
+                self.connection = mysql.connector.connect(
+                    host=os.getenv('DB_HOST', 'localhost'),
+                    port=int(os.getenv('DB_PORT', 3306)),
+                    user=os.getenv('DB_USER', 'root'),
+                    password=os.getenv('DB_PASSWORD', ''),
+                    database=os.getenv('DB_NAME', 'clearance_facesearch'),
+                    charset='utf8mb4',
+                    collation='utf8mb4_unicode_ci',
+                    autocommit=True,
+                    connection_timeout=10,
+                    buffered=True
+                )
+                
+                if self.connection.is_connected():
+                    return self.connection
+            except Error:
+                # Silent fail - don't log connection errors during normal operation
+                if self.connection:
                     try:
                         self.connection.close()
                     except:
                         pass
                     self.connection = None
-            
-            # Create new connection
-            self.connection = mysql.connector.connect(
-                host=os.getenv('DB_HOST', 'localhost'),
-                port=int(os.getenv('DB_PORT', 3306)),
-                user=os.getenv('DB_USER', 'root'),
-                password=os.getenv('DB_PASSWORD', ''),
-                database=os.getenv('DB_NAME', 'clearance_facesearch'),
-                charset='utf8mb4',
-                collation='utf8mb4_unicode_ci',
-                autocommit=True,
-                connection_timeout=5,  # Shorter timeout for faster fail
-                raise_on_warnings=False
-            )
-            
-            # Verify connection is actually connected
-            if self.connection and self.connection.is_connected():
-                return self.connection
-            else:
-                self.connection = None
-                return None
-                
-        except Error as e:
-            error_msg = str(e)
-            # Only log if it's not a common connection error (to reduce noise)
-            if "Lost connection" not in error_msg and "MySQL Connection not available" not in error_msg:
-                print(f"Error connecting to MySQL: {e}")
-            
-            # Reset connection on error
-            if self.connection:
-                try:
-                    self.connection.close()
-                except:
-                    pass
-                self.connection = None
-            return None
-        except Exception as e:
-            # Handle any unexpected errors
-            error_msg = str(e)
-            if "Connection" not in error_msg:  # Only log non-connection errors
-                print(f"Unexpected error connecting to MySQL: {e}")
-            if self.connection:
-                try:
-                    self.connection.close()
-                except:
-                    pass
-                self.connection = None
-            return None
+                if attempt < retry_count - 1:
+                    import time
+                    time.sleep(0.5)
+                else:
+                    # Only log final failure, not intermediate attempts
+                    return None
+        
+        return None
     
     def init_database(self):
         """Initialize the database with required tables"""
@@ -1121,18 +1101,13 @@ class UserDatabase:
 
     # System Settings Methods
     def get_setting(self, setting_key: str) -> Optional[str]:
-        """Get a system setting value by key - Fail gracefully if DB unavailable"""
+        """Get a system setting value by key - Silent fail if DB unavailable"""
+        # Try once, fail silently to allow fallback to environment variable
+        conn = None
         cursor = None
         try:
-            conn = self.get_connection()
+            conn = self.get_connection(retry_count=1)  # Only 1 retry to fail fast
             if not conn:
-                return None
-            
-            # Check if connection is actually usable
-            try:
-                if not conn.is_connected():
-                    return None
-            except:
                 return None
             
             cursor = conn.cursor()
@@ -1141,64 +1116,28 @@ class UserDatabase:
             ''', (setting_key,))
             
             result = cursor.fetchone()
-            
-            # Validate result before accessing
-            if result is None:
-                return None
-            
-            # Check if result has elements
-            if not isinstance(result, (tuple, list)) or len(result) < 1:
-                return None
-            
-            setting_value = result[0]
-            
-            # Validate setting value is not None
-            if setting_value is None:
-                return None
-            
-            return str(setting_value)
-            
-        except Error as e:
-            error_msg = str(e)
-            error_code = getattr(e, 'errno', None)
-            
-            # Only log if it's not a common connection error
-            if error_code not in [2013, 2014] and "Lost connection" not in error_msg and "MySQL Connection not available" not in error_msg:
-                print(f"Error getting setting: {e}")
-            
-            # Reset connection on error
-            if self.connection:
-                try:
-                    self.connection.close()
-                except:
-                    pass
-                self.connection = None
-            
-            return None
+            return result[0] if result else None
         except Exception as e:
-            # Handle any unexpected errors (like NoneType subscriptable)
-            error_msg = str(e)
-            if "'NoneType' object is not subscriptable" in error_msg:
-                # This means result was None or invalid - just return None silently
-                pass
-            else:
-                print(f"Unexpected error getting setting: {e}")
+            # Silent fail - don't log common database errors
+            # Let caller use fallback to environment variable
             
-            # Reset connection on error
-            if self.connection:
-                try:
-                    self.connection.close()
-                except:
-                    pass
-                self.connection = None
-            
-            return None
-        finally:
+            # Close cursor if still open
             if cursor:
                 try:
                     cursor.close()
                 except:
                     pass
+            
+            # Reset connection on error
+            if self.connection:
+                try:
+                    self.connection.close()
+                except:
+                    pass
+                self.connection = None
+            
+            # Silent return None - no error logging
+            return None
 
     def update_setting(self, setting_key: str, setting_value: str, description: str = None) -> bool:
         """Update or insert a system setting"""
@@ -1291,18 +1230,13 @@ class UserDatabase:
                 cursor.close()
 
     def get_active_api_key(self, api_type: str = 'GOOGLE_CSE') -> Optional[str]:
-        """Get the next active API key (with rotation) - Fail gracefully if DB unavailable"""
+        """Get the next active API key (with rotation) - Silent fail if DB unavailable"""
+        # Try once, fail silently to allow fallback to environment variable
+        conn = None
         cursor = None
         try:
-            conn = self.get_connection()
+            conn = self.get_connection(retry_count=1)  # Only 1 retry to fail fast
             if not conn:
-                return None
-            
-            # Check if connection is actually usable
-            try:
-                if not conn.is_connected():
-                    return None
-            except:
                 return None
             
             cursor = conn.cursor()
@@ -1317,30 +1251,15 @@ class UserDatabase:
             
             result = cursor.fetchone()
             
-            # Validate result before unpacking
-            if result is None:
-                return None
-            
-            # Check if result has enough elements
-            if not isinstance(result, (tuple, list)) or len(result) < 2:
-                return None
-            
-            api_key = result[0]
-            key_id = result[1]
-            
-            # Validate API key is not None or empty
-            if not api_key or not isinstance(api_key, str) or len(api_key.strip()) == 0:
-                return None
-            
-            # Close cursor before update to avoid sync issues
+            # Close cursor before next query to avoid "Commands out of sync"
             cursor.close()
             cursor = None
             
-            # Try to update usage stats (non-critical, don't fail if it doesn't work)
-            update_cursor = None
-            try:
-                # Check connection is still alive
-                if conn and conn.is_connected():
+            if result:
+                api_key, key_id = result
+                # Update usage count and last_used in separate cursor (non-critical)
+                update_cursor = None
+                try:
                     update_cursor = conn.cursor()
                     update_cursor.execute('''
                         UPDATE api_keys 
@@ -1348,63 +1267,46 @@ class UserDatabase:
                         WHERE id = %s
                     ''', (key_id,))
                     conn.commit()
-            except Exception as update_error:
-                # Silently ignore - stats update is not critical
-                # The API key itself is what matters
-                pass
-            finally:
-                if update_cursor:
-                    try:
-                        update_cursor.close()
-                    except:
-                        pass
-            
-            return api_key
-            
-        except Error as e:
-            error_msg = str(e)
-            error_code = getattr(e, 'errno', None)
-            
-            # Only log if it's not a common connection error
-            if error_code not in [2013, 2014] and "Lost connection" not in error_msg and "MySQL Connection not available" not in error_msg:
-                print(f"Error getting active API key: {e}")
-            
-            # Reset connection on error
-            if self.connection:
-                try:
-                    self.connection.close()
-                except:
+                except Exception:
+                    # Silently ignore - stats update is not critical, API key is what matters
                     pass
-                self.connection = None
+                finally:
+                    if update_cursor:
+                        try:
+                            update_cursor.close()
+                        except:
+                            pass
+                
+                return api_key
             
             return None
         except Exception as e:
-            # Handle any unexpected errors (like NoneType subscriptable)
+            # Silent fail - don't log common database errors
+            # Let caller use fallback to environment variable
             error_msg = str(e)
-            if "'NoneType' object is not subscriptable" in error_msg:
-                # This means result was None or invalid - just return None silently
-                pass
-            else:
-                print(f"Unexpected error getting active API key: {e}")
+            error_code = getattr(e, 'errno', None)
             
-            # Reset connection on error
-            if self.connection:
-                try:
-                    self.connection.close()
-                except:
-                    pass
-                self.connection = None
-            
-            return None
-        finally:
+            # Close cursor if still open
             if cursor:
                 try:
                     cursor.close()
                 except:
                     pass
+            
+            # Reset connection on error
+            if self.connection:
+                try:
+                    self.connection.close()
+                except:
+                    pass
+                self.connection = None
+            
+            # Silent return None - no error logging for common DB errors
+            return None
 
     def mark_api_key_quota_exceeded(self, api_key: str, error_message: str = None) -> bool:
-        """Mark API key as quota exceeded"""
+        """Mark API key as quota exceeded - Silent fail if DB unavailable"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
@@ -1422,15 +1324,19 @@ class UserDatabase:
             
             conn.commit()
             return True
-        except Error as e:
-            print(f"Error marking API key quota exceeded: {e}")
+        except Exception:
+            # Silent fail - don't log database errors
             return False
         finally:
             if cursor:
-                cursor.close()
+                try:
+                    cursor.close()
+                except:
+                    pass
 
     def mark_api_key_error(self, api_key: str, error_message: str) -> bool:
-        """Mark API key as error"""
+        """Mark API key as error - Silent fail if DB unavailable"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
@@ -1448,12 +1354,15 @@ class UserDatabase:
             
             conn.commit()
             return True
-        except Error as e:
-            print(f"Error marking API key error: {e}")
+        except Exception:
+            # Silent fail - don't log database errors
             return False
         finally:
             if cursor:
-                cursor.close()
+                try:
+                    cursor.close()
+                except:
+                    pass
 
     def get_all_api_keys(self, api_type: str = 'GOOGLE_CSE') -> List[Dict]:
         """Get all API keys for a type"""
@@ -1565,23 +1474,60 @@ class UserDatabase:
 
     def delete_api_key(self, key_id: int) -> bool:
         """Delete an API key"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
                 return False
             
             cursor = conn.cursor()
-            
             cursor.execute('DELETE FROM api_keys WHERE id = %s', (key_id,))
-            
             conn.commit()
-            return True
+            return cursor.rowcount > 0
         except Error as e:
             print(f"Error deleting API key: {e}")
             return False
+        except Exception as e:
+            print(f"Unexpected error deleting API key: {e}")
+            return False
         finally:
             if cursor:
-                cursor.close()
+                try:
+                    cursor.close()
+                except:
+                    pass
+    
+    def cleanup_old_error_api_keys(self, days_old: int = 30) -> int:
+        """Auto-cleanup API keys that have been in error status for more than specified days"""
+        cursor = None
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return 0
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                DELETE FROM api_keys 
+                WHERE status IN ('error', 'quota_exceeded', 'disabled')
+                AND updated_at < DATE_SUB(NOW(), INTERVAL %s DAY)
+            ''', (days_old,))
+            conn.commit()
+            deleted_count = cursor.rowcount
+            if deleted_count > 0:
+                print(f"Auto-cleaned up {deleted_count} old error API key(s)")
+            return deleted_count
+        except Error as e:
+            print(f"Error cleaning up old API keys: {e}")
+            return 0
+        except Exception as e:
+            print(f"Unexpected error cleaning up API keys: {e}")
+            return 0
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                except:
+                    pass
 
 # Global database instance
 db = UserDatabase()
