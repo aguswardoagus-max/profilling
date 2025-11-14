@@ -526,27 +526,48 @@ def get_google_cse_api_key(used_key: str = None, error_code: int = None, error_m
     Returns:
         Active API key string, or None if no active keys available
     """
-    # If we got an error, handle it
+    # If we got an error, handle it (but don't block if DB is down)
     if used_key and error_code:
-        if error_code == 429:  # Quota exceeded
-            logger.warning(f"API key quota exceeded, marking as quota_exceeded: {used_key[:10]}...")
-            db.mark_api_key_quota_exceeded(used_key, error_message)
-        elif error_code in [400, 403]:  # Invalid or forbidden
-            logger.warning(f"API key error ({error_code}), marking as error: {used_key[:10]}...")
-            db.mark_api_key_error(used_key, error_message or f"Error code: {error_code}")
+        try:
+            if error_code == 429:  # Quota exceeded
+                logger.warning(f"API key quota exceeded, marking as quota_exceeded: {used_key[:10]}...")
+                db.mark_api_key_quota_exceeded(used_key, error_message)
+            elif error_code in [400, 403]:  # Invalid or forbidden
+                logger.warning(f"API key error ({error_code}), marking as error: {used_key[:10]}...")
+                db.mark_api_key_error(used_key, error_message or f"Error code: {error_code}")
+        except Exception as e:
+            logger.warning(f"Failed to mark API key status (DB may be down): {e}")
+            # Continue anyway, we'll still try to get a new key
     
-    # Try to get active API key from api_keys table (with rotation)
-    api_key = db.get_active_api_key('GOOGLE_CSE')
-    if api_key:
-        return api_key
+    # Priority 1: Try to get active API key from api_keys table (with rotation)
+    # But don't fail if database is unavailable - fail fast and fallback
+    try:
+        api_key = db.get_active_api_key('GOOGLE_CSE')
+        if api_key:
+            return api_key
+    except Exception as e:
+        logger.debug(f"Database unavailable for api_keys table: {e}")
+        # Continue to next fallback
     
-    # Fall back to system_settings (backward compatibility)
-    db_api_key = db.get_setting('GOOGLE_CSE_API_KEY')
-    if db_api_key:
-        return db_api_key
+    # Priority 2: Fall back to system_settings (backward compatibility)
+    try:
+        db_api_key = db.get_setting('GOOGLE_CSE_API_KEY')
+        if db_api_key:
+            return db_api_key
+    except Exception as e:
+        logger.debug(f"Database unavailable for system_settings: {e}")
+        # Continue to next fallback
     
-    # Fall back to environment variable
-    return os.getenv('GOOGLE_CSE_API_KEY', '')
+    # Priority 3: Fall back to environment variable (always available, no DB needed)
+    # This is the most reliable source when database is down
+    env_api_key = os.getenv('GOOGLE_CSE_API_KEY', '')
+    if env_api_key:
+        logger.info("Using API key from environment variable (database unavailable or no keys in DB)")
+        return env_api_key
+    
+    # No API key available anywhere
+    logger.error("No API key available from database or environment variable")
+    return ''
 
 app = Flask(__name__, 
            static_folder=frontend_static_dir,
