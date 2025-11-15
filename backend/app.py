@@ -5109,21 +5109,31 @@ def api_social_media_search():
         API_KEY = None
         last_error = None
         
-        for attempt in range(max_retries):
-            # Get next active API key
-            API_KEY = get_google_cse_api_key(
-                used_key=API_KEY if attempt > 0 else None,
-                error_code=last_error.get('code') if last_error else None,
-                error_message=last_error.get('message') if last_error else None
-            ) or request.args.get('key')
-            
-            if not API_KEY:
-                break  # No more API keys available
-            
-            logger.info(f"Attempt {attempt + 1}/{max_retries}: Using API key {API_KEY[:10]}...")
-            
-            # Google CSE API endpoint
-            search_url = 'https://www.googleapis.com/customsearch/v1'
+        # Get initial API key
+        API_KEY = get_google_cse_api_key() or request.args.get('key')
+        
+        # Validate API key before proceeding
+        if not API_KEY or not isinstance(API_KEY, str) or len(API_KEY.strip()) == 0:
+            logger.error("❌ No valid Google CSE API key found")
+            return jsonify({
+                'success': False,
+                'error': 'No API key configured',
+                'error_type': 'no_api_key',
+                'message': 'Google CSE API key tidak ditemukan. Silakan konfigurasi API key di Settings.',
+                'fallback': 'settings',
+                'data': {
+                    'web': [],
+                    'images': [],
+                    'social_links': []
+                }
+            }), 200
+        
+        # Log API key being used (first 20 chars only for security)
+        api_key_display = f"{API_KEY[:20]}..." if len(API_KEY) > 20 else API_KEY[:10] + "..."
+        logger.info(f"Using API Key: {api_key_display} (truncated)")
+        
+        # Google CSE API endpoint
+        search_url = 'https://www.googleapis.com/customsearch/v1'
         
         # OPTIMIZED: Maximum coverage untuk hasil yang lebih banyak dan detail
         # 10 pages × 10 results = 100 results per query (MAXIMUM COVERAGE!)
@@ -5152,7 +5162,7 @@ def api_social_media_search():
             logger.info(f"Google CSE Request Page {page+1}/{pages_to_fetch} - Query: {query}, Start: {start_index}, Type: {search_type}")
             
             try:
-                # Make request to Google CSE
+                # Make request to Google CSE with timeout
                 response = requests.get(search_url, params=params, timeout=15)
                 
                 if response.status_code == 200:
@@ -5172,11 +5182,25 @@ def api_social_media_search():
                     # If it's a quota error (429), stop trying more pages
                     if response.status_code == 429:
                         logger.error(f"❌ QUOTA EXCEEDED! Stopping multi-page fetch at page {page+1}")
-                        break
+                        # Try to get next API key
+                        last_error = {'code': 429, 'message': 'Quota exceeded'}
+                        API_KEY = get_google_cse_api_key(
+                            used_key=API_KEY,
+                            error_code=429,
+                            error_message='Quota exceeded'
+                        )
+                        if not API_KEY:
+                            break  # No more API keys
+                        logger.info(f"Switched to new API key: {API_KEY[:10] if len(API_KEY) > 10 else API_KEY}...")
+                        continue
                     
                     # Continue to next page even if one fails
                     continue
                     
+            except requests.exceptions.Timeout as timeout_error:
+                logger.error(f"❌ Timeout fetching page {page+1}: {str(timeout_error)}")
+                # Continue to next page, but log the timeout
+                continue
             except Exception as page_error:
                 logger.error(f"Error fetching page {page+1}: {str(page_error)}")
                 # Continue to next page
@@ -5184,27 +5208,55 @@ def api_social_media_search():
         
         logger.info(f"=== TOTAL RESULTS FETCHED: {len(all_results)} ===")
         
-        # Now process the combined results (use first response for metadata)
-        # Re-fetch first page for standard error handling
-        params = {
-            'key': API_KEY,
-            'cx': CSE_ID,
-            'q': query,
-            'num': 10,
-            'safe': 'active',
-        }
-        if search_type == 'image':
-            params['searchType'] = 'image'
+        # If we have results from multi-page fetch, use them directly
+        # Otherwise, try to fetch first page for metadata (only if we don't have results)
+        response = None
+        if len(all_results) == 0:
+            # Try to fetch first page for error handling and metadata
+            params = {
+                'key': API_KEY,
+                'cx': CSE_ID,
+                'q': query,
+                'num': 10,
+                'safe': 'active',
+            }
+            if search_type == 'image':
+                params['searchType'] = 'image'
             
-        response = requests.get(search_url, params=params, timeout=15)
-        
-        # Log API key being used (first 20 chars only for security)
-        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
+            try:
+                response = requests.get(search_url, params=params, timeout=15)
+            except requests.exceptions.Timeout:
+                logger.warning("⚠️ Timeout fetching first page for metadata, but we may have results from multi-page fetch")
+                response = None
+            except Exception as e:
+                logger.warning(f"⚠️ Error fetching first page for metadata: {str(e)}")
+                response = None
         
         # Better error handling with detailed logging
-        if response.status_code != 200:
+        # Check if response is None (timeout or error occurred)
+        if response is None:
+            # If we have results from multi-page fetch, use them
+            if len(all_results) > 0:
+                logger.info(f"⚠️ Response is None but we have {len(all_results)} results from multi-page fetch, continuing...")
+            else:
+                # No results and no response - return error
+                logger.error("❌ No response from Google CSE API and no results from multi-page fetch")
+                return jsonify({
+                    'success': False,
+                    'error': 'Timeout or connection error',
+                    'error_type': 'timeout_or_connection',
+                    'message': 'Google CSE API tidak merespons. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+                    'fallback': 'universal_search',
+                    'data': {
+                        'web': [],
+                        'images': [],
+                        'social_links': []
+                    }
+                }), 200
+        elif response.status_code != 200:
             error_details = {}
             error_message = 'Unknown error'
+            error_code = response.status_code
             try:
                 error_json = response.json()
                 error_message = error_json.get('error', {}).get('message', 'Unknown error')
@@ -5216,10 +5268,11 @@ def api_social_media_search():
                 }
                 
                 # Detailed error logging
+                api_key_display = f"{API_KEY[:20]}..." if len(API_KEY) > 20 else API_KEY[:10] + "..."
                 logger.error(f"❌ Google CSE API Error {error_code}: {error_message}")
                 logger.error(f"   Query: {query}")
                 logger.error(f"   CSE ID: {CSE_ID}")
-                logger.error(f"   API Key: {API_KEY[:20]}... (truncated)")
+                logger.error(f"   API Key: {api_key_display} (truncated)")
                 logger.error(f"   Full error: {json.dumps(error_json, indent=2)}")
                 
                 # Try fallback: Use Google Search directly (scraping) if API fails
@@ -5259,12 +5312,12 @@ def api_social_media_search():
                     error_message = 'API key atau CSE ID tidak valid. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
                 elif error_code == 403:
                     error_message = 'Akses ditolak oleh Google CSE API. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-            except:
+            except Exception as parse_error:
                 error_details = {
-                    'error': response.text[:500],
-                    'status_code': response.status_code
+                    'error': response.text[:500] if hasattr(response, 'text') else str(parse_error),
+                    'status_code': response.status_code if response else None
                 }
-                error_message = f'Error dari Google CSE API: {response.status_code}'
+                error_message = f'Error dari Google CSE API: {response.status_code if response else "No response"}'
             
             logger.error(f"Google CSE Error Details: {json.dumps(error_details, indent=2)}")
             
@@ -5297,6 +5350,20 @@ def api_social_media_search():
             items_to_process = all_results
         else:
             # Fallback to single page response
+            if response is None or response.status_code != 200:
+                logger.warning("⚠️ No results from multi-page fetch and no valid response, returning empty results")
+                return jsonify({
+                    'success': False,
+                    'error': 'No results and API error',
+                    'error_type': 'no_results',
+                    'message': 'Tidak ada hasil ditemukan. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+                    'fallback': 'universal_search',
+                    'data': {
+                        'web': [],
+                        'images': [],
+                        'social_links': []
+                    }
+                }), 200
             logger.warning("⚠️ No results from multi-page fetch, using single page response")
             search_data = response.json()
             items_to_process = search_data.get('items', [])
@@ -5650,7 +5717,8 @@ def test_google_cse():
         
         logger.info(f"🧪 Testing Google CSE API with query: {query}")
         logger.info(f"   CSE ID: {CSE_ID}")
-        logger.info(f"   API Key: {API_KEY[:20]}...")
+        api_key_display = f"{API_KEY[:20]}..." if API_KEY and len(API_KEY) > 20 else (API_KEY[:10] + "..." if API_KEY and len(API_KEY) > 10 else "N/A")
+        logger.info(f"   API Key: {api_key_display}")
         
         response = requests.get(search_url, params=params, timeout=10)
         
