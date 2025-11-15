@@ -5104,23 +5104,15 @@ def api_social_media_search():
         # Gunakan nama dengan quotes untuk exact match, tapi tanpa bias ke social media
         query = name if 'site:' in name else f'"{name}"'  # Support advanced queries
         
-        # Try with multiple API keys (automatic rotation on quota exceeded)
-        max_retries = 5  # Try up to 5 different API keys
-        API_KEY = None
-        last_error = None
-        
-        # Get initial API key
+        # Get API key first (with retry support)
         API_KEY = get_google_cse_api_key() or request.args.get('key')
         
-        # Validate API key before proceeding
-        if not API_KEY or not isinstance(API_KEY, str) or len(API_KEY.strip()) == 0:
-            logger.error("❌ No valid Google CSE API key found")
+        if not API_KEY:
+            logger.error("❌ No Google CSE API key available")
             return jsonify({
                 'success': False,
-                'error': 'No API key configured',
-                'error_type': 'no_api_key',
-                'message': 'Google CSE API key tidak ditemukan. Silakan konfigurasi API key di Settings.',
-                'fallback': 'settings',
+                'error': 'API key tidak ditemukan',
+                'message': 'Silakan set Google CSE API key di Settings page',
                 'data': {
                     'web': [],
                     'images': [],
@@ -5128,18 +5120,78 @@ def api_social_media_search():
                 }
             }), 200
         
-        # Log API key being used (first 20 chars only for security)
-        api_key_display = f"{API_KEY[:20]}..." if len(API_KEY) > 20 else API_KEY[:10] + "..."
-        logger.info(f"Using API Key: {api_key_display} (truncated)")
+        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
         
         # Google CSE API endpoint
         search_url = 'https://www.googleapis.com/customsearch/v1'
         
-        # OPTIMIZED: Maximum coverage untuk hasil yang lebih banyak dan detail
-        # 10 pages × 10 results = 100 results per query (MAXIMUM COVERAGE!)
+        # REDUCED: Fetch fewer pages to prevent timeout (3 pages = 30 results, enough for most searches)
+        # This prevents server crashes from long-running requests
         all_results = []
-        pages_to_fetch = 10  # 10 pages = 100 results (Maximum untuk hasil yang lebih banyak!)
+        pages_to_fetch = 3  # Reduced from 10 to 3 to prevent timeout issues
+        max_retries_per_page = 2  # Retry each page up to 2 times if it fails
         
+        # First, test API key with a single request
+        test_params = {
+            'key': API_KEY,
+            'cx': CSE_ID,
+            'q': query,
+            'num': 1,  # Just 1 result to test
+            'safe': 'active',
+        }
+        if search_type == 'image':
+            test_params['searchType'] = 'image'
+        
+        try:
+            test_response = requests.get(search_url, params=test_params, timeout=10)
+            if test_response.status_code != 200:
+                error_json = test_response.json() if test_response.headers.get('content-type', '').startswith('application/json') else {}
+                error_message = error_json.get('error', {}).get('message', 'Unknown error')
+                error_code = error_json.get('error', {}).get('code', test_response.status_code)
+                
+                logger.error(f"❌ API Key test failed: {error_code} - {error_message}")
+                
+                # Try to get another API key if quota exceeded
+                if error_code == 429:
+                    logger.info("Trying to get alternative API key...")
+                    API_KEY = get_google_cse_api_key(
+                        used_key=API_KEY,
+                        error_code=error_code,
+                        error_message=error_message
+                    )
+                    if not API_KEY:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Quota exceeded dan tidak ada API key alternatif',
+                            'error_code': 429,
+                            'message': 'Google CSE API quota habis. Gunakan tab "Categorized" untuk hasil dari Universal Search.',
+                            'fallback': 'universal_search',
+                            'data': {
+                                'web': [],
+                                'images': [],
+                                'social_links': []
+                            }
+                        }), 200
+                    logger.info(f"Switched to alternative API key: {API_KEY[:20]}...")
+        except requests.exceptions.Timeout:
+            logger.error("❌ API Key test timeout - mungkin API key tidak valid atau network issue")
+            return jsonify({
+                'success': False,
+                'error': 'Timeout saat test API key',
+                'error_type': 'timeout',
+                'message': 'Google CSE API tidak merespons. Periksa API key atau koneksi internet.',
+                'fallback': 'universal_search',
+                'data': {
+                    'web': [],
+                    'images': [],
+                    'social_links': []
+                }
+            }), 200
+        except Exception as test_error:
+            logger.error(f"❌ API Key test error: {str(test_error)}")
+            # Continue anyway, might be a network issue
+        
+        # Now fetch multiple pages with the validated API key
         for page in range(pages_to_fetch):
             start_index = (page * 10) + 1  # Google CSE uses 1-based indexing
             
@@ -5151,7 +5203,6 @@ def api_social_media_search():
                 'num': 10,  # Standard 10 results per query (free tier limit)
                 'start': start_index,  # Pagination
                 'safe': 'active',
-                # TIDAK menambahkan filter social media agar hasil lebih beragam
             }
             
             # Add searchType for images
@@ -5161,58 +5212,85 @@ def api_social_media_search():
             # Log request for debugging
             logger.info(f"Google CSE Request Page {page+1}/{pages_to_fetch} - Query: {query}, Start: {start_index}, Type: {search_type}")
             
-            try:
-                # Make request to Google CSE with timeout
-                response = requests.get(search_url, params=params, timeout=15)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    items = data.get('items', [])
-                    all_results.extend(items)
-                    logger.info(f"✓ Page {page+1}: Got {len(items)} results (total so far: {len(all_results)})")
+            page_success = False
+            for retry in range(max_retries_per_page):
+                try:
+                    # Make request to Google CSE with shorter timeout to prevent hanging
+                    response = requests.get(search_url, params=params, timeout=10)
                     
-                    # If this page has less than 10 results, stop fetching
-                    if len(items) < 10:
-                        logger.info(f"Last page reached (got {len(items)} < 10 results)")
+                    if response.status_code == 200:
+                        data = response.json()
+                        items = data.get('items', [])
+                        all_results.extend(items)
+                        logger.info(f"✓ Page {page+1}: Got {len(items)} results (total so far: {len(all_results)})")
+                        page_success = True
+                        
+                        # If this page has less than 10 results, stop fetching
+                        if len(items) < 10:
+                            logger.info(f"Last page reached (got {len(items)} < 10 results)")
+                            break
                         break
-                else:
-                    error_text = response.text[:200] if hasattr(response, 'text') else 'N/A'
-                    logger.warning(f"Page {page+1} failed with status {response.status_code}: {error_text}")
-                    
-                    # If it's a quota error (429), stop trying more pages
-                    if response.status_code == 429:
-                        logger.error(f"❌ QUOTA EXCEEDED! Stopping multi-page fetch at page {page+1}")
-                        # Try to get next API key
-                        last_error = {'code': 429, 'message': 'Quota exceeded'}
+                    elif response.status_code == 429:
+                        # Quota exceeded - try alternative API key
+                        error_json = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                        error_message = error_json.get('error', {}).get('message', 'Quota exceeded')
+                        logger.error(f"❌ QUOTA EXCEEDED on page {page+1}! Trying alternative API key...")
+                        
                         API_KEY = get_google_cse_api_key(
                             used_key=API_KEY,
                             error_code=429,
-                            error_message='Quota exceeded'
+                            error_message=error_message
                         )
                         if not API_KEY:
-                            break  # No more API keys
-                        logger.info(f"Switched to new API key: {API_KEY[:10] if len(API_KEY) > 10 else API_KEY}...")
-                        continue
-                    
-                    # Continue to next page even if one fails
-                    continue
-                    
-            except requests.exceptions.Timeout as timeout_error:
-                logger.error(f"❌ Timeout fetching page {page+1}: {str(timeout_error)}")
-                # Continue to next page, but log the timeout
-                continue
-            except Exception as page_error:
-                logger.error(f"Error fetching page {page+1}: {str(page_error)}")
-                # Continue to next page
-                continue
+                            logger.error("No alternative API key available, stopping")
+                            break
+                        logger.info(f"Switched to alternative API key: {API_KEY[:20]}...")
+                        params['key'] = API_KEY  # Update params with new key
+                        continue  # Retry with new key
+                    else:
+                        error_text = response.text[:200] if hasattr(response, 'text') else 'N/A'
+                        logger.warning(f"Page {page+1} failed with status {response.status_code}: {error_text}")
+                        if retry < max_retries_per_page - 1:
+                            logger.info(f"Retrying page {page+1}... (attempt {retry + 2}/{max_retries_per_page})")
+                            continue
+                        else:
+                            # Last retry failed, skip this page
+                            break
+                            
+                except requests.exceptions.Timeout:
+                    logger.warning(f"Timeout on page {page+1}, attempt {retry + 1}/{max_retries_per_page}")
+                    if retry < max_retries_per_page - 1:
+                        continue  # Retry
+                    else:
+                        logger.error(f"Page {page+1} failed after {max_retries_per_page} attempts, skipping")
+                        break  # Skip this page
+                except Exception as page_error:
+                    logger.error(f"Error fetching page {page+1}: {str(page_error)}")
+                    if retry < max_retries_per_page - 1:
+                        continue  # Retry
+                    else:
+                        break  # Skip this page
+            
+            # If page failed and we got some results, stop trying more pages
+            if not page_success and len(all_results) > 0:
+                logger.info(f"Stopping after page {page+1} due to errors (but got {len(all_results)} results)")
+                break
         
         logger.info(f"=== TOTAL RESULTS FETCHED: {len(all_results)} ===")
         
-        # If we have results from multi-page fetch, use them directly
-        # Otherwise, try to fetch first page for metadata (only if we don't have results)
-        response = None
-        if len(all_results) == 0:
-            # Try to fetch first page for error handling and metadata
+        # Use the first successful response for metadata, or create mock if we have results
+        if len(all_results) > 0:
+            # We have results, create mock search_data
+            search_data = {
+                'items': all_results,
+                'searchInformation': {
+                    'totalResults': str(len(all_results)),
+                    'searchTime': 0.5
+                }
+            }
+            response = None  # No need for additional request
+        else:
+            # No results from multi-page fetch, try one more time with first page
             params = {
                 'key': API_KEY,
                 'cx': CSE_ID,
@@ -5224,28 +5302,24 @@ def api_social_media_search():
                 params['searchType'] = 'image'
             
             try:
-                response = requests.get(search_url, params=params, timeout=15)
-            except requests.exceptions.Timeout:
-                logger.warning("⚠️ Timeout fetching first page for metadata, but we may have results from multi-page fetch")
-                response = None
+                response = requests.get(search_url, params=params, timeout=10)
             except Exception as e:
-                logger.warning(f"⚠️ Error fetching first page for metadata: {str(e)}")
+                logger.error(f"Final request failed: {str(e)}")
                 response = None
+        
+        # Log API key being used (first 20 chars only for security)
+        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
         
         # Better error handling with detailed logging
-        # Check if response is None (timeout or error occurred)
-        if response is None:
-            # If we have results from multi-page fetch, use them
-            if len(all_results) > 0:
-                logger.info(f"⚠️ Response is None but we have {len(all_results)} results from multi-page fetch, continuing...")
-            else:
-                # No results and no response - return error
-                logger.error("❌ No response from Google CSE API and no results from multi-page fetch")
+        # Check if we have results from multi-page fetch first
+        if len(all_results) == 0:
+            # No results, check if response failed
+            if response is None:
+                logger.error("❌ No response received from Google CSE API")
                 return jsonify({
                     'success': False,
-                    'error': 'Timeout or connection error',
-                    'error_type': 'timeout_or_connection',
-                    'message': 'Google CSE API tidak merespons. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+                    'error': 'Tidak ada response dari Google CSE API',
+                    'message': 'Google CSE API tidak merespons. Periksa API key atau koneksi internet.',
                     'fallback': 'universal_search',
                     'data': {
                         'web': [],
@@ -5253,120 +5327,98 @@ def api_social_media_search():
                         'social_links': []
                     }
                 }), 200
-        elif response.status_code != 200:
-            error_details = {}
-            error_message = 'Unknown error'
-            error_code = response.status_code
-            try:
-                error_json = response.json()
-                error_message = error_json.get('error', {}).get('message', 'Unknown error')
-                error_code = error_json.get('error', {}).get('code', response.status_code)
-                error_details = {
-                    'error': error_message,
-                    'code': error_code,
-                    'errors': error_json.get('error', {}).get('errors', [])
-                }
-                
-                # Detailed error logging
-                api_key_display = f"{API_KEY[:20]}..." if len(API_KEY) > 20 else API_KEY[:10] + "..."
-                logger.error(f"❌ Google CSE API Error {error_code}: {error_message}")
-                logger.error(f"   Query: {query}")
-                logger.error(f"   CSE ID: {CSE_ID}")
-                logger.error(f"   API Key: {api_key_display} (truncated)")
-                logger.error(f"   Full error: {json.dumps(error_json, indent=2)}")
-                
-                # Try fallback: Use Google Search directly (scraping) if API fails
-                logger.warning(f"Google CSE API failed, trying fallback Google Search for: {query}")
+            
+            # Response exists but status is not 200
+            if response.status_code != 200:
+                error_details = {}
+                error_message = 'Unknown error'
+                error_code = response.status_code
                 try:
-                    # Use Google Search HTML scraping as fallback
-                    google_search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=10"
-                    headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    error_json = response.json()
+                    error_message = error_json.get('error', {}).get('message', 'Unknown error')
+                    error_code = error_json.get('error', {}).get('code', response.status_code)
+                    error_details = {
+                        'error': error_message,
+                        'code': error_code,
+                        'errors': error_json.get('error', {}).get('errors', [])
                     }
-                    search_response = requests.get(google_search_url, headers=headers, timeout=10)
                     
-                    if search_response.status_code == 200:
-                        # Parse HTML results (simplified - just return empty for now)
-                        # In production, you'd want to use BeautifulSoup or similar
-                        logger.info("Fallback Google Search successful, but HTML parsing not implemented")
-                        # For now, return empty results with message
-                        return jsonify({
-                            'success': False,
-                            'error': error_message,
-                            'details': error_details,
-                            'message': 'Google CSE API tidak tersedia. Gunakan tab "Web" atau "Gambar" untuk pencarian langsung melalui Google CSE widget.',
-                            'fallback': 'widget',
-                            'data': {
-                                'web': [],
-                                'images': [],
-                                'social_links': []
-                            }
-                        }), 200
-                except Exception as fallback_error:
-                    logger.error(f"Fallback Google Search also failed: {str(fallback_error)}")
+                    # Detailed error logging
+                    logger.error(f"❌ Google CSE API Error {error_code}: {error_message}")
+                    logger.error(f"   Query: {query}")
+                    logger.error(f"   CSE ID: {CSE_ID}")
+                    logger.error(f"   API Key: {API_KEY[:20]}... (truncated)")
+                    logger.error(f"   Full error: {json.dumps(error_json, indent=2)}")
+                    
+                    # Try fallback: Use Google Search directly (scraping) if API fails
+                    logger.warning(f"Google CSE API failed, trying fallback Google Search for: {query}")
+                    try:
+                        # Use Google Search HTML scraping as fallback
+                        google_search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=10"
+                        headers = {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                        }
+                        search_response = requests.get(google_search_url, headers=headers, timeout=10)
+                        
+                        if search_response.status_code == 200:
+                            # Parse HTML results (simplified - just return empty for now)
+                            # In production, you'd want to use BeautifulSoup or similar
+                            logger.info("Fallback Google Search successful, but HTML parsing not implemented")
+                            # For now, return empty results with message
+                            return jsonify({
+                                'success': False,
+                                'error': error_message,
+                                'details': error_details,
+                                'message': 'Google CSE API tidak tersedia. Gunakan tab "Web" atau "Gambar" untuk pencarian langsung melalui Google CSE widget.',
+                                'fallback': 'widget',
+                                'data': {
+                                    'web': [],
+                                    'images': [],
+                                    'social_links': []
+                                }
+                            }), 200
+                    except Exception as fallback_error:
+                        logger.error(f"Fallback Google Search also failed: {str(fallback_error)}")
+                    
+                    # Provide more helpful error messages based on error code
+                    if 'quota' in error_message.lower() or error_code == 429:
+                        error_message = 'Quota Google CSE API habis. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                    elif 'invalid' in error_message.lower() or error_code == 400:
+                        error_message = 'API key atau CSE ID tidak valid. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                    elif error_code == 403:
+                        error_message = 'Akses ditolak oleh Google CSE API. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                except:
+                    error_details = {
+                        'error': response.text[:500] if hasattr(response, 'text') else 'Unknown error',
+                        'status_code': response.status_code
+                    }
+                    error_message = f'Error dari Google CSE API: {response.status_code}'
+                    error_code = response.status_code
                 
-                # Provide more helpful error messages based on error code
-                if 'quota' in error_message.lower() or error_code == 429:
-                    error_message = 'Quota Google CSE API habis. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-                elif 'invalid' in error_message.lower() or error_code == 400:
-                    error_message = 'API key atau CSE ID tidak valid. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-                elif error_code == 403:
-                    error_message = 'Akses ditolak oleh Google CSE API. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-            except Exception as parse_error:
-                error_details = {
-                    'error': response.text[:500] if hasattr(response, 'text') else str(parse_error),
-                    'status_code': response.status_code if response else None
-                }
-                error_message = f'Error dari Google CSE API: {response.status_code if response else "No response"}'
-            
-            logger.error(f"Google CSE Error Details: {json.dumps(error_details, indent=2)}")
-            
-            # Return 200 with success: false so frontend can read the error message
-            return jsonify({
-                'success': False,
-                'error': error_message,
-                'error_code': error_code,
-                'details': error_details,
-                'message': 'Google CSE API error. Gunakan tab "Categorized" atau "Social Links" untuk hasil dari Universal Search (Internal).',
-                'fallback': 'universal_search',
-                'data': {
-                    'web': [],
-                    'images': [],
-                    'social_links': []
-                }
-            }), 200  # Return 200 so frontend can read the error message
-        
-        # Check if we have results from multi-page fetch
-        if len(all_results) > 0:
-            logger.info(f"✅ Using {len(all_results)} results from multi-page fetch")
-            # Create a mock search_data structure for processing
-            search_data = {
-                'items': all_results,
-                'searchInformation': {
-                    'totalResults': str(len(all_results)),
-                    'searchTime': 0.5
-                }
-            }
-            items_to_process = all_results
-        else:
-            # Fallback to single page response
-            if response is None or response.status_code != 200:
-                logger.warning("⚠️ No results from multi-page fetch and no valid response, returning empty results")
+                logger.error(f"Google CSE Error Details: {json.dumps(error_details, indent=2)}")
+                
+                # Return 200 with success: false so frontend can read the error message
                 return jsonify({
                     'success': False,
-                    'error': 'No results and API error',
-                    'error_type': 'no_results',
-                    'message': 'Tidak ada hasil ditemukan. Gunakan tab "Categorized" untuk hasil dari Universal Search (Internal).',
+                    'error': error_message,
+                    'error_code': error_code,
+                    'details': error_details,
+                    'message': 'Google CSE API error. Gunakan tab "Categorized" atau "Social Links" untuk hasil dari Universal Search (Internal).',
                     'fallback': 'universal_search',
                     'data': {
                         'web': [],
                         'images': [],
                         'social_links': []
                     }
-                }), 200
-            logger.warning("⚠️ No results from multi-page fetch, using single page response")
+                }), 200  # Return 200 so frontend can read the error message
+        
+        # If we reach here, we have results (either from all_results or response)
+        # search_data is already set above if all_results > 0, otherwise use response
+        if len(all_results) == 0 and response and response.status_code == 200:
             search_data = response.json()
             items_to_process = search_data.get('items', [])
+        else:
+            items_to_process = all_results
         
         # Format results - USE ALL_RESULTS from multiple pages!
         results = {
@@ -5717,8 +5769,7 @@ def test_google_cse():
         
         logger.info(f"🧪 Testing Google CSE API with query: {query}")
         logger.info(f"   CSE ID: {CSE_ID}")
-        api_key_display = f"{API_KEY[:20]}..." if API_KEY and len(API_KEY) > 20 else (API_KEY[:10] + "..." if API_KEY and len(API_KEY) > 10 else "N/A")
-        logger.info(f"   API Key: {api_key_display}")
+        logger.info(f"   API Key: {API_KEY[:20]}...")
         
         response = requests.get(search_url, params=params, timeout=10)
         
