@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Settings - Clearance Face Search</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -692,6 +692,35 @@
             color: #991b1b;
         }
 
+        /* API Keys Table Responsive */
+        .api-keys-table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            display: block;
+        }
+
+        .api-keys-table {
+            width: 100%;
+            min-width: 800px;
+        }
+
+        .api-key-card {
+            display: none;
+        }
+
+        /* Card styles - hidden by default on desktop */
+        .api-key-card-header {
+            display: none;
+        }
+
+        .api-key-card-row {
+            display: none;
+        }
+
+        .api-key-card-actions {
+            display: none;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .sidebar {
@@ -707,29 +736,62 @@
             }
 
             .topbar {
-                padding: 15px 20px;
+                padding: 12px 15px;
+                flex-wrap: wrap;
             }
 
             .page-title {
-                font-size: 1.4rem;
+                font-size: 1.2rem;
             }
 
-            .search-box input {
-                width: 200px;
+            .search-box {
+                display: none; /* Hide search on mobile */
+            }
+
+            .notification-btn {
+                padding: 8px;
             }
 
             .settings-content {
-                padding: 20px;
+                padding: 15px 10px;
             }
 
             .settings-tabs {
-                flex-direction: column;
+                display: flex;
+                flex-direction: row;
                 gap: 5px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 5px;
+                scrollbar-width: thin;
+            }
+
+            .settings-tabs::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            .settings-tabs::-webkit-scrollbar-thumb {
+                background: #667eea;
+                border-radius: 2px;
+            }
+
+            .settings-tab {
+                flex-shrink: 0;
+                padding: 12px 16px;
+                font-size: 0.85rem;
+                white-space: nowrap;
+                min-width: fit-content;
+            }
+
+            .settings-tab i {
+                display: block;
+                margin-bottom: 4px;
+                font-size: 1.1rem;
             }
 
             .settings-grid {
                 grid-template-columns: 1fr;
-                gap: 20px;
+                gap: 15px;
             }
 
             .form-row {
@@ -738,7 +800,236 @@
             }
 
             .settings-panel {
+                padding: 15px;
+            }
+
+            .settings-card {
+                padding: 15px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            /* API Keys Table - Hide on mobile, show cards */
+            .api-keys-table-wrapper {
+                display: none !important;
+            }
+
+            .api-key-card {
+                display: block !important;
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .api-key-card-header {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #e5e7eb;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .api-key-card-title {
+                font-weight: 600;
+                color: #333;
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+
+            .api-key-card-value {
+                color: #6b7280;
+                font-size: 0.85rem;
+                word-break: break-all;
+                text-align: right;
+            }
+
+            .api-key-card-row {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 0;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            .api-key-card-row:last-child {
+                border-bottom: none;
+            }
+
+            .api-key-card-label {
+                font-weight: 500;
+                color: #6b7280;
+                font-size: 0.85rem;
+                flex-shrink: 0;
+            }
+
+            .api-key-card-actions {
+                display: flex !important;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .api-key-card-actions .btn {
+                flex: 1;
+                min-width: 80px;
+                padding: 10px 12px;
+                font-size: 0.85rem;
+                min-height: 44px;
+            }
+
+            /* Panel title mobile */
+            .panel-title {
+                font-size: 1.2rem;
+            }
+
+            .card-title {
+                font-size: 1rem;
+            }
+
+            .card-description {
+                font-size: 0.85rem;
+            }
+
+            /* Modal Responsive */
+            #editApiKeyModal > div {
                 padding: 20px;
+                max-width: 95%;
+                margin: 10px;
+            }
+
+            #editApiKeyModal h2 {
+                font-size: 1.2rem;
+            }
+
+            /* Form inputs mobile */
+            input[type="text"],
+            input[type="number"],
+            select,
+            textarea {
+                font-size: 16px !important; /* Prevents zoom on iOS */
+            }
+
+            /* Buttons mobile */
+            .btn {
+                min-height: 44px;
+                padding: 12px 16px;
+                font-size: 0.9rem;
+                touch-action: manipulation; /* Prevents double-tap zoom */
+            }
+
+            /* Form inputs mobile - prevent zoom on focus */
+            .form-group input,
+            .form-group select {
+                font-size: 16px !important;
+            }
+
+            /* API Key form mobile */
+            #apiKeyForm .form-row {
+                display: flex;
+                flex-direction: column;
+            }
+
+            #apiKeyForm .form-group {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+
+            #apiKeyForm input,
+            #apiKeyForm select {
+                width: 100% !important;
+                box-sizing: border-box;
+            }
+
+            /* Ensure all cards are visible */
+            .settings-card {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            /* Topbar mobile */
+            .topbar-left {
+                flex: 1;
+            }
+
+            .topbar-right {
+                flex-shrink: 0;
+            }
+        }
+
+        /* Small Mobile */
+        @media (max-width: 480px) {
+            .settings-content {
+                padding: 10px;
+            }
+
+            .settings-panel {
+                padding: 10px;
+            }
+
+            .settings-card {
+                padding: 12px;
+            }
+
+            .api-key-card {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            .api-key-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .api-key-card-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .api-key-card-value {
+                text-align: left;
+                width: 100%;
+            }
+
+            .api-key-card-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .api-key-card-actions .btn {
+                width: 100%;
+                min-width: 100%;
+            }
+
+            #editApiKeyModal {
+                padding: 5px;
+            }
+
+            #editApiKeyModal > div {
+                padding: 15px;
+                max-width: 100%;
+                margin: 5px;
+            }
+
+            .settings-tab {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+            }
+
+            .settings-tab i {
+                font-size: 1rem;
             }
         }
 
@@ -934,6 +1225,9 @@
                 <div class="settings-tab active" onclick="switchTab('general')">
                     <i class="fas fa-cog"></i> General
                 </div>
+                <div class="settings-tab" onclick="switchTab('apikeys')">
+                    <i class="fas fa-key"></i> API Keys
+                </div>
                 <div class="settings-tab" onclick="switchTab('profile')">
                     <i class="fas fa-user"></i> Profile
                 </div>
@@ -945,9 +1239,6 @@
                 </div>
                 <div class="settings-tab" onclick="switchTab('system')">
                     <i class="fas fa-server"></i> System
-                </div>
-                <div class="settings-tab" onclick="switchTab('apikeys')">
-                    <i class="fas fa-key"></i> API Keys
                 </div>
             </div>
 
@@ -1418,11 +1709,11 @@
                             <div class="form-row">
                                 <div class="form-group" style="flex: 2;">
                                     <label>API Key</label>
-                                    <input type="text" id="newApiKey" placeholder="Enter Google CSE API Key" required>
+                                    <input type="text" id="newApiKey" placeholder="Enter Google CSE API Key" required style="font-size: 16px;">
                                 </div>
                                 <div class="form-group">
                                     <label>API Type</label>
-                                    <select id="newApiType">
+                                    <select id="newApiType" style="font-size: 16px;">
                                         <option value="GOOGLE_CSE">Google CSE</option>
                                     </select>
                                 </div>
@@ -1430,20 +1721,20 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Description</label>
-                                    <input type="text" id="newApiDescription" placeholder="Optional description">
+                                    <input type="text" id="newApiDescription" placeholder="Optional description" style="font-size: 16px;">
                                 </div>
                                 <div class="form-group">
                                     <label>Priority</label>
-                                    <input type="number" id="newApiPriority" value="0" min="0" max="100">
-                                    <small style="color: #6b7280;">Higher priority keys are used first</small>
+                                    <input type="number" id="newApiPriority" value="0" min="0" max="100" style="font-size: 16px;">
+                                    <small style="color: #6b7280; font-size: 0.85rem;">Higher priority keys are used first</small>
                                 </div>
                                 <div class="form-group">
                                     <label>Daily Limit</label>
-                                    <input type="number" id="newApiDailyLimit" value="100" min="0">
-                                    <small style="color: #6b7280;">0 = unlimited</small>
+                                    <input type="number" id="newApiDailyLimit" value="100" min="0" style="font-size: 16px;">
+                                    <small style="color: #6b7280; font-size: 0.85rem;">0 = unlimited</small>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
                                 <i class="fas fa-plus"></i>
                                 Add API Key
                             </button>
@@ -1475,6 +1766,57 @@
                 <div class="spinner"></div>
                 <p>Saving settings...</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Edit API Key Modal -->
+    <div id="editApiKeyModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 10px;">
+        <div style="background: white; border-radius: 8px; padding: 30px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2); position: relative;">
+            <button onclick="closeEditModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 5px; line-height: 1;">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 style="margin-bottom: 20px; color: #333; padding-right: 30px;">
+                <i class="fas fa-edit"></i> Edit API Key
+            </h2>
+            <form id="editApiKeyForm" onsubmit="saveEditedApiKey(event)">
+                <input type="hidden" id="editKeyId">
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" id="editApiKey" placeholder="Enter API Key" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="editDescription" placeholder="Optional description" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <input type="number" id="editPriority" value="0" min="0" max="100" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                        <small style="color: #6b7280; font-size: 0.85rem;">Higher priority keys are used first</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Daily Limit</label>
+                        <input type="number" id="editDailyLimit" value="100" min="0" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                        <small style="color: #6b7280; font-size: 0.85rem;">0 = unlimited</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="editStatus" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="quota_exceeded">Quota Exceeded</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1; min-width: 120px;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; min-width: 120px;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1866,6 +2208,8 @@
 
         function displayApiKeys(keys) {
             const container = document.getElementById('apiKeysList');
+            // Use media query for more accurate mobile detection
+            const isMobile = window.matchMedia('(max-width: 768px)').matches || window.innerWidth <= 768;
             
             if (keys.length === 0) {
                 container.innerHTML = `
@@ -1877,71 +2221,135 @@
                 return;
             }
 
-            const table = `
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                    <thead>
-                        <tr style="background: #f8f9fa; border-bottom: 2px solid #e5e7eb;">
-                            <th style="padding: 12px; text-align: left;">API Key</th>
-                            <th style="padding: 12px; text-align: left;">Description</th>
-                            <th style="padding: 12px; text-align: center;">Status</th>
-                            <th style="padding: 12px; text-align: center;">Usage</th>
-                            <th style="padding: 12px; text-align: center;">Limit</th>
-                            <th style="padding: 12px; text-align: center;">Priority</th>
-                            <th style="padding: 12px; text-align: center;">Last Used</th>
-                            <th style="padding: 12px; text-align: center;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${keys.map(key => `
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 12px;">
-                                    <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
-                                        ${key.api_key_masked || '***'}
-                                    </code>
-                                </td>
-                                <td style="padding: 12px;">${key.description || '-'}</td>
-                                <td style="padding: 12px; text-align: center;">
-                                    <span class="status-badge ${key.status === 'active' ? 'active' : key.status === 'quota_exceeded' ? 'inactive' : 'inactive'}">
-                                        ${key.status}
-                                    </span>
-                                </td>
-                                <td style="padding: 12px; text-align: center;">
-                                    ${key.usage_count || 0}
-                                </td>
-                                <td style="padding: 12px; text-align: center;">
-                                    ${key.daily_limit || '∞'}
-                                </td>
-                                <td style="padding: 12px; text-align: center;">
-                                    ${key.priority || 0}
-                                </td>
-                                <td style="padding: 12px; text-align: center; font-size: 0.85rem; color: #6b7280;">
-                                    ${key.last_used ? new Date(key.last_used).toLocaleString('id-ID') : 'Never'}
-                                </td>
-                                <td style="padding: 12px; text-align: center;">
-                                    <div style="display: flex; gap: 5px; justify-content: center;">
-                                        <button onclick="editApiKey(${key.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button onclick="toggleApiKeyStatus(${key.id}, '${key.status}')" 
-                                                class="btn ${key.status === 'active' ? 'btn-warning' : 'btn-success'}" 
-                                                style="padding: 4px 8px; font-size: 0.8rem;">
-                                            <i class="fas fa-${key.status === 'active' ? 'pause' : 'play'}"></i>
-                                        </button>
-                                        <button onclick="resetApiKeyUsage(${key.id})" class="btn btn-info" style="padding: 4px 8px; font-size: 0.8rem;">
-                                            <i class="fas fa-redo"></i>
-                                        </button>
-                                        <button onclick="deleteApiKey(${key.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8rem;">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+            if (isMobile) {
+                // Mobile: Card layout
+                const cards = keys.map(key => `
+                    <div class="api-key-card">
+                        <div class="api-key-card-header">
+                            <div>
+                                <div class="api-key-card-title">API Key</div>
+                                <code style="background: #f3f4f6; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; display: block; margin-top: 5px; word-break: break-all;">
+                                    ${key.api_key_masked || '***'}
+                                </code>
+                            </div>
+                            <span class="status-badge ${key.status === 'active' ? 'active' : key.status === 'quota_exceeded' ? 'inactive' : 'inactive'}">
+                                ${key.status}
+                            </span>
+                        </div>
+                        <div class="api-key-card-row">
+                            <span class="api-key-card-label">Description</span>
+                            <span class="api-key-card-value">${key.description || '-'}</span>
+                        </div>
+                        <div class="api-key-card-row">
+                            <span class="api-key-card-label">Usage</span>
+                            <span class="api-key-card-value">${key.usage_count || 0} / ${key.daily_limit || '∞'}</span>
+                        </div>
+                        <div class="api-key-card-row">
+                            <span class="api-key-card-label">Priority</span>
+                            <span class="api-key-card-value">${key.priority || 0}</span>
+                        </div>
+                        <div class="api-key-card-row">
+                            <span class="api-key-card-label">Last Used</span>
+                            <span class="api-key-card-value" style="font-size: 0.75rem;">
+                                ${key.last_used ? new Date(key.last_used).toLocaleString('id-ID') : 'Never'}
+                            </span>
+                        </div>
+                        <div class="api-key-card-actions">
+                            <button onclick="copyApiKey(${key.id})" class="btn btn-info" title="Copy API Key">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                            <button onclick="editApiKey(${key.id})" class="btn btn-secondary" title="Edit API Key">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="toggleApiKeyStatus(${key.id}, '${key.status}')" 
+                                    class="btn ${key.status === 'active' ? 'btn-warning' : 'btn-success'}" 
+                                    title="${key.status === 'active' ? 'Deactivate' : 'Activate'}">
+                                <i class="fas fa-${key.status === 'active' ? 'pause' : 'play'}"></i> ${key.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button onclick="resetApiKeyUsage(${key.id})" class="btn btn-info" title="Reset Usage">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                            <button onclick="deleteApiKey(${key.id})" class="btn btn-danger" title="Delete">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
 
-            container.innerHTML = table;
+                container.innerHTML = cards;
+            } else {
+                // Desktop: Table layout
+                const table = `
+                    <div class="api-keys-table-wrapper">
+                        <table class="api-keys-table" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #f8f9fa; border-bottom: 2px solid #e5e7eb;">
+                                    <th style="padding: 12px; text-align: left;">API Key</th>
+                                    <th style="padding: 12px; text-align: left;">Description</th>
+                                    <th style="padding: 12px; text-align: center;">Status</th>
+                                    <th style="padding: 12px; text-align: center;">Usage</th>
+                                    <th style="padding: 12px; text-align: center;">Limit</th>
+                                    <th style="padding: 12px; text-align: center;">Priority</th>
+                                    <th style="padding: 12px; text-align: center;">Last Used</th>
+                                    <th style="padding: 12px; text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${keys.map(key => `
+                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                        <td style="padding: 12px;">
+                                            <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                                                ${key.api_key_masked || '***'}
+                                            </code>
+                                        </td>
+                                        <td style="padding: 12px;">${key.description || '-'}</td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <span class="status-badge ${key.status === 'active' ? 'active' : key.status === 'quota_exceeded' ? 'inactive' : 'inactive'}">
+                                                ${key.status}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            ${key.usage_count || 0}
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            ${key.daily_limit || '∞'}
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            ${key.priority || 0}
+                                        </td>
+                                        <td style="padding: 12px; text-align: center; font-size: 0.85rem; color: #6b7280;">
+                                            ${key.last_used ? new Date(key.last_used).toLocaleString('id-ID') : 'Never'}
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
+                                                <button onclick="copyApiKey(${key.id})" class="btn btn-info" style="padding: 4px 8px; font-size: 0.8rem;" title="Copy API Key">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                                <button onclick="editApiKey(${key.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;" title="Edit API Key">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button onclick="toggleApiKeyStatus(${key.id}, '${key.status}')" 
+                                                        class="btn ${key.status === 'active' ? 'btn-warning' : 'btn-success'}" 
+                                                        style="padding: 4px 8px; font-size: 0.8rem;" title="${key.status === 'active' ? 'Deactivate' : 'Activate'}">
+                                                    <i class="fas fa-${key.status === 'active' ? 'pause' : 'play'}"></i>
+                                                </button>
+                                                <button onclick="resetApiKeyUsage(${key.id})" class="btn btn-info" style="padding: 4px 8px; font-size: 0.8rem;" title="Reset Usage">
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                                <button onclick="deleteApiKey(${key.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8rem;" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.innerHTML = table;
+            }
         }
 
         async function addApiKey(event) {
@@ -1988,7 +2396,7 @@
         }
 
         async function editApiKey(keyId) {
-            // Get current key data
+            // Get current key data with full API key (not masked)
             const sessionToken = localStorage.getItem('session_token');
             const response = await fetch('/api/api-keys?type=GOOGLE_CSE', {
                 headers: {
@@ -2006,18 +2414,78 @@
                 return;
             }
 
-            // Show edit modal (simplified - using prompt for now)
-            const newDescription = prompt('Enter new description:', key.description || '');
-            if (newDescription === null) return;
+            // Get full API key from server
+            try {
+                const fullKeyResponse = await fetch(`/api/api-keys/${keyId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
 
-            const newPriority = prompt('Enter new priority (0-100):', key.priority || 0);
-            if (newPriority === null) return;
+                const fullKeyData = await fullKeyResponse.json();
+                if (fullKeyResponse.ok && fullKeyData.key) {
+                    // Populate modal with data
+                    document.getElementById('editKeyId').value = keyId;
+                    document.getElementById('editApiKey').value = fullKeyData.key.api_key || '';
+                    document.getElementById('editDescription').value = fullKeyData.key.description || '';
+                    document.getElementById('editPriority').value = fullKeyData.key.priority || 0;
+                    document.getElementById('editDailyLimit').value = fullKeyData.key.daily_limit || 100;
+                    document.getElementById('editStatus').value = fullKeyData.key.status || 'active';
+                    
+                    // Show modal
+                    document.getElementById('editApiKeyModal').style.display = 'flex';
+                } else {
+                    // Fallback: use masked key if can't get full key
+                    document.getElementById('editKeyId').value = keyId;
+                    document.getElementById('editApiKey').value = key.api_key_masked || '';
+                    document.getElementById('editDescription').value = key.description || '';
+                    document.getElementById('editPriority').value = key.priority || 0;
+                    document.getElementById('editDailyLimit').value = key.daily_limit || 100;
+                    document.getElementById('editStatus').value = key.status || 'active';
+                    
+                    // Show modal
+                    document.getElementById('editApiKeyModal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Error fetching full API key:', error);
+                // Use available data
+                document.getElementById('editKeyId').value = keyId;
+                document.getElementById('editApiKey').value = key.api_key_masked || '';
+                document.getElementById('editDescription').value = key.description || '';
+                document.getElementById('editPriority').value = key.priority || 0;
+                document.getElementById('editDailyLimit').value = key.daily_limit || 100;
+                document.getElementById('editStatus').value = key.status || 'active';
+                
+                // Show modal
+                document.getElementById('editApiKeyModal').style.display = 'flex';
+            }
+        }
 
-            const newDailyLimit = prompt('Enter new daily limit (0 = unlimited):', key.daily_limit || 100);
-            if (newDailyLimit === null) return;
+        function closeEditModal() {
+            document.getElementById('editApiKeyModal').style.display = 'none';
+            document.getElementById('editApiKeyForm').reset();
+        }
+
+        async function saveEditedApiKey(event) {
+            event.preventDefault();
+            
+            const keyId = document.getElementById('editKeyId').value;
+            const apiKey = document.getElementById('editApiKey').value;
+            const description = document.getElementById('editDescription').value;
+            const priority = parseInt(document.getElementById('editPriority').value) || 0;
+            const dailyLimit = parseInt(document.getElementById('editDailyLimit').value) || 100;
+            const status = document.getElementById('editStatus').value;
+
+            if (!apiKey) {
+                app.showAlert('API key is required', 'error');
+                return;
+            }
 
             try {
-                const updateResponse = await fetch(`/api/api-keys/${keyId}`, {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch(`/api/api-keys/${keyId}`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${sessionToken}`,
@@ -2025,23 +2493,78 @@
                     },
                     credentials: 'include',
                     body: JSON.stringify({
-                        description: newDescription,
-                        priority: parseInt(newPriority) || 0,
-                        daily_limit: parseInt(newDailyLimit) || 0
+                        api_key: apiKey,
+                        description: description,
+                        priority: priority,
+                        daily_limit: dailyLimit,
+                        status: status
                     })
                 });
 
-                const updateData = await updateResponse.json();
+                const data = await response.json();
 
-                if (updateResponse.ok && updateData.success) {
+                if (response.ok && data.success) {
                     app.showAlert('API key updated successfully!', 'success');
+                    closeEditModal();
                     loadApiKeys();
                 } else {
-                    app.showAlert(updateData.error || 'Failed to update API key', 'error');
+                    app.showAlert(data.error || 'Failed to update API key', 'error');
                 }
             } catch (error) {
                 console.error('Error updating API key:', error);
                 app.showAlert('Error updating API key: ' + error.message, 'error');
+            }
+        }
+
+        async function copyApiKey(keyId) {
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch(`/api/api-keys/${keyId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.key && data.key.api_key) {
+                    // Copy to clipboard
+                    await navigator.clipboard.writeText(data.key.api_key);
+                    app.showAlert('API key copied to clipboard!', 'success');
+                } else {
+                    app.showAlert('Failed to get API key', 'error');
+                }
+            } catch (error) {
+                console.error('Error copying API key:', error);
+                // Fallback: try using execCommand
+                try {
+                    const sessionToken = localStorage.getItem('session_token');
+                    const response = await fetch(`/api/api-keys/${keyId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${sessionToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include'
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.key && data.key.api_key) {
+                        const textArea = document.createElement('textarea');
+                        textArea.value = data.key.api_key;
+                        textArea.style.position = 'fixed';
+                        textArea.style.opacity = '0';
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        app.showAlert('API key copied to clipboard!', 'success');
+                    } else {
+                        app.showAlert('Failed to get API key', 'error');
+                    }
+                } catch (err) {
+                    app.showAlert('Error copying API key: ' + error.message, 'error');
+                }
             }
         }
 
@@ -2153,6 +2676,31 @@
                 loadApiKeys();
             }
         }
+
+        // Reload API keys display on window resize to switch between table/card layout
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                // Reload API keys if we're on the API Keys tab
+                const apikeysPanel = document.getElementById('apikeysPanel');
+                if (apikeysPanel && apikeysPanel.classList.contains('active')) {
+                    loadApiKeys();
+                }
+            }, 250);
+        });
+
+        // Close modal when clicking outside
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('editApiKeyModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target.id === 'editApiKeyModal') {
+                        closeEditModal();
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

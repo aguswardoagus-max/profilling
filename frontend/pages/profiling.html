@@ -384,83 +384,6 @@
             padding: 30px;
         }
 
-        /* AI Toggle Switch */
-        .ai-toggle-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: white;
-            padding: 12px 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            border: 2px solid #e1e5e9;
-            transition: all 0.3s ease;
-        }
-
-        .ai-toggle-container.active {
-            border-color: #667eea;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
-        }
-
-        .ai-toggle-label {
-            font-weight: 600;
-            color: #374151;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .ai-toggle-label i {
-            color: #667eea;
-            font-size: 16px;
-        }
-
-        .ai-toggle-switch {
-            position: relative;
-            width: 60px;
-            height: 30px;
-            background: #e1e5e9;
-            border-radius: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .ai-toggle-switch.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .ai-toggle-slider {
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 24px;
-            height: 24px;
-            background: white;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .ai-toggle-switch.active .ai-toggle-slider {
-            transform: translateX(30px);
-        }
-
-        /* AI Suggestions Panel */
-        .ai-suggestions-panel {
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
-            border: 2px solid #e1e5e9;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            display: none;
-            animation: slideDown 0.3s ease;
-        }
-
-        .ai-suggestions-panel.active {
-            display: block;
-        }
-
         .ai-suggestions-header {
             display: flex;
             align-items: center;
@@ -1223,6 +1146,1562 @@
             display: none;
         }
 
+        /* Chatbot Container */
+        .chatbot-container {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.15), 0 0 0 1px rgba(102, 126, 234, 0.1);
+            margin-bottom: 25px;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            position: relative;
+        }
+
+        .chatbot-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .chatbot-container.collapsed .chatbot-body {
+            display: none;
+        }
+
+        .chatbot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chatbot-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chatbot-header:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a3f8f 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .chatbot-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .chatbot-avatar {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.2) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 
+                0 10px 30px rgba(0,0,0,0.2),
+                0 0 0 3px rgba(255,255,255,0.3),
+                inset 0 2px 10px rgba(255,255,255,0.3);
+            animation: pulseAvatar 2.5s ease-in-out infinite;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+
+        .chatbot-avatar::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #667eea);
+            background-size: 300% 300%;
+            animation: rotateGradient 3s linear infinite;
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        @keyframes pulseAvatar {
+            0%, 100% {
+                transform: scale(1) rotate(0deg);
+                box-shadow: 
+                    0 10px 30px rgba(0,0,0,0.2),
+                    0 0 0 3px rgba(255,255,255,0.3),
+                    inset 0 2px 10px rgba(255,255,255,0.3);
+            }
+            50% {
+                transform: scale(1.08) rotate(5deg);
+                box-shadow: 
+                    0 15px 40px rgba(0,0,0,0.3),
+                    0 0 0 4px rgba(255,255,255,0.5),
+                    inset 0 2px 10px rgba(255,255,255,0.4);
+            }
+        }
+
+        @keyframes rotateGradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .chatbot-info h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 10px rgba(255,255,255,0.3);
+            letter-spacing: -0.5px;
+        }
+
+        .chatbot-info p {
+            margin: 6px 0 0 0;
+            font-size: 0.9rem;
+            opacity: 0.95;
+            color: rgba(255,255,255,0.95);
+            font-weight: 500;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .chatbot-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .chatbot-toggle:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .chatbot-container.collapsed .chatbot-toggle i {
+            transform: rotate(180deg);
+        }
+
+        .chatbot-body {
+            padding: 28px;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 2;
+        }
+
+        .chatbot-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding-right: 10px;
+            min-height: 200px;
+            max-height: 400px;
+        }
+
+        .chatbot-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chatbot-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .chatbot-messages::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+
+        .chatbot-message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: messageSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .chatbot-message.user-message {
+            animation: messageSlideInRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes messageSlideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        .chatbot-message.user-message {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .bot-message .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .user-message .message-avatar {
+            background: #e1e5e9;
+            color: #667eea;
+        }
+
+        .message-content {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 18px 22px;
+            border-radius: 20px;
+            max-width: 75%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08), 0 2px 5px rgba(0,0,0,0.05);
+            position: relative;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .message-content:hover {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12), 0 2px 5px rgba(0,0,0,0.05);
+            transform: translateY(-2px);
+        }
+
+        .user-message .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3), 0 2px 5px rgba(102, 126, 234, 0.2);
+        }
+
+        .user-message .message-content:hover {
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4), 0 2px 5px rgba(102, 126, 234, 0.3);
+        }
+
+        .message-content p {
+            margin: 0;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .message-content p + p {
+            margin-top: 8px;
+        }
+
+        .message-hint {
+            font-size: 12px !important;
+            opacity: 0.8;
+            font-style: italic;
+        }
+
+        .message-parsed {
+            background: #e8f5e9;
+            border-left: 3px solid #10b981;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .message-parsed strong {
+            color: #10b981;
+        }
+
+        .chatbot-input-container {
+            border-top: 2px solid #e1e5e9;
+            padding-top: 15px;
+        }
+
+        .chatbot-input-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        /* Typing Indicator Styles (Gemini-like) */
+        .typing-indicator-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px !important;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .typing-indicator-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            position: relative;
+        }
+
+        .typing-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: typingDotGemini 1.6s infinite ease-in-out;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            position: relative;
+        }
+
+        .typing-dot::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.8;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingDotGemini {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+                opacity: 0.5;
+                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+            }
+            50% {
+                transform: translateY(-12px) scale(1.2);
+                opacity: 1;
+                box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
+            }
+        }
+
+        .typing-text {
+            margin: 0;
+            color: #6b7280;
+            font-size: 13px;
+            font-style: italic;
+            position: relative;
+            animation: pulseText 2s ease-in-out infinite;
+        }
+
+        @keyframes pulseText {
+            0%, 100% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Gemini-style thinking animation */
+        .gemini-thinking {
+            position: relative;
+            padding: 16px 20px;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08), 0 0 0 1px rgba(102, 126, 234, 0.05);
+        }
+
+        .gemini-thinking::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(102, 126, 234, 0.1) 50%, 
+                transparent 100%);
+            animation: thinkingShimmer 2.5s infinite;
+            z-index: 1;
+        }
+
+        .gemini-thinking::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
+            animation: thinkingGlow 3s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes thinkingShimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        @keyframes thinkingGlow {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.3;
+            }
+            50% {
+                transform: translate(20px, 20px) scale(1.1);
+                opacity: 0.6;
+            }
+        }
+
+        /* Make sure typing content is above shimmer effects */
+        .typing-indicator-content > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Streaming Text Effect (Gemini-like) */
+        .streaming-text {
+            margin: 0;
+            min-height: 20px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .streaming-text::after {
+            content: '▊';
+            animation: blinkCursor 1s infinite;
+            color: #667eea;
+            margin-left: 2px;
+            font-weight: bold;
+        }
+
+        .streaming-text.streaming-complete::after {
+            display: none;
+        }
+
+        @keyframes blinkCursor {
+            0%, 50% {
+                opacity: 1;
+            }
+            51%, 100% {
+                opacity: 0;
+            }
+        }
+
+        .message-content.streaming {
+            position: relative;
+        }
+
+        .message-content.streaming::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, 
+                transparent 0%, 
+                rgba(102, 126, 234, 0.02) 50%, 
+                transparent 100%);
+            pointer-events: none;
+            animation: streamingGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes streamingGlow {
+            0%, 100% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Upload Button */
+        .chatbot-upload-btn {
+            width: 50px;
+            height: 50px;
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #e1e5e9;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .chatbot-upload-btn:hover {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+            transform: scale(1.05);
+        }
+
+        .chatbot-upload-btn.uploading {
+            background: #f59e0b;
+            color: white;
+            border-color: #f59e0b;
+            animation: pulseUploading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseUploading {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+            }
+        }
+
+        .chatbot-upload-btn i {
+            font-size: 20px;
+        }
+
+        /* Extracted Data List */
+        .extracted-data-list {
+            margin-top: 15px;
+            padding: 15px;
+            background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 15px;
+            border: 2px solid #0ea5e9;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .extracted-data-list h4 {
+            margin: 0 0 12px 0;
+            color: #0369a1;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .extracted-data-item {
+            background: white;
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 2px solid #e0f2fe;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .extracted-data-item:hover {
+            border-color: #0ea5e9;
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+        }
+
+        .extracted-data-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .extracted-data-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .extracted-data-item-title {
+            font-weight: 600;
+            color: #0369a1;
+            font-size: 13px;
+        }
+
+        .extracted-data-item-select {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .extracted-data-item-select:hover {
+            background: #0284c7;
+            transform: scale(1.05);
+        }
+
+        .extracted-data-item-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .extracted-data-field {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .extracted-data-field i {
+            color: #0ea5e9;
+            font-size: 11px;
+        }
+
+        .extracted-data-field-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        .extracted-data-field-value:empty::before {
+            content: '-';
+            color: #94a3b8;
+            font-weight: normal;
+        }
+
+        /* Voice Input Button */
+        .chatbot-voice-btn {
+            width: 50px;
+            height: 50px;
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #e1e5e9;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .chatbot-voice-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+
+        .chatbot-voice-btn.recording {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            animation: pulseRecording 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseRecording {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+        }
+
+        .chatbot-voice-btn i {
+            font-size: 20px;
+        }
+
+        .chatbot-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            min-width: 0; /* Allow input to shrink on mobile */
+        }
+
+        .chatbot-input::placeholder {
+            color: #9ca3af;
+            opacity: 0.7;
+        }
+
+        .chatbot-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Smart Query Suggestions Dropdown */
+        .query-suggestions-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            animation: slideUp 0.3s ease;
+            border: 1px solid #e1e5e9;
+        }
+
+        .query-suggestions-dropdown.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .suggestions-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+            border-radius: 16px 16px 0 0;
+        }
+
+        .suggestions-header i {
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .suggestions-header span {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .suggestion-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f9fafb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.selected {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
+            border-left: 3px solid #667eea;
+        }
+
+        .suggestion-item-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .suggestion-item-icon.complete {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .suggestion-item-icon.typo_fix {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .suggestion-item-icon.combination {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .suggestion-item-icon.alternative {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .suggestion-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .suggestion-item-query {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .suggestion-item-description {
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        .suggestion-item-confidence {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+            padding: 2px 8px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .typo-corrections {
+            padding: 12px 16px;
+            background: #fef3c7;
+            border-bottom: 1px solid #fde68a;
+            border-top: 1px solid #fde68a;
+        }
+
+        .typo-corrections-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .typo-correction-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: white;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 8px;
+            margin-bottom: 6px;
+            border: 1px solid #fde68a;
+        }
+
+        .typo-original {
+            color: #dc2626;
+            text-decoration: line-through;
+        }
+
+        .typo-arrow {
+            color: #9ca3af;
+        }
+
+        .typo-corrected {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .quick-actions {
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .quick-actions-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .quick-action-btn {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #4b5563;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .quick-action-btn:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .quick-action-btn i {
+            font-size: 14px;
+        }
+
+        .suggestions-loading {
+            padding: 20px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .suggestions-loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        .no-suggestions {
+            padding: 20px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 13px;
+        }
+
+        .chatbot-send-btn {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chatbot-send-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .chatbot-send-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .chatbot-send-btn:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .chatbot-send-btn:active {
+            transform: scale(0.95) rotate(0deg);
+        }
+
+        .chatbot-send-btn i {
+            position: relative;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        .chatbot-send-btn:hover i {
+            transform: translateX(2px) translateY(-2px);
+        }
+
+        .chatbot-suggestions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-chip {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #374151;
+        }
+
+        .suggestion-chip:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        /* Responsive Chatbot - Tablet */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .chatbot-container {
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+            .chatbot-header {
+                padding: 20px 25px;
+            }
+
+            .chatbot-avatar {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }
+
+            .chatbot-info h3 {
+                font-size: 1.1rem;
+            }
+
+            .chatbot-info p {
+                font-size: 0.8rem;
+            }
+
+            .message-content {
+                max-width: 70%;
+                padding: 16px 20px;
+            }
+
+            .chatbot-messages {
+                max-height: 350px;
+            }
+        }
+
+        /* Responsive Chatbot - Mobile */
+        @media (max-width: 768px) {
+            .chatbot-container {
+                border-radius: 0;
+                margin-left: -30px;
+                margin-right: -30px;
+                margin-bottom: 20px;
+            }
+
+            .chatbot-header {
+                padding: 15px 18px;
+            }
+
+            .chatbot-header-left {
+                gap: 12px;
+            }
+
+            .chatbot-avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
+
+            .chatbot-info h3 {
+                font-size: 1rem;
+            }
+
+            .chatbot-info p {
+                font-size: 0.75rem;
+            }
+
+            .chatbot-toggle {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+
+            .chatbot-body {
+                padding: 15px 18px;
+                max-height: 500px;
+            }
+
+            .chatbot-messages {
+                min-height: 150px;
+                max-height: 300px;
+                margin-bottom: 15px;
+            }
+
+            .chatbot-message {
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .message-avatar {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            .message-content {
+                max-width: 85%;
+                padding: 14px 16px;
+                font-size: 13px;
+            }
+
+            .message-content p {
+                font-size: 13px;
+                line-height: 1.4;
+            }
+
+            .typing-indicator-content {
+                padding: 12px 16px !important;
+            }
+
+            .typing-dot {
+                width: 8px;
+                height: 8px;
+            }
+
+            .typing-text {
+                font-size: 12px;
+            }
+
+            .chatbot-input-wrapper {
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            .chatbot-input {
+                font-size: 16px; /* Prevent zoom on iOS */
+                padding: 12px 16px;
+            }
+
+            .chatbot-input::placeholder {
+                font-size: 14px;
+            }
+
+            .chatbot-upload-btn,
+            .chatbot-voice-btn {
+                width: 45px;
+                height: 45px;
+            }
+
+            .chatbot-upload-btn i,
+            .chatbot-voice-btn i {
+                font-size: 18px;
+            }
+
+            .chatbot-send-btn {
+                width: 45px;
+                height: 45px;
+            }
+
+            .chatbot-send-btn i {
+                font-size: 16px;
+            }
+
+            .chatbot-suggestions {
+                gap: 8px;
+            }
+
+            .suggestion-chip {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+
+            .message-parsed {
+                font-size: 11px;
+                padding: 8px;
+            }
+        }
+
+        /* Responsive Chatbot - Small Mobile */
+        @media (max-width: 480px) {
+            .chatbot-container {
+                margin-left: -20px;
+                margin-right: -20px;
+            }
+
+            .chatbot-header {
+                padding: 12px 15px;
+            }
+
+            .chatbot-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .chatbot-info h3 {
+                font-size: 0.9rem;
+            }
+
+            .chatbot-info p {
+                font-size: 0.7rem;
+            }
+
+            .chatbot-body {
+                padding: 12px 15px;
+                max-height: 450px;
+            }
+
+            .chatbot-messages {
+                min-height: 120px;
+                max-height: 250px;
+                margin-bottom: 12px;
+            }
+
+            .message-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+            }
+
+            .message-content {
+                max-width: 90%;
+                padding: 12px 14px;
+                font-size: 12px;
+            }
+
+            .message-content p {
+                font-size: 12px;
+            }
+
+            .typing-indicator-content {
+                padding: 10px 14px !important;
+            }
+
+            .typing-dot {
+                width: 7px;
+                height: 7px;
+            }
+
+            .typing-text {
+                font-size: 11px;
+            }
+
+            .chatbot-input-wrapper {
+                gap: 6px;
+            }
+
+            .chatbot-input {
+                padding: 10px 14px;
+                font-size: 16px;
+            }
+
+            .chatbot-input::placeholder {
+                font-size: 13px;
+            }
+
+            .chatbot-upload-btn,
+            .chatbot-voice-btn,
+            .chatbot-send-btn {
+                width: 40px;
+                height: 40px;
+            }
+
+            .chatbot-upload-btn i,
+            .chatbot-voice-btn i,
+            .chatbot-send-btn i {
+                font-size: 14px;
+            }
+
+            .chatbot-suggestions {
+                gap: 6px;
+            }
+
+            .suggestion-chip {
+                padding: 5px 10px;
+                font-size: 10px;
+            }
+
+            .streaming-text {
+                font-size: 12px;
+            }
+        }
+
+        /* Responsive Chatbot - Extra Small Mobile */
+        @media (max-width: 360px) {
+            .chatbot-header {
+                padding: 10px 12px;
+            }
+
+            .chatbot-avatar {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            .chatbot-info h3 {
+                font-size: 0.85rem;
+            }
+
+            .chatbot-info p {
+                display: none; /* Hide subtitle on very small screens */
+            }
+
+            .chatbot-body {
+                padding: 10px 12px;
+            }
+
+            .chatbot-messages {
+                max-height: 200px;
+            }
+
+            .message-content {
+                max-width: 95%;
+                padding: 10px 12px;
+                font-size: 11px;
+            }
+
+            .chatbot-input {
+                padding: 8px 12px;
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+
+            .chatbot-input::placeholder {
+                font-size: 12px;
+            }
+
+            .chatbot-voice-btn,
+            .chatbot-send-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            /* Smart Query Suggestions Mobile */
+            .query-suggestions-dropdown {
+                max-height: 300px;
+                border-radius: 12px;
+            }
+
+            .suggestion-item {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+
+            .suggestion-item-icon {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .suggestion-item-query {
+                font-size: 13px;
+            }
+
+            .suggestion-item-description {
+                font-size: 11px;
+            }
+
+            .quick-actions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-action-btn {
+                padding: 10px;
+                font-size: 11px;
+            }
+        }
+
+        /* Responsive Chatbot - Landscape Mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .chatbot-body {
+                max-height: 300px;
+            }
+
+            .chatbot-messages {
+                max-height: 200px;
+                min-height: 100px;
+            }
+
+            .chatbot-header {
+                padding: 12px 18px;
+            }
+
+            .chatbot-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+        }
+
+        /* Touch-friendly improvements for mobile */
+        @media (max-width: 768px) {
+            .chatbot-voice-btn,
+            .chatbot-send-btn {
+                min-width: 44px; /* Minimum touch target size */
+                min-height: 44px;
+            }
+
+            .suggestion-chip {
+                min-height: 36px; /* Touch-friendly */
+                padding: 8px 14px;
+            }
+
+            .chatbot-toggle {
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            /* Improve scrolling on mobile */
+            .chatbot-messages {
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+            }
+
+            /* Better text selection on mobile */
+            .message-content {
+                -webkit-user-select: text;
+                user-select: text;
+            }
+
+            /* Ensure input doesn't overflow */
+            .chatbot-input-wrapper {
+                flex-wrap: nowrap;
+            }
+
+            .chatbot-input {
+                min-width: 0;
+                flex: 1 1 auto;
+            }
+
+            /* Make sure buttons don't shrink */
+            .chatbot-upload-btn,
+            .chatbot-voice-btn,
+            .chatbot-send-btn {
+                flex-shrink: 0;
+            }
+
+            /* Extracted data list responsive */
+            .extracted-data-list {
+                max-height: 250px;
+            }
+
+            .extracted-data-item-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Responsive Chatbot - Large Desktop */
+        @media (min-width: 1400px) {
+            .chatbot-container {
+                max-width: 1200px;
+                margin: 0 auto 25px auto;
+            }
+
+            .chatbot-messages {
+                max-height: 500px;
+            }
+        }
+
+        /* Responsive Chatbot - Medium Desktop */
+        @media (min-width: 1025px) and (max-width: 1399px) {
+            .chatbot-messages {
+                max-height: 450px;
+            }
+        }
+
         /* Search Type Selector */
         .search-type-selector {
             background: white;
@@ -1421,6 +2900,7 @@
             background: #e1e5e9;
             outline: none;
             -webkit-appearance: none;
+            appearance: none;
         }
 
         .threshold-slider input[type="range"]::-webkit-slider-thumb {
@@ -1496,6 +2976,51 @@
 
         .results-content {
             padding: 25px;
+            max-height: calc(100vh - 250px);
+            overflow-y: scroll !important; /* Force scrollbar to always show */
+            overflow-x: hidden;
+            min-height: 200px; /* Ensure minimum height for scrollbar visibility */
+        }
+
+        /* Enhanced Scrollbar for Results Content - Desktop */
+        .results-content::-webkit-scrollbar {
+            width: 12px;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .results-content::-webkit-scrollbar-track {
+            background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+            margin: 10px 0;
+            -webkit-box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        .results-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            border: 2px solid #f8f9fa;
+            box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+            min-height: 50px; /* Ensure thumb is visible */
+        }
+
+        .results-content::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #5a6fd8 0%, #6a4190 100%);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.5);
+            transform: scale(1.05);
+        }
+
+        /* Firefox Scrollbar */
+        .results-content {
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #f1f1f1;
+        }
+
+        /* Force scrollbar visibility when content overflows */
+        .results-content:not(:empty) {
+            overflow-y: scroll !important;
         }
 
         .results-grid {
@@ -1612,6 +3137,262 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Enhanced Scrollbar Styles */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #f1f1f1;
+        }
+
+        *::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        *::-webkit-scrollbar-track {
+            background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        *::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            border: 2px solid #f8f9fa;
+            box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        *::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #5a6fd8 0%, #6a4190 100%);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.5);
+            transform: scale(1.1);
+        }
+
+        *::-webkit-scrollbar-corner {
+            background: #f8f9fa;
+        }
+
+        /* Video Embed Container - Responsive */
+        .video-embed-container {
+            position: relative;
+            width: 120px; /* Square size like 4x6 photo but square (120x120px) */
+            height: 120px;
+            overflow: hidden;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            background: #000;
+            margin-bottom: 12px;
+            margin-right: 12px;
+            float: left;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .video-embed-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: none; /* Disable interaction on thumbnail */
+        }
+
+        /* Video thumbnail overlay - click to play */
+        .video-embed-container::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .video-embed-container::before {
+            content: '▶';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-45%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 11;
+            pointer-events: none;
+        }
+
+        /* Result Item - Enhanced Responsive */
+        .result-item {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .result-item .result-header {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .result-item .result-title a {
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .result-item .result-snippet {
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .result-item .result-thumbnail {
+            width: 120px; /* Square size like 4x6 photo but square (120x120px) */
+            height: 120px;
+            flex-shrink: 0;
+            margin-right: 12px;
+            float: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-item .result-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .result-item .result-meta {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        /* Optimized Image Loading - All result images */
+        .result-item img,
+        .result-thumbnail img,
+        .social-item img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: optimize-quality;
+        }
+
+        /* Add transition for smooth image loading */
+        .result-item img,
+        .result-thumbnail img {
+            transition: opacity 0.3s ease;
+        }
+
+        /* Placeholder while image loads */
+        .result-thumbnail {
+            position: relative;
+            background: #f3f4f6;
+        }
+
+        /* Clear float after thumbnail */
+        .result-item::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        .result-thumbnail img {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .result-thumbnail img[src] {
+            opacity: 1;
+        }
+
+        /* Tablet Responsive */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .results-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+
+            .result-item {
+                padding: 14px !important;
+            }
+
+            .result-item .result-title a {
+                font-size: 1.05rem !important;
+            }
+
+            .video-embed-container {
+                width: 100px !important;
+                height: 100px !important;
+                margin-right: 10px !important;
+                float: left !important;
+            }
+
+            .result-item .result-thumbnail {
+                width: 100px !important;
+                height: 100px !important;
+                margin-right: 10px !important;
+            }
+        }
+
+        /* Small Mobile Responsive */
+        @media (max-width: 480px) {
+            .result-item {
+                padding: 10px !important;
+                margin-bottom: 10px !important;
+            }
+
+            .result-item .result-title a {
+                font-size: 0.95rem !important;
+            }
+
+            .result-item .result-snippet {
+                font-size: 0.85rem !important;
+                padding: 8px !important;
+            }
+
+            .video-embed-container {
+                width: 60px !important;
+                height: 60px !important;
+                margin-right: 6px !important;
+                margin-bottom: 0 !important;
+                float: left !important;
+            }
+
+            .video-embed-container::after {
+                width: 25px !important;
+                height: 25px !important;
+            }
+
+            .video-embed-container::before {
+                font-size: 14px !important;
+            }
+
+            .result-item .result-thumbnail {
+                width: 60px !important;
+                height: 60px !important;
+                margin-right: 6px !important;
+            }
+
+            .results-content {
+                padding: 12px 15px !important;
+                max-height: calc(100vh - 180px) !important;
+                overflow-y: scroll !important; /* Force scrollbar */
+                min-height: 120px !important;
+            }
+
+            /* Small Mobile Scrollbar */
+            .results-content::-webkit-scrollbar {
+                width: 6px !important;
+            }
+
+            .results-content::-webkit-scrollbar-thumb {
+                min-height: 30px !important;
+            }
         }
 
         /* Mobile Responsive */
@@ -2109,48 +3890,209 @@
             
             .results-section {
                 padding: 20px;
+                margin-left: -30px;
+                margin-right: -30px;
+                border-radius: 0;
             }
             
             .results-header {
                 margin-bottom: 20px;
+                padding: 15px 20px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
             
             .results-title {
-                font-size: 1.3rem;
+                font-size: 1.1rem;
                 margin-bottom: 10px;
             }
             
             .results-count {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
+                padding: 4px 10px;
+            }
+            
+            .results-content {
+                padding: 15px 20px;
+                max-height: calc(100vh - 200px);
+                overflow-y: scroll !important; /* Force scrollbar to always show */
+                overflow-x: hidden;
+                min-height: 150px; /* Ensure minimum height */
+            }
+
+            /* Enhanced Scrollbar for Results Content - Mobile */
+            .results-content::-webkit-scrollbar {
+                width: 8px;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+
+            .results-content::-webkit-scrollbar-track {
+                background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+                border-radius: 10px;
+                box-shadow: inset 0 0 3px rgba(0,0,0,0.1);
+                -webkit-box-shadow: inset 0 0 3px rgba(0,0,0,0.1);
+            }
+
+            .results-content::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+                border-radius: 10px;
+                border: 1px solid #f8f9fa;
+                box-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
+                min-height: 40px; /* Ensure thumb is visible */
+            }
+
+            .results-content::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #5a6fd8 0%, #6a4190 100%);
+                box-shadow: 0 2px 5px rgba(102, 126, 234, 0.5);
+            }
+
+            /* Firefox Scrollbar Mobile */
+            .results-content {
+                scrollbar-width: thin;
+                scrollbar-color: #667eea #f1f1f1;
+            }
+
+            /* Force scrollbar visibility on mobile */
+            .results-content:not(:empty) {
+                overflow-y: scroll !important;
             }
             
             .results-grid {
                 grid-template-columns: 1fr;
-                gap: 15px;
+                gap: 12px;
             }
             
             .result-card {
-                padding: 20px;
+                padding: 15px;
                 border-radius: 12px;
+            }
+
+            /* Result Item Mobile Responsive */
+            .result-item {
+                padding: 12px !important;
+                margin-bottom: 12px !important;
+                border-radius: 10px !important;
+                overflow: hidden; /* Clear float */
+            }
+
+            .result-item .result-header {
+                flex-direction: row;
+                align-items: flex-start !important;
+                gap: 8px !important;
+                flex-wrap: wrap;
+                margin-bottom: 10px !important;
+            }
+
+            .result-item .result-header > div {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .result-item .result-title {
+                margin-bottom: 8px !important;
+                clear: both; /* Clear float from thumbnail */
+            }
+
+            .result-item .result-title a {
+                font-size: 0.95rem !important;
+                flex-direction: row;
+                align-items: flex-start !important;
+                gap: 6px !important;
+            }
+
+            .result-item .result-title a i {
+                margin-top: 3px !important;
+                flex-shrink: 0;
+            }
+
+            .result-item .result-snippet {
+                font-size: 0.85rem !important;
+                padding: 8px !important;
+                line-height: 1.5 !important;
+                clear: both; /* Clear float from thumbnail */
+                margin-top: 8px !important;
+            }
+
+            .result-item .result-thumbnail {
+                width: 80px !important;
+                height: 80px !important;
+                margin-right: 8px !important;
+                margin-bottom: 0 !important;
+                float: left !important;
+            }
+
+            .result-item .result-thumbnail img {
+                border-radius: 6px !important;
+            }
+
+            /* Video Embed Mobile Responsive */
+            .video-embed-container {
+                width: 80px !important;
+                height: 80px !important;
+                margin-right: 8px !important;
+                margin-bottom: 0 !important;
+                float: left !important;
+            }
+
+            .video-embed-container::after {
+                width: 35px !important;
+                height: 35px !important;
+            }
+
+            .video-embed-container::before {
+                font-size: 18px !important;
+            }
+
+            .result-item .result-meta {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 6px !important;
+                padding-top: 10px !important;
+                clear: both; /* Clear float from thumbnail/video */
+                margin-top: 8px !important;
+            }
+
+            .result-item .result-meta > * {
+                font-size: 0.75rem !important;
+            }
+
+            /* Content Type Tags Mobile */
+            .result-item .content-type-tag {
+                font-size: 0.7rem !important;
+                padding: 3px 8px !important;
+            }
+
+            /* Badges Mobile */
+            .result-item .result-header span {
+                font-size: 0.65rem !important;
+                padding: 2px 6px !important;
+            }
+
+            /* Result Position Mobile */
+            .result-item .result-position {
+                font-size: 0.7rem !important;
+                padding: 3px 6px !important;
             }
             
             .result-header {
-                gap: 15px;
-                margin-bottom: 15px;
+                gap: 12px;
+                margin-bottom: 12px;
             }
             
             .result-avatar {
-                width: 60px;
-                height: 60px;
-                font-size: 1.4rem;
-            }
-            
-            .result-info h3 {
+                width: 45px;
+                height: 45px;
                 font-size: 1.1rem;
             }
             
+            .result-info h3 {
+                font-size: 0.95rem;
+            }
+            
             .result-info p {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
             }
             
             .info-grid {
@@ -2818,6 +4760,21 @@
             align-self: flex-end;
         }
 
+        /* Search Info Header - Responsive */
+        .search-info-header {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .search-info-header > div:first-child {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-info-header .search-status {
+            flex-shrink: 0;
+        }
+
         .result-item {
             padding: 12px;
         }
@@ -2842,6 +4799,31 @@
 
         .social-item {
             padding: 10px;
+        }
+
+        /* Search Info Header Mobile */
+        .search-info-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            padding: 12px 15px !important;
+            gap: 10px !important;
+        }
+
+        .search-info-header > div:first-child {
+            width: 100% !important;
+        }
+
+        .search-info-header .search-status {
+            width: 100% !important;
+            justify-content: flex-start !important;
+            font-size: 0.85rem !important;
+        }
+
+        .search-info-header #socialMediaSearchName {
+            display: block;
+            margin-top: 4px;
+            font-size: 1rem;
+            font-weight: 600;
         }
     }
 
@@ -3005,49 +4987,65 @@
                 </div>
             </div>
 
-            <!-- AI Toggle Switch -->
-            <div class="ai-toggle-container" id="aiToggleContainer">
-                <div class="ai-toggle-label">
-                    <i class="fas fa-robot"></i>
-                    <span>Gemini AI Mode</span>
-                </div>
-                <div class="ai-toggle-switch" id="aiToggleSwitch" onclick="toggleAIMode()">
-                    <div class="ai-toggle-slider"></div>
-                </div>
-            </div>
-
-
-
-            <!-- AI Suggestions Panel -->
-            <div class="ai-suggestions-panel" id="aiSuggestionsPanel">
-                <div class="ai-suggestions-header">
-                    <i class="fas fa-lightbulb"></i>
-                    <h4>AI Suggestions</h4>
-                </div>
-                <div id="aiSuggestionsContent">
-                    <!-- AI suggestions will be populated here -->
-                </div>
-            </div>
-
-            <!-- AI Analysis Dashboard -->
-            <div class="ai-dashboard" id="aiDashboard">
-                <div class="ai-dashboard-header">
-                    <div class="ai-dashboard-title">
-                        <i class="fas fa-chart-line"></i>
-                        <span>AI Analysis Dashboard</span>
+            <!-- Chatbot Interface -->
+            <div class="chatbot-container" id="chatbotContainer">
+                <div class="chatbot-header" onclick="toggleChatbot()">
+                    <div class="chatbot-header-left">
+                        <div class="chatbot-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="chatbot-info">
+                            <h3>AI Profiling Assistant</h3>
+                            <p>Cari dengan natural language - NIK, Nama, Lokasi, No HP</p>
+                        </div>
                     </div>
-                    <button class="ai-dashboard-refresh" onclick="refreshAIDashboard()">
-                        <i class="fas fa-sync-alt"></i>
-                        Refresh
+                    <button class="chatbot-toggle" id="chatbotToggle" onclick="event.stopPropagation(); toggleChatbot()">
+                        <i class="fas fa-chevron-down"></i>
                     </button>
                 </div>
-                <div class="ai-analysis-grid" id="aiAnalysisGrid">
-                    <!-- AI analysis cards will be populated here -->
+                <div class="chatbot-body" id="chatbotBody">
+                    <div class="chatbot-messages" id="chatbotMessages">
+                        <div class="chatbot-message bot-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <p>Halo! Saya AI Assistant untuk Profiling. Saya bisa membantu Anda mencari data dengan cara yang lebih mudah.</p>
+                                <p class="message-hint">Contoh: "Cari NIK 1505041107830002" atau "Cari nama Jambi" atau "Cari no HP 6285755349653"</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chatbot-input-container">
+                        <div class="chatbot-input-wrapper" style="position: relative;">
+                            <input type="file" id="chatbotFileInput" accept="image/*,.pdf" style="display: none;" onchange="handleChatbotFileUpload(event)">
+                            <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Ketik pencarian Anda..." onkeypress="handleChatbotKeyPress(event)" onkeydown="handleChatbotKeyDown(event)" oninput="handleChatbotInput(event)" onfocus="handleChatbotInputFocus(event)" onblur="handleChatbotInputBlur(event)">
+                            <!-- Smart Query Suggestions Dropdown -->
+                            <div class="query-suggestions-dropdown" id="querySuggestionsDropdown">
+                                <!-- Content will be populated by JavaScript -->
+                            </div>
+                            <!-- Upload button hidden - not needed yet -->
+                            <!-- <button class="chatbot-upload-btn" id="chatbotUploadBtn" onclick="document.getElementById('chatbotFileInput').click()" title="Upload Foto/Dokumen">
+                                <i class="fas fa-paperclip"></i>
+                            </button> -->
+                            <button class="chatbot-voice-btn" id="chatbotVoiceBtn" onclick="toggleVoiceInput()" title="Voice Input">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="chatbot-send-btn" onclick="handleChatbotSubmit()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="chatbot-suggestions" id="chatbotSuggestions">
+                            <button class="suggestion-chip" onclick="fillChatbotInput('Cari NIK 1505041107830002')">Cari NIK</button>
+                            <button class="suggestion-chip" onclick="fillChatbotInput('Cari nama Jambi')">Cari Nama</button>
+                            <button class="suggestion-chip" onclick="fillChatbotInput('Cari no HP 6285755349653')">Cari No HP</button>
+                            <button class="suggestion-chip" onclick="fillChatbotInput('Cari NIK 1505041107830002 nama Jambi')">Kombinasi</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Search Type Selector -->
-            <div class="search-type-selector">
+            <!-- Search Type Selector - HIDDEN -->
+            <div class="search-type-selector" style="display: none;">
                 <h3><i class="fas fa-search"></i> Pilih Jenis Pencarian</h3>
                 <div class="search-type-tabs">
                     <button class="search-tab active" data-type="identity" onclick="switchSearchType('identity')">
@@ -3065,8 +5063,8 @@
                 </div>
             </div>
 
-            <!-- Identity Search Form -->
-            <div class="search-form active" id="identityForm">
+            <!-- Identity Search Form - HIDDEN -->
+            <div class="search-form active" id="identityForm" style="display: none;">
                 <div class="form-container">
                     <!-- AI Face Upload Section for Identity Form -->
                     <div class="ai-face-upload-section" id="identityFaceUploadSection">
@@ -3141,8 +5139,8 @@
                 </div>
             </div>
 
-            <!-- Phone Search Form -->
-            <div class="search-form" id="phoneForm">
+            <!-- Phone Search Form - HIDDEN -->
+            <div class="search-form" id="phoneForm" style="display: none;">
                 <div class="form-container">
                     <div class="form-grid">
                             <div class="form-group">
@@ -3164,8 +5162,8 @@
                         </div>
                     </div>
 
-            <!-- Face Search Form -->
-            <div class="search-form" id="faceForm">
+            <!-- Face Search Form - HIDDEN -->
+            <div class="search-form" id="faceForm" style="display: none;">
                 <div class="form-container">
                     <div class="face-upload-section">
                         <div class="upload-area" id="faceUploadArea">
@@ -3221,7 +5219,7 @@
             <input type="hidden" id="username" value="">
             <input type="hidden" id="password" value="">
             
-            <div class="search-buttons">
+            <div class="search-buttons" style="display: none;">
                 <button class="btn btn-primary" onclick="handleSubmit()">
                     <i class="fas fa-search"></i> <span id="searchButtonText">Search Identity</span>
                         </button>
@@ -4496,6 +6494,1569 @@
             app.clearForm();
         }
 
+        // ============================================================================
+        // CHATBOT FUNCTIONS
+        // ============================================================================
+
+        function toggleChatbot() {
+            const container = document.getElementById('chatbotContainer');
+            container.classList.toggle('collapsed');
+        }
+
+        function fillChatbotInput(text) {
+            const input = document.getElementById('chatbotInput');
+            input.value = text;
+            input.focus();
+        }
+
+        function handleChatbotKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                handleChatbotSubmit();
+            }
+        }
+
+        // Smart Query Suggestions Variables
+        let suggestionsDebounceTimer = null;
+        let currentSuggestions = [];
+        let selectedSuggestionIndex = -1;
+        let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+
+        // Handle input with debounce for suggestions
+        function handleChatbotInput(event) {
+            const query = event.target.value.trim();
+            
+            // Clear previous debounce timer
+            if (suggestionsDebounceTimer) {
+                clearTimeout(suggestionsDebounceTimer);
+            }
+            
+            // Hide suggestions if query is empty
+            if (!query) {
+                hideSuggestions();
+                return;
+            }
+            
+            // Debounce API call (wait 300ms after user stops typing)
+            suggestionsDebounceTimer = setTimeout(() => {
+                fetchQuerySuggestions(query);
+            }, 300);
+        }
+
+        // Handle focus event
+        function handleChatbotInputFocus(event) {
+            const query = event.target.value.trim();
+            if (query) {
+                fetchQuerySuggestions(query);
+            }
+        }
+
+        // Handle blur event (with delay to allow clicks on suggestions)
+        function handleChatbotInputBlur(event) {
+            setTimeout(() => {
+                hideSuggestions();
+            }, 200);
+        }
+
+        // Handle keyboard navigation
+        function handleChatbotKeyDown(event) {
+            const dropdown = document.getElementById('querySuggestionsDropdown');
+            if (!dropdown || !dropdown.classList.contains('active')) {
+                return;
+            }
+
+            const suggestions = dropdown.querySelectorAll('.suggestion-item');
+            if (suggestions.length === 0) {
+                return;
+            }
+
+            switch(event.key) {
+                case 'ArrowDown':
+                    event.preventDefault();
+                    selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
+                    updateSelectedSuggestion(suggestions);
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+                    updateSelectedSuggestion(suggestions);
+                    break;
+                case 'Enter':
+                    if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < suggestions.length) {
+                        event.preventDefault();
+                        const selectedSuggestion = currentSuggestions[selectedSuggestionIndex];
+                        if (selectedSuggestion) {
+                            fillChatbotInput(selectedSuggestion.query);
+                            hideSuggestions();
+                        }
+                    }
+                    break;
+                case 'Escape':
+                    event.preventDefault();
+                    hideSuggestions();
+                    break;
+            }
+        }
+
+        function updateSelectedSuggestion(suggestions) {
+            suggestions.forEach((item, index) => {
+                if (index === selectedSuggestionIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        // Fetch query suggestions from API
+        async function fetchQuerySuggestions(query) {
+            const dropdown = document.getElementById('querySuggestionsDropdown');
+            if (!dropdown) return;
+
+            // Show loading state
+            dropdown.innerHTML = `
+                <div class="suggestions-loading">
+                    <i class="fas fa-spinner"></i>
+                    Mencari suggestions...
+                </div>
+            `;
+            dropdown.classList.add('active');
+
+            try {
+                const response = await fetch('/api/chatbot/query-suggestions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('session_token')}`
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        search_history: searchHistory.slice(-5) // Last 5 searches
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentSuggestions = data.suggestions || [];
+                    displaySuggestions(data);
+                } else {
+                    hideSuggestions();
+                }
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+                hideSuggestions();
+            }
+        }
+
+        // Display suggestions in dropdown
+        function displaySuggestions(data) {
+            const dropdown = document.getElementById('querySuggestionsDropdown');
+            if (!dropdown) return;
+
+            const suggestions = data.suggestions || [];
+            const typoCorrections = data.typo_corrections || [];
+            const quickActions = data.quick_actions || [];
+
+            if (suggestions.length === 0 && typoCorrections.length === 0 && quickActions.length === 0) {
+                dropdown.innerHTML = `
+                    <div class="no-suggestions">
+                        <i class="fas fa-lightbulb"></i>
+                        Tidak ada suggestions untuk query ini
+                    </div>
+                `;
+                dropdown.classList.add('active');
+                return;
+            }
+
+            let html = `
+                <div class="suggestions-header">
+                    <i class="fas fa-magic"></i>
+                    <span>Smart Suggestions</span>
+                </div>
+            `;
+
+            // Typo corrections section
+            if (typoCorrections.length > 0) {
+                html += `
+                    <div class="typo-corrections">
+                        <div class="typo-corrections-header">
+                            <i class="fas fa-spell-check"></i>
+                            Koreksi Typo
+                        </div>
+                        ${typoCorrections.map(correction => `
+                            <span class="typo-correction-item" onclick="applyTypoCorrection('${correction.original}', '${correction.corrected}')">
+                                <span class="typo-original">${correction.original}</span>
+                                <span class="typo-arrow">→</span>
+                                <span class="typo-corrected">${correction.corrected}</span>
+                            </span>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Suggestions list
+            if (suggestions.length > 0) {
+                html += suggestions.map((suggestion, index) => {
+                    const iconClass = getSuggestionIconClass(suggestion.type);
+                    const icon = getSuggestionIcon(suggestion.type);
+                    const confidence = Math.round(suggestion.confidence * 100);
+                    
+                    return `
+                        <div class="suggestion-item" onclick="selectSuggestion(${index})" data-index="${index}">
+                            <div class="suggestion-item-icon ${suggestion.type}">
+                                <i class="${icon}"></i>
+                            </div>
+                            <div class="suggestion-item-content">
+                                <div class="suggestion-item-query">${escapeHtml(suggestion.query)}</div>
+                                <div class="suggestion-item-description">${escapeHtml(suggestion.description || '')}</div>
+                            </div>
+                            <div class="suggestion-item-confidence">${confidence}%</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Quick actions section
+            if (quickActions.length > 0) {
+                html += `
+                    <div class="quick-actions">
+                        <div class="quick-actions-header">
+                            <i class="fas fa-bolt"></i>
+                            Quick Actions
+                        </div>
+                        <div class="quick-actions-grid">
+                            ${quickActions.map(action => `
+                                <button class="quick-action-btn" onclick="fillChatbotInput('${action.action}')">
+                                    <i class="fas fa-${action.icon || 'search'}"></i>
+                                    <span>${escapeHtml(action.action)}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            dropdown.innerHTML = html;
+            dropdown.classList.add('active');
+            selectedSuggestionIndex = -1;
+        }
+
+        function getSuggestionIconClass(type) {
+            const iconMap = {
+                'complete': 'complete',
+                'typo_fix': 'typo_fix',
+                'combination': 'combination',
+                'alternative': 'alternative'
+            };
+            return iconMap[type] || 'alternative';
+        }
+
+        function getSuggestionIcon(type) {
+            const iconMap = {
+                'complete': 'fa-check-circle',
+                'typo_fix': 'fa-spell-check',
+                'combination': 'fa-layer-group',
+                'alternative': 'fa-lightbulb'
+            };
+            return iconMap[type] || 'fa-lightbulb';
+        }
+
+        function selectSuggestion(index) {
+            if (currentSuggestions[index]) {
+                const suggestion = currentSuggestions[index];
+                fillChatbotInput(suggestion.query);
+                hideSuggestions();
+                
+                // Add to search history
+                addToSearchHistory(suggestion.query);
+            }
+        }
+
+        function applyTypoCorrection(original, corrected) {
+            const input = document.getElementById('chatbotInput');
+            if (input) {
+                const currentValue = input.value;
+                const correctedValue = currentValue.replace(original, corrected);
+                input.value = correctedValue;
+                input.focus();
+                
+                // Trigger suggestions update
+                handleChatbotInput({ target: input });
+            }
+        }
+
+        function hideSuggestions() {
+            const dropdown = document.getElementById('querySuggestionsDropdown');
+            if (dropdown) {
+                dropdown.classList.remove('active');
+                selectedSuggestionIndex = -1;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addToSearchHistory(query) {
+            // Remove if already exists
+            searchHistory = searchHistory.filter(q => q !== query);
+            // Add to beginning
+            searchHistory.unshift(query);
+            // Keep only last 20
+            searchHistory = searchHistory.slice(0, 20);
+            // Save to localStorage
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+        }
+
+        // Voice Input Functions
+        let recognition = null;
+        let isRecording = false;
+
+        function initSpeechRecognition() {
+            // Check if browser supports speech recognition
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.warn('Speech recognition not supported in this browser');
+                return false;
+            }
+
+            // Initialize speech recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'id-ID'; // Indonesian language
+
+            recognition.onstart = () => {
+                isRecording = true;
+                const voiceBtn = document.getElementById('chatbotVoiceBtn');
+                if (voiceBtn) {
+                    voiceBtn.classList.add('recording');
+                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                    voiceBtn.title = 'Menghentikan rekaman...';
+                }
+                
+                // Show recording indicator in chatbot
+                addChatbotMessage('🎤 Mendengarkan...', 'bot');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const input = document.getElementById('chatbotInput');
+                if (input) {
+                    input.value = transcript;
+                    // Auto-submit after getting result
+                    setTimeout(() => {
+                        handleChatbotSubmit();
+                    }, 500);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                stopVoiceRecording();
+                
+                let errorMessage = 'Terjadi kesalahan saat merekam suara.';
+                if (event.error === 'no-speech') {
+                    errorMessage = 'Tidak ada suara terdeteksi. Silakan coba lagi.';
+                } else if (event.error === 'audio-capture') {
+                    errorMessage = 'Tidak dapat mengakses mikrofon. Pastikan mikrofon sudah diizinkan.';
+                } else if (event.error === 'not-allowed') {
+                    errorMessage = 'Akses mikrofon ditolak. Silakan izinkan akses mikrofon di pengaturan browser.';
+                }
+                
+                addChatbotMessage(errorMessage, 'bot');
+            };
+
+            recognition.onend = () => {
+                stopVoiceRecording();
+            };
+
+            return true;
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) {
+                if (!initSpeechRecognition()) {
+                    addChatbotMessage('Voice input tidak didukung di browser ini. Silakan gunakan browser modern seperti Chrome atau Edge.', 'bot');
+                    return;
+                }
+            }
+
+            if (isRecording) {
+                stopVoiceRecording();
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Error starting recognition:', error);
+                    addChatbotMessage('Tidak dapat memulai rekaman. Silakan coba lagi.', 'bot');
+                }
+            }
+        }
+
+        function stopVoiceRecording() {
+            isRecording = false;
+            const voiceBtn = document.getElementById('chatbotVoiceBtn');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                voiceBtn.title = 'Voice Input';
+            }
+        }
+
+        // Initialize speech recognition will be called in main DOMContentLoaded
+
+        async function handleChatbotFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+            if (!allowedTypes.includes(file.type)) {
+                addChatbotMessage('Format file tidak didukung. Silakan gunakan file gambar (JPG, PNG, GIF) atau PDF.', 'bot');
+                return;
+            }
+
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                addChatbotMessage('File terlalu besar. Maksimal ukuran file adalah 10MB.', 'bot');
+                return;
+            }
+
+            // Show uploading state
+            const uploadBtn = document.getElementById('chatbotUploadBtn');
+            uploadBtn.classList.add('uploading');
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            // Add user message
+            addChatbotMessage(`📎 Mengupload file: ${file.name}`, 'user');
+
+            // Show typing indicator
+            const typingId = addTypingIndicator();
+
+            try {
+                // Create FormData
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Get session token
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    throw new Error('Session token tidak ditemukan. Silakan login ulang.');
+                }
+
+                // Upload file to extract document
+                const response = await fetch('/api/chatbot/extract-document', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                removeTypingIndicator(typingId);
+                uploadBtn.classList.remove('uploading');
+                uploadBtn.innerHTML = '<i class="fas fa-paperclip"></i>';
+
+                if (result.success && result.extracted_data && result.extracted_data.length > 0) {
+                    // Display extracted data list
+                    displayExtractedDataList(result.extracted_data, file.name);
+                } else {
+                    // No data extracted
+                    addChatbotMessage(
+                        result.error || 'Tidak dapat mengekstrak data dari dokumen. Pastikan dokumen jelas dan mengandung informasi NIK, nama, atau nomor HP.',
+                        'bot'
+                    );
+                }
+
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                uploadBtn.classList.remove('uploading');
+                uploadBtn.innerHTML = '<i class="fas fa-paperclip"></i>';
+                addChatbotMessage(`Maaf, terjadi kesalahan saat memproses file: ${error.message}`, 'bot');
+                console.error('File upload error:', error);
+            }
+
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function displayExtractedDataList(extractedData, fileName) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            
+            // Create message container
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chatbot-message bot-message';
+            messageDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content">
+                    <p><strong>✅ Data berhasil diekstrak dari ${fileName}</strong></p>
+                    <p style="font-size: 12px; color: #6b7280; margin-top: 5px;">Pilih data yang ingin dicari:</p>
+                    <div class="extracted-data-list">
+                        <h4><i class="fas fa-list"></i> Hasil Deteksi (${extractedData.length} data)</h4>
+                        ${extractedData.map((item, index) => `
+                            <div class="extracted-data-item" data-index="${index}">
+                                <div class="extracted-data-item-header">
+                                    <span class="extracted-data-item-title">Data ${index + 1}</span>
+                                    <button class="extracted-data-item-select" onclick="selectExtractedData(${index})">
+                                        <i class="fas fa-search"></i> Cari
+                                    </button>
+                                </div>
+                                <div class="extracted-data-item-fields">
+                                    <div class="extracted-data-field">
+                                        <i class="fas fa-id-card"></i>
+                                        <span class="extracted-data-field-value">${item.nik || '-'}</span>
+                                    </div>
+                                    <div class="extracted-data-field">
+                                        <i class="fas fa-user"></i>
+                                        <span class="extracted-data-field-value">${item.name || '-'}</span>
+                                    </div>
+                                    <div class="extracted-data-field">
+                                        <i class="fas fa-phone"></i>
+                                        <span class="extracted-data-field-value">${item.phone || '-'}</span>
+                                    </div>
+                                    <div class="extracted-data-field">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span class="extracted-data-field-value">${item.location || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Store extracted data globally for selection
+            window.extractedDataList = extractedData;
+        }
+
+        async function selectExtractedData(index) {
+            // Get item from stored extracted data list
+            if (!window.extractedDataList || !window.extractedDataList[index]) {
+                addChatbotMessage('Data tidak ditemukan. Silakan upload file lagi.', 'bot');
+                return;
+            }
+
+            const item = window.extractedDataList[index];
+            
+            // Build query from extracted data
+            let queryParts = [];
+            if (item.nik && item.nik.trim()) queryParts.push(`NIK ${item.nik.trim()}`);
+            if (item.name && item.name.trim()) queryParts.push(`nama ${item.name.trim()}`);
+            if (item.phone && item.phone.trim()) queryParts.push(`no HP ${item.phone.trim()}`);
+            if (item.location && item.location.trim()) queryParts.push(`lokasi ${item.location.trim()}`);
+
+            const query = queryParts.length > 0 ? `Cari ${queryParts.join(' ')}` : '';
+
+            if (query) {
+                // Add message showing selected data
+                addChatbotMessage(`✅ Memilih Data ${index + 1} untuk pencarian`, 'user');
+                
+                // Fill input and submit
+                const input = document.getElementById('chatbotInput');
+                input.value = query;
+                await handleChatbotSubmit();
+            } else {
+                addChatbotMessage('Data yang dipilih tidak memiliki informasi yang cukup untuk pencarian.', 'bot');
+            }
+        }
+
+        async function handleChatbotSubmit() {
+            const input = document.getElementById('chatbotInput');
+            const query = input.value.trim();
+            
+            if (!query) {
+                return;
+            }
+
+            // Hide suggestions
+            hideSuggestions();
+
+            // Add to search history
+            addToSearchHistory(query);
+
+            // Add user message
+            addChatbotMessage(query, 'user');
+            input.value = '';
+
+            // Show typing indicator
+            const typingId = addTypingIndicator();
+
+            try {
+                // IMPORTANT: Check if it's a greeting FIRST before parsing
+                // This prevents greetings from being treated as search queries
+                const isGreeting = isGreetingOrGeneralQuery(query);
+                
+                if (isGreeting) {
+                    // Get AI response for greeting/conversation - NO SEARCH
+                    removeTypingIndicator(typingId);
+                    const aiResponse = await getGreetingResponse(query);
+                    // Use streaming effect for AI response
+                    addChatbotMessage(aiResponse, 'bot', null, true);
+                    return; // IMPORTANT: Exit early, don't proceed to search
+                }
+                
+                // Only parse if it's NOT a greeting
+                const parsed = parseNaturalLanguageQuery(query);
+                
+                // Check if we have valid search parameters
+                const hasSearchParams = parsed.nik || parsed.name || parsed.phone || parsed.location;
+                
+                if (hasSearchParams) {
+                    // Valid search parameters found - proceed with search
+                    // Add bot response with parsed data (no streaming for parsed data)
+                    removeTypingIndicator(typingId);
+                    addChatbotMessage(formatParsedResponse(parsed), 'bot', parsed);
+
+                    // Auto-fill form and trigger search
+                    await autoFillAndSearch(parsed, query);
+                } else {
+                    // No valid search parameters found - treat as general conversation
+                    // Let Gemini handle it naturally
+                    removeTypingIndicator(typingId);
+                    const clarificationResponse = await getClarificationResponse(query);
+                    // Use streaming effect for clarification response
+                    addChatbotMessage(clarificationResponse, 'bot', null, true);
+                }
+
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                addChatbotMessage(`Maaf, terjadi kesalahan: ${error.message}`, 'bot');
+                console.error('Chatbot error:', error);
+            }
+        }
+
+        function isGreetingOrGeneralQuery(query) {
+            const lowerQuery = query.toLowerCase().trim();
+            
+            // IMPORTANT: If query contains search keywords, it's NOT a greeting
+            const searchKeywords = ['cari', 'search', 'find'];
+            const hasSearchKeyword = searchKeywords.some(keyword => lowerQuery.includes(keyword));
+            if (hasSearchKeyword) {
+                return false; // This is a search query, not a greeting
+            }
+            
+            // IMPORTANT: If query contains search parameters, it's NOT a greeting
+            // Check for NIK pattern (16 digits)
+            if (/\b\d{16}\b/.test(query)) {
+                return false; // Contains NIK, this is a search query
+            }
+            
+            // Check for phone number pattern
+            if (/\b(\+?62|0)?[\s-]?(\d{3,4})[\s-]?(\d{3,4})[\s-]?(\d{3,4})\b/.test(query) || 
+                /\b\d{10,13}\b/.test(query)) {
+                return false; // Contains phone number, this is a search query
+            }
+            
+            // Check for explicit search parameter keywords
+            const searchParamKeywords = ['nik', 'nama', 'hp', 'phone', 'no hp', 'nomor hp', 'lokasi', 'location', 'provinsi'];
+            const hasSearchParam = searchParamKeywords.some(keyword => lowerQuery.includes(keyword));
+            if (hasSearchParam) {
+                return false; // Contains search parameter keyword, this is a search query
+            }
+            
+            // List of greetings and general queries (expanded)
+            const greetings = [
+                'halo', 'hello', 'hi', 'hai', 'hey', 'hei', 'hallo',
+                'selamat pagi', 'selamat siang', 'selamat sore', 'selamat malam',
+                'pagi', 'siang', 'sore', 'malam',
+                'apa kabar', 'kabar', 'how are you', 'gimana kabar', 'gimana',
+                'terima kasih', 'thanks', 'thank you', 'makasih', 'terimakasih',
+                'sama-sama', 'you\'re welcome', 'sama sama',
+                'tolong', 'help', 'bantuan', 'help me', 'bantu',
+                'bagaimana cara', 'cara menggunakan', 'how to use', 'cara pakai',
+                'apa itu', 'what is', 'jelaskan', 'explain',
+                'siapa', 'who', 'dimana', 'where', 'kapan', 'when',
+                'kenapa', 'why', 'mengapa', 'bagaimana', 'how',
+                'baik', 'oke', 'ok', 'okay', 'ya', 'yes', 'tidak', 'no',
+                'saya', 'aku', 'anda', 'kamu', 'you', 'i',
+                'permisi', 'excuse me', 'maaf', 'sorry',
+                'selamat', 'congratulations', 'selamat datang', 'welcome'
+            ];
+            
+            // Check if query is exactly a greeting (exact match or starts/ends with greeting)
+            for (const greeting of greetings) {
+                if (lowerQuery === greeting || 
+                    lowerQuery.startsWith(greeting + ' ') || 
+                    lowerQuery.endsWith(' ' + greeting) ||
+                    lowerQuery.includes(' ' + greeting + ' ')) {
+                    return true;
+                }
+            }
+            
+            // Check if query is very short and doesn't contain numbers (likely greeting/conversation)
+            // BUT only if it doesn't contain search keywords
+            if (lowerQuery.length <= 15 && !/\d/.test(lowerQuery) && !hasSearchKeyword) {
+                // Check if it contains common greeting/conversation words
+                const conversationWords = [
+                    'halo', 'hi', 'hai', 'hey', 'pagi', 'siang', 'sore', 'malam',
+                    'kabar', 'gimana', 'bagaimana',
+                    'kenapa', 'mengapa', 'tolong', 'bantu', 'help', 'bantuan',
+                    'terima kasih', 'makasih', 'maaf', 'permisi', 'selamat'
+                ];
+                for (const word of conversationWords) {
+                    if (lowerQuery.includes(word)) {
+                        return true;
+                    }
+                }
+            }
+            
+            // Check if query is a question (starts with question words)
+            // BUT only if it doesn't contain search keywords
+            const questionWords = ['apa', 'siapa', 'dimana', 'kapan', 'kenapa', 'mengapa', 'bagaimana', 'how', 'what', 'who', 'where', 'when', 'why'];
+            const firstWord = lowerQuery.split(' ')[0];
+            if (questionWords.includes(firstWord) && lowerQuery.length < 50 && !hasSearchKeyword) {
+                // But exclude if it's a search-related question
+                if (!lowerQuery.includes('cari') && !lowerQuery.includes('search') && !lowerQuery.includes('find')) {
+                    return true;
+                }
+            }
+            
+            // Check if query doesn't contain search keywords and is conversational
+            if (!hasSearchKeyword && lowerQuery.length < 30 && !/\d{10,}/.test(lowerQuery)) {
+                // Likely a conversational query
+                return true;
+            }
+            
+            return false;
+        }
+
+        async function getGreetingResponse(query) {
+            try {
+                const response = await fetch('/api/chatbot/gemini-response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        search_params: {},
+                        search_results: {},
+                        has_results: false,
+                        is_greeting: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    return data.response;
+                } else {
+                    // Fallback response
+                    return `Halo! Saya AI Assistant untuk Profiling. Saya bisa membantu Anda mencari data identitas dengan cara yang mudah.\n\nAnda bisa mencari dengan mengetik:\n• "Cari NIK 1505041107830002"\n• "Cari nama Jambi"\n• "Cari no HP 6285755349653"\n• Atau kombinasi parameter lainnya\n\nAda yang bisa saya bantu?`;
+                }
+            } catch (error) {
+                console.error('Error getting greeting response:', error);
+                // Fallback response
+                return `Halo! Saya AI Assistant untuk Profiling. Saya bisa membantu Anda mencari data identitas dengan cara yang mudah.\n\nAnda bisa mencari dengan mengetik:\n• "Cari NIK 1505041107830002"\n• "Cari nama Jambi"\n• "Cari no HP 6285755349653"\n• Atau kombinasi parameter lainnya\n\nAda yang bisa saya bantu?`;
+            }
+        }
+
+        async function getClarificationResponse(query) {
+            try {
+                const response = await fetch('/api/chatbot/gemini-response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        search_params: {},
+                        search_results: {},
+                        has_results: false,
+                        needs_clarification: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    return data.response;
+                } else {
+                    // Fallback response
+                    return `Maaf, saya tidak dapat memahami permintaan Anda. Untuk melakukan pencarian, silakan berikan salah satu atau kombinasi dari:\n\n• NIK (16 digit)\n• Nama lengkap\n• Nomor HP\n• Lokasi (Provinsi)\n\nContoh: "Cari NIK 1505041107830002" atau "Cari nama Jambi"`;
+                }
+            } catch (error) {
+                console.error('Error getting clarification response:', error);
+                // Fallback response
+                return `Maaf, saya tidak dapat memahami permintaan Anda. Untuk melakukan pencarian, silakan berikan salah satu atau kombinasi dari:\n\n• NIK (16 digit)\n• Nama lengkap\n• Nomor HP\n• Lokasi (Provinsi)\n\nContoh: "Cari NIK 1505041107830002" atau "Cari nama Jambi"`;
+            }
+        }
+
+        function parseNaturalLanguageQuery(query) {
+            const lowerQuery = query.toLowerCase();
+            const parsed = {
+                nik: null,
+                name: null,
+                phone: null,
+                location: null,
+                searchType: 'identity' // default
+            };
+
+            // IMPORTANT: Exclude greeting words from being parsed as names
+            const greetingWords = [
+                'halo', 'hello', 'hi', 'hai', 'hey', 'hei', 'hallo',
+                'selamat pagi', 'selamat siang', 'selamat sore', 'selamat malam',
+                'pagi', 'siang', 'sore', 'malam',
+                'apa kabar', 'kabar', 'gimana kabar', 'gimana',
+                'terima kasih', 'thanks', 'thank you', 'makasih', 'terimakasih',
+                'sama-sama', 'sama sama',
+                'tolong', 'help', 'bantuan', 'bantu',
+                'baik', 'oke', 'ok', 'okay', 'ya', 'yes', 'tidak', 'no',
+                'permisi', 'maaf', 'sorry'
+            ];
+            
+            // If query is just a greeting word, don't parse it
+            const trimmedQuery = query.trim();
+            if (greetingWords.some(greeting => trimmedQuery.toLowerCase() === greeting || 
+                trimmedQuery.toLowerCase().startsWith(greeting + ' ') ||
+                trimmedQuery.toLowerCase().endsWith(' ' + greeting))) {
+                return parsed; // Return empty parsed object
+            }
+
+            // IMPORTANT: Check if query contains "NIK" or "nik" keyword first
+            // If it does, prioritize NIK extraction
+            const hasNikKeyword = /\bnik\b/i.test(query);
+            
+            // Extract NIK (16 digits) - handle both continuous and spaced formats
+            let nikMatch = null;
+            let extractedNik = null;
+            
+            // Pattern 1: 16 digits continuous
+            const nikPatternContinuous = /\b(\d{16})\b/g;
+            const continuousMatch = query.match(nikPatternContinuous);
+            if (continuousMatch) {
+                extractedNik = continuousMatch[0];
+            }
+            
+            // Pattern 2: NIK with spaces (e.g., "157106 2703 97001" or "1571 0627 0397 0001")
+            // This handles voice input where NIK might be spoken with pauses
+            if (!extractedNik) {
+                // Try multiple patterns for spaced NIK
+                const spacedPatterns = [
+                    /(\d{6}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{2})/,  // "157106 2703 9700 01"
+                    /(\d{4,6}[\s-]?\d{3,4}[\s-]?\d{3,4}[\s-]?\d{3,4})/,  // "1571 0627 0397 0001"
+                    /(\d{6}[\s-]?\d{4}[\s-]?\d{6})/,  // "157106 2703 970001"
+                    /(\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})/,  // "1571 0627 0397 0001"
+                ];
+                
+                for (const pattern of spacedPatterns) {
+                    const spacedMatch = query.match(pattern);
+                    if (spacedMatch) {
+                        const cleaned = spacedMatch[1].replace(/[\s-]/g, '');
+                        if (cleaned.length === 16 && /^\d{16}$/.test(cleaned)) {
+                            extractedNik = cleaned;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Pattern 3: If "NIK" keyword is present, look for digits after it (with or without spaces)
+            if (!extractedNik && hasNikKeyword) {
+                // Match "NIK" followed by digits (with possible spaces)
+                const nikAfterKeywordPatterns = [
+                    /nik\s+(\d{4,6}[\s-]?\d{3,4}[\s-]?\d{3,4}[\s-]?\d{3,4})/i,
+                    /nik\s+(\d{16})/i,
+                    /nik\s+(\d{6}[\s-]?\d{4}[\s-]?\d{6})/i,
+                    /nik\s+(\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})/i
+                ];
+                
+                for (const pattern of nikAfterKeywordPatterns) {
+                    const keywordMatch = query.match(pattern);
+                    if (keywordMatch) {
+                        const cleaned = keywordMatch[1].replace(/[\s-]/g, '');
+                        if (cleaned.length === 16 && /^\d{16}$/.test(cleaned)) {
+                            extractedNik = cleaned;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Pattern 4: Extract all digits from query and check if they form a 16-digit NIK
+            // This is a fallback for voice input where NIK might be very spaced out
+            if (!extractedNik && hasNikKeyword) {
+                // Extract all digits from the part after "NIK"
+                const nikKeywordMatch = query.match(/nik\s+(.+)/i);
+                if (nikKeywordMatch) {
+                    const afterNik = nikKeywordMatch[1];
+                    // Remove all non-digits
+                    const allDigits = afterNik.replace(/\D/g, '');
+                    // Accept 14-16 digits (voice input might miss digits)
+                    if (allDigits.length >= 14 && allDigits.length <= 16 && /^\d+$/.test(allDigits)) {
+                        // Pad to 16 digits if needed
+                        if (allDigits.length === 14) {
+                            extractedNik = allDigits + '00'; // Pad with 00
+                        } else if (allDigits.length === 15) {
+                            extractedNik = allDigits + '0'; // Pad with 0
+                        } else {
+                            extractedNik = allDigits; // Already 16 digits
+                        }
+                        // Validate it's exactly 16 digits after padding
+                        if (extractedNik.length === 16 && /^\d{16}$/.test(extractedNik)) {
+                            // Valid NIK - keep it
+                        } else {
+                            extractedNik = null; // Invalid
+                        }
+                    }
+                }
+            }
+            
+            // Pattern 5: If still no NIK but has keyword, try to find any digit sequence after "NIK"
+            // This handles cases where NIK is very spaced out or has other text
+            if (!extractedNik && hasNikKeyword) {
+                const nikKeywordMatch = query.match(/nik\s+(.+)/i);
+                if (nikKeywordMatch) {
+                    const afterNik = nikKeywordMatch[1];
+                    // Try to find spaced digits that might form NIK
+                    const digitGroups = afterNik.match(/\d+/g);
+                    if (digitGroups && digitGroups.length > 0) {
+                        const combined = digitGroups.join('');
+                        if (combined.length >= 14 && combined.length <= 16 && /^\d+$/.test(combined)) {
+                            // Pad to 16 digits if needed
+                            if (combined.length === 14) {
+                                extractedNik = combined + '00';
+                            } else if (combined.length === 15) {
+                                extractedNik = combined + '0';
+                            } else {
+                                extractedNik = combined;
+                            }
+                            // Validate
+                            if (extractedNik.length === 16 && /^\d{16}$/.test(extractedNik)) {
+                                // Valid NIK
+                            } else {
+                                extractedNik = null;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (extractedNik) {
+                parsed.nik = extractedNik;
+            }
+
+            // Extract phone number (various formats)
+            // IMPORTANT: Only extract phone if NIK is not found AND no "NIK" keyword
+            // Also check that the phone number is not part of a NIK sequence
+            if (!parsed.nik && !hasNikKeyword) {
+                const phonePatterns = [
+                    /\b(\+?62|0)?[\s-]?(\d{3,4})[\s-]?(\d{3,4})[\s-]?(\d{3,4})\b/g,
+                    /\b(\d{10,13})\b/g
+                ];
+                for (const pattern of phonePatterns) {
+                    const phoneMatch = query.match(pattern);
+                    if (phoneMatch) {
+                        const phone = phoneMatch[0].replace(/[\s-]/g, '');
+                        // IMPORTANT: Don't treat 16-digit numbers as phone (they're likely NIK)
+                        if (phone.length === 16) {
+                            continue; // Skip, this is likely a NIK
+                        }
+                        // IMPORTANT: Don't treat 14-15 digit numbers as phone if they might be part of NIK
+                        if (phone.length >= 14 && phone.length <= 15) {
+                            // Check if there are more digits nearby that could form a 16-digit NIK
+                            const phoneIndex = query.indexOf(phoneMatch[0]);
+                            const beforePhone = query.substring(Math.max(0, phoneIndex - 10), phoneIndex);
+                            const afterPhone = query.substring(phoneIndex + phoneMatch[0].length, phoneIndex + phoneMatch[0].length + 10);
+                            const nearbyDigits = (beforePhone + afterPhone).replace(/\D/g, '');
+                            // If nearby digits could form a 16-digit number, skip this phone match
+                            if (phone.length + nearbyDigits.length >= 16) {
+                                continue; // This might be part of a NIK
+                            }
+                        }
+                        if (phone.length >= 10 && phone.length <= 13) {
+                            // Normalize phone number
+                            let normalized = phone;
+                            if (normalized.startsWith('0')) {
+                                normalized = '62' + normalized.substring(1);
+                            } else if (!normalized.startsWith('62')) {
+                                normalized = '62' + normalized;
+                            }
+                            parsed.phone = normalized;
+                            parsed.searchType = 'phone';
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Extract location (province names in Indonesia)
+            const provinces = [
+                'aceh', 'sumatera utara', 'sumut', 'sumatera barat', 'sumbar',
+                'riau', 'kepulauan riau', 'kepri', 'jambi', 'sumatera selatan', 'sumsel',
+                'bangka belitung', 'babel', 'bengkulu', 'lampung',
+                'jakarta', 'dki jakarta', 'jawa barat', 'jabar', 'jawa tengah', 'jateng',
+                'yogyakarta', 'jogja', 'jawa timur', 'jatim', 'banten',
+                'bali', 'nusa tenggara barat', 'ntb', 'nusa tenggara timur', 'ntt',
+                'kalimantan barat', 'kalbar', 'kalimantan tengah', 'kalteng',
+                'kalimantan selatan', 'kalsel', 'kalimantan timur', 'kaltim',
+                'kalimantan utara', 'kaltara', 'sulawesi utara', 'sulut',
+                'sulawesi tengah', 'sulteng', 'sulawesi selatan', 'sulsel',
+                'sulawesi tenggara', 'sultra', 'gorontalo', 'sulawesi barat', 'sulbar',
+                'maluku', 'maluku utara', 'malut', 'papua barat', 'pabar', 'papua'
+            ];
+
+            for (const province of provinces) {
+                if (lowerQuery.includes(province)) {
+                    parsed.location = province;
+                    break;
+                }
+            }
+
+            // Extract name (words that are not NIK, phone, or location)
+            // Look for patterns like "nama X", "cari X", "X" where X is not a number
+            // Also handle patterns like "NIK 123 nama X" or "nama X NIK 123"
+            const namePatterns = [
+                /(?:nama|cari|search|find)\s+([a-zA-Z\s]{2,})(?:\s+(?:nik|no|hp|phone|provinsi|kota|kabupaten))?/i,
+                /(?:nik|no|hp|phone)\s+\d+\s+(?:nama|cari|search|find)?\s*([a-zA-Z\s]{2,})/i,
+                /(?:nama|cari|search|find)?\s*([a-zA-Z\s]{2,})\s+(?:nik|no|hp|phone)\s+\d+/i,
+                /^([a-zA-Z\s]{2,})(?:\s+(?:nik|no|hp|phone|provinsi|kota|kabupaten))?/i
+            ];
+
+            for (const pattern of namePatterns) {
+                const nameMatch = query.match(pattern);
+                if (nameMatch && nameMatch[1]) {
+                    let name = nameMatch[1].trim();
+                    // Remove common words but keep location names that might be part of name
+                    name = name.replace(/\b(nik|no|hp|phone|cari|search|find|nama|provinsi|kota|kabupaten)\b/gi, '').trim();
+                    // Remove NIK if it was captured
+                    name = name.replace(/\b\d{16}\b/g, '').trim();
+                    // Only remove location if it's a standalone word, not part of a name
+                    if (name.length >= 2 && !/^\d+$/.test(name)) {
+                        // Check if the name is actually a location
+                        const isLocation = provinces.some(p => name.toLowerCase().includes(p) || p.includes(name.toLowerCase()));
+                        // Check if the name is actually a greeting word
+                        const isGreetingWord = greetingWords.some(g => name.toLowerCase() === g || 
+                            name.toLowerCase().includes(g) || g.includes(name.toLowerCase()));
+                        if (!isLocation && !isGreetingWord) {
+                            parsed.name = name;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // If no explicit name found but query doesn't contain numbers, treat as name
+            // But exclude if it's a known location or greeting word
+            if (!parsed.name && !parsed.nik && !parsed.phone && query.length >= 2 && !/^\d+$/.test(query)) {
+                const words = query.split(/\s+/).filter(w => {
+                    const lowerW = w.toLowerCase();
+                    return !['cari', 'search', 'find', 'nama', 'nik', 'no', 'hp', 'phone'].includes(lowerW) &&
+                           !provinces.some(p => lowerW.includes(p) || p.includes(lowerW)) &&
+                           !greetingWords.some(g => lowerW === g || lowerW.includes(g) || g.includes(lowerW)) &&
+                           !/^\d{16}$/.test(w); // Exclude NIK
+                });
+                if (words.length > 0) {
+                    const potentialName = words.join(' ');
+                    // Double check it's not a location or greeting
+                    const isLocation = provinces.some(p => potentialName.toLowerCase().includes(p) || p.includes(potentialName.toLowerCase()));
+                    const isGreeting = greetingWords.some(g => potentialName.toLowerCase() === g || 
+                        potentialName.toLowerCase().includes(g) || g.includes(potentialName.toLowerCase()));
+                    if (!isLocation && !isGreeting) {
+                        parsed.name = potentialName;
+                    }
+                }
+            }
+
+            return parsed;
+        }
+
+        function formatParsedResponse(parsed) {
+            const parts = [];
+            
+            if (parsed.nik) {
+                parts.push(`<strong>NIK:</strong> ${parsed.nik}`);
+            }
+            if (parsed.name) {
+                parts.push(`<strong>Nama:</strong> ${parsed.name}`);
+            }
+            if (parsed.phone) {
+                parts.push(`<strong>No HP:</strong> ${parsed.phone}`);
+            }
+            if (parsed.location) {
+                parts.push(`<strong>Lokasi:</strong> ${parsed.location}`);
+            }
+
+            if (parts.length === 0) {
+                return 'Maaf, saya tidak dapat memahami permintaan Anda. Silakan coba lagi dengan format: "Cari NIK 1505041107830002" atau "Cari nama Jambi" atau "Cari no HP 6285755349653"';
+            }
+
+            return `Saya menemukan:<br>${parts.join('<br>')}<br><br>Mencari data...`;
+        }
+
+        function addChatbotMessage(text, type, parsed = null, useStreaming = false) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chatbot-message ${type}-message`;
+
+            const avatar = type === 'bot' 
+                ? '<i class="fas fa-robot"></i>'
+                : '<i class="fas fa-user"></i>';
+
+            let content = `<div class="message-avatar">${avatar}</div>`;
+            
+            if (useStreaming && type === 'bot') {
+                // Create streaming message
+                content += '<div class="message-content streaming">';
+                content += '<p class="streaming-text"></p>';
+            } else {
+                content += '<div class="message-content">';
+                content += `<p>${text}</p>`;
+            }
+            
+            if (parsed && (parsed.nik || parsed.name || parsed.phone || parsed.location)) {
+                content += '<div class="message-parsed">';
+                content += '<strong>Data yang akan dicari:</strong><br>';
+                if (parsed.nik) content += `NIK: ${parsed.nik}<br>`;
+                if (parsed.name) content += `Nama: ${parsed.name}<br>`;
+                if (parsed.phone) content += `No HP: ${parsed.phone}<br>`;
+                if (parsed.location) content += `Lokasi: ${parsed.location}`;
+                content += '</div>';
+            }
+            
+            content += '</div>';
+
+            messageDiv.innerHTML = content;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // If streaming, animate the text
+            if (useStreaming && type === 'bot') {
+                const textElement = messageDiv.querySelector('.streaming-text');
+                if (textElement) {
+                    streamText(textElement, text);
+                }
+            }
+            
+            return messageDiv;
+        }
+
+        function streamText(element, fullText) {
+            // Check if text has HTML formatting
+            const hasHTML = fullText.includes('<br>') || fullText.includes('<strong>') || fullText.includes('<em>') || fullText.includes('<code>');
+            const hasMarkdown = fullText.includes('**') || fullText.includes('*') || fullText.includes('`') || fullText.includes('\n');
+            
+            // Extract plain text for streaming
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = fullText;
+            let plainText = tempDiv.textContent || tempDiv.innerText || fullText;
+            
+            // If no HTML, use original text
+            if (!hasHTML && !hasMarkdown) {
+                plainText = fullText;
+            }
+            
+            let index = 0;
+            const speed = 12; // milliseconds per character (adjust for speed - lower = faster)
+            const messagesContainer = document.getElementById('chatbotMessages');
+            
+            function typeChar() {
+                if (index < plainText.length) {
+                    // Get the character and add it
+                    element.textContent = plainText.substring(0, index + 1);
+                    index++;
+                    
+                    // Scroll to bottom as text streams
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                    
+                    // Continue typing
+                    setTimeout(typeChar, speed);
+                } else {
+                    // Finished streaming, now add HTML formatting if needed
+                    if (hasHTML || hasMarkdown) {
+                        // Replace with formatted version
+                        element.innerHTML = formatStreamedText(fullText);
+                    }
+                    // Remove cursor
+                    element.classList.add('streaming-complete');
+                }
+            }
+            
+            // Start typing after a small delay for natural feel
+            setTimeout(() => {
+                typeChar();
+            }, 300);
+        }
+
+        function formatStreamedText(text) {
+            // Format text with line breaks and markdown-like formatting
+            let formatted = text
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: monospace;">$1</code>');
+            
+            return formatted;
+        }
+
+        function addTypingIndicator() {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const typingId = 'typing-' + Date.now();
+            const typingDiv = document.createElement('div');
+            typingDiv.id = typingId;
+            typingDiv.className = 'chatbot-message bot-message';
+            typingDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content typing-indicator-content gemini-thinking">
+                    <div class="typing-dots">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </div>
+                    <p class="typing-text">AI sedang berpikir...</p>
+                </div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return typingId;
+        }
+
+        function removeTypingIndicator(typingId) {
+            const typingElement = document.getElementById(typingId);
+            if (typingElement) {
+                typingElement.remove();
+            }
+        }
+
+        async function autoFillAndSearch(parsed, originalQuery) {
+            try {
+                // Switch to appropriate search type
+                if (parsed.searchType === 'phone' && parsed.phone) {
+                    switchSearchType('phone');
+                    // Wait for form to be visible (even if hidden, form elements still work)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    const phoneInput = document.getElementById('phoneNumber');
+                    if (phoneInput) {
+                        phoneInput.value = parsed.phone;
+                        phoneInput.classList.add('ai-filled');
+                    }
+                } else if (parsed.nik || parsed.name || parsed.location) {
+                    switchSearchType('identity');
+                    // Wait for form to be visible (even if hidden, form elements still work)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    if (parsed.nik) {
+                        const nikInput = document.getElementById('nik');
+                        if (nikInput) {
+                            nikInput.value = parsed.nik;
+                            nikInput.classList.add('ai-filled');
+                        }
+                    }
+                    
+                    if (parsed.name) {
+                        const nameInput = document.getElementById('name');
+                        if (nameInput) {
+                            nameInput.value = parsed.name;
+                            nameInput.classList.add('ai-filled');
+                        }
+                    }
+
+                    // Handle location - try to match with province dropdown
+                    if (parsed.location) {
+                        // Load provinces if not loaded
+                        const provinsiSelect = document.getElementById('provinsi');
+                        if (provinsiSelect && provinsiSelect.options.length <= 1) {
+                            await loadProvinces();
+                        }
+                        
+                        // Try to find and select province
+                        if (provinsiSelect) {
+                            const locationLower = parsed.location.toLowerCase();
+                            for (let i = 0; i < provinsiSelect.options.length; i++) {
+                                const option = provinsiSelect.options[i];
+                                const optionText = option.text.toLowerCase();
+                                if (optionText.includes(locationLower) || 
+                                    locationLower.includes(optionText) ||
+                                    optionText.replace(/\s+/g, '').includes(locationLower.replace(/\s+/g, ''))) {
+                                    provinsiSelect.value = option.value;
+                                    // Update hidden field
+                                    const noPropInput = document.getElementById('no_prop');
+                                    if (noPropInput) {
+                                        noPropInput.value = option.value;
+                                    }
+                                    // Trigger change event to load kabupaten
+                                    provinsiSelect.dispatchEvent(new Event('change'));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Auto-trigger search after a short delay
+                setTimeout(async () => {
+                    await handleSubmitWithChatbot(originalQuery || '', parsed);
+                }, 500);
+
+            } catch (error) {
+                console.error('Error in autoFillAndSearch:', error);
+                addChatbotMessage(`Terjadi kesalahan saat mengisi form: ${error.message}`, 'bot');
+            }
+        }
+
+        async function loadProvinces() {
+            try {
+                const response = await fetch('/api/wilayah/provinsi');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('provinsi');
+                    if (select.options.length <= 1) {
+                        select.innerHTML = '<option value="">Pilih Provinsi</option>';
+                        result.data.forEach(provinsi => {
+                            const option = document.createElement('option');
+                            option.value = provinsi.kode;
+                            option.textContent = provinsi.nama;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading provinces:', error);
+            }
+        }
+
+        async function handleSubmitWithChatbot(originalQuery, parsed) {
+            // Show loading in chatbot
+            const loadingId = addTypingIndicator();
+            
+            try {
+                // Ensure results section is visible
+                const resultsSection = document.getElementById('resultsSection');
+                if (resultsSection) {
+                    resultsSection.style.display = 'block';
+                }
+                
+                // Trigger search - use the existing handleSubmit function
+                // Call handleSubmit which will call app.handleSubmit()
+                handleSubmit();
+                
+                // Wait for search to complete and results to be displayed
+                // Check results multiple times with delay
+                let attempts = 0;
+                let hasResults = false;
+                let totalResults = 0;
+                const maxAttempts = 40; // 20 seconds max wait
+                
+                while (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    const resultsCount = document.getElementById('resultsCount');
+                    const loading = document.getElementById('loading');
+                    const resultsContent = document.getElementById('resultsContent');
+                    
+                    // Check if loading is finished
+                    const isLoading = loading && loading.style.display !== 'none';
+                    
+                    // Make sure results section stays visible
+                    if (resultsSection) {
+                        resultsSection.style.display = 'block';
+                    }
+                    
+                    // Multiple ways to check for results
+                    // Method 1: Check resultsCount text
+                    if (!isLoading && resultsCount) {
+                        const countText = resultsCount.textContent;
+                        // Try to extract number from text (handles both "1 results" and "1 hasil")
+                        const numberMatch = countText.match(/(\d+)/);
+                        if (numberMatch) {
+                            totalResults = parseInt(numberMatch[1]);
+                            hasResults = totalResults > 0;
+                            console.log('Found results count from text:', totalResults);
+                        }
+                    }
+                    
+                    // Method 2: Check resultsContent for actual result cards
+                    if (!isLoading && resultsContent) {
+                        const resultCards = resultsContent.querySelectorAll('.result-card');
+                        const resultsGrid = resultsContent.querySelector('.results-grid');
+                        
+                        // Check if we have result cards (excluding empty message cards)
+                        if (resultCards.length > 0) {
+                            // Check if it's not the "no results" message
+                            const isEmptyMessage = resultsContent.textContent.includes('Tidak Ada Hasil Ditemukan') ||
+                                                   resultsContent.textContent.includes('No results found');
+                            
+                            if (!isEmptyMessage) {
+                                hasResults = true;
+                                if (totalResults === 0) {
+                                    totalResults = resultCards.length;
+                                }
+                                console.log('Found result cards:', resultCards.length);
+                            }
+                        }
+                        
+                        // Also check if results grid exists and has children
+                        if (resultsGrid && resultsGrid.children.length > 0) {
+                            hasResults = true;
+                            if (totalResults === 0) {
+                                totalResults = resultsGrid.children.length;
+                            }
+                            console.log('Found results in grid:', resultsGrid.children.length);
+                        }
+                    }
+                    
+                    // Method 3: Check if results section is visible and has content
+                    if (!isLoading && resultsSection && resultsSection.style.display !== 'none') {
+                        const hasContent = resultsContent && (
+                            resultsContent.querySelector('.results-grid') ||
+                            (resultsContent.innerHTML.trim() !== '' && 
+                             !resultsContent.textContent.includes('Tidak Ada Hasil') &&
+                             !resultsContent.textContent.includes('No results'))
+                        );
+                        
+                        if (hasContent && totalResults === 0) {
+                            // Try to count from DOM (exclude empty message cards)
+                            const allCards = resultsContent.querySelectorAll('.result-card');
+                            const validCards = Array.from(allCards).filter(card => {
+                                const cardText = card.textContent || '';
+                                return !cardText.includes('Tidak Ada Hasil') && 
+                                       !cardText.includes('No results') &&
+                                       !cardText.includes('Server Eksternal');
+                            });
+                            if (validCards.length > 0) {
+                                totalResults = validCards.length;
+                                hasResults = true;
+                            }
+                        }
+                    }
+                    
+                    // If loading is done and we have results, break
+                    if (!isLoading && hasResults && totalResults > 0) {
+                        console.log('Results confirmed:', totalResults);
+                        break;
+                    }
+                    
+                    // If loading is done but no results after reasonable wait, break
+                    if (!isLoading && attempts > 10) {
+                        console.log('Loading done, final check:', { hasResults, totalResults, attempts });
+                        break;
+                    }
+                    
+                    attempts++;
+                }
+                
+                // Final comprehensive check
+                const finalResultsCount = document.getElementById('resultsCount');
+                const finalResultsContent = document.getElementById('resultsContent');
+                
+                if (finalResultsCount && !hasResults) {
+                    const finalCountText = finalResultsCount.textContent.match(/(\d+)/);
+                    if (finalCountText) {
+                        totalResults = parseInt(finalCountText[1]);
+                        hasResults = totalResults > 0;
+                        console.log('Final check from count:', totalResults);
+                    }
+                }
+                
+                if (finalResultsContent && !hasResults) {
+                    const finalCards = finalResultsContent.querySelectorAll('.result-card');
+                    const finalGrid = finalResultsContent.querySelector('.results-grid');
+                    
+                    if (finalGrid && finalGrid.children.length > 0) {
+                        hasResults = true;
+                        totalResults = finalGrid.children.length;
+                        console.log('Final check from grid:', totalResults);
+                    } else if (finalCards.length > 0) {
+                        const isEmptyMsg = finalResultsContent.textContent.includes('Tidak Ada Hasil') ||
+                                          finalResultsContent.textContent.includes('No results');
+                        if (!isEmptyMsg) {
+                            hasResults = true;
+                            totalResults = finalCards.length;
+                            console.log('Final check from cards:', totalResults);
+                        }
+                    }
+                }
+                
+                // Make sure results section is visible
+                if (resultsSection) {
+                    resultsSection.style.display = 'block';
+                }
+                
+                // Remove loading indicator
+                removeTypingIndicator(loadingId);
+                
+                console.log('Final result check:', { hasResults, totalResults, originalQuery });
+                
+                // Get Gemini response
+                const geminiResponse = await getGeminiResponse(originalQuery, parsed, {
+                    total_results: totalResults
+                }, hasResults);
+                
+                // Add Gemini response to chatbot with streaming effect
+                addChatbotMessage(geminiResponse, 'bot', null, true);
+                
+            } catch (error) {
+                removeTypingIndicator(loadingId);
+                console.error('Error in handleSubmitWithChatbot:', error);
+                addChatbotMessage('Maaf, terjadi kesalahan saat melakukan pencarian. Silakan coba lagi.', 'bot');
+                
+                // Make sure results section is visible even on error
+                const resultsSection = document.getElementById('resultsSection');
+                if (resultsSection) {
+                    resultsSection.style.display = 'block';
+                }
+            }
+        }
+
+        async function getGeminiResponse(query, searchParams, searchResults, hasResults) {
+            try {
+                const response = await fetch('/api/chatbot/gemini-response', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        search_params: {
+                            nik: searchParams.nik,
+                            name: searchParams.name,
+                            phone: searchParams.phone,
+                            location: searchParams.location
+                        },
+                        search_results: searchResults,
+                        has_results: hasResults
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    return data.response;
+                } else {
+                    // Fallback response
+                    if (hasResults) {
+                        return `Berhasil menemukan ${searchResults.total_results || 0} hasil untuk pencarian Anda.`;
+                    } else {
+                        return 'Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda.';
+                    }
+                }
+            } catch (error) {
+                console.error('Error getting Gemini response:', error);
+                // Fallback response
+                if (hasResults) {
+                    return `Berhasil menemukan ${searchResults.total_results || 0} hasil untuk pencarian Anda.`;
+                } else {
+                    return 'Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda.';
+                }
+            }
+        }
+
         function switchSearchType(type) {
             app.currentSearchType = type;
             
@@ -4757,14 +8318,19 @@
             html += `
                 <div class="detail-section" id="socialMediaSearchSection">
                     <h3><i class="fas fa-share-alt"></i> Social Media Search</h3>
-                    <div class="search-info-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 20px;">
-                        <div style="color: white;">
-                            <i class="fas fa-search"></i> <strong>Mencari:</strong> <span id="socialMediaSearchName">${person.full_name || 'N/A'}</span>
-                            </div>
-                        <div class="search-status" id="socialMediaSearchStatus" style="color: white; display: flex; align-items: center; gap: 10px;">
-                            <i class="fas fa-spinner fa-spin"></i> <span>Siap mencari...</span>
+                    <div class="search-info-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                        <div style="color: white; flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <i class="fas fa-search" style="flex-shrink: 0;"></i>
+                                <strong style="flex-shrink: 0;">Mencari:</strong>
+                                <span id="socialMediaSearchName" style="word-break: break-word; overflow-wrap: break-word;">${person.full_name || 'N/A'}</span>
                             </div>
                         </div>
+                        <div class="search-status" id="socialMediaSearchStatus" style="color: white; display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 0.9rem;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span style="white-space: nowrap;">Siap mencari...</span>
+                        </div>
+                    </div>
                         
                     <div class="universal-search-container">
                         <!-- AI Analysis Section -->
@@ -5859,6 +9425,39 @@
             return 'Social Media';
         }
 
+        // Helper: Get video embed URL
+        function getVideoEmbedUrl(url) {
+            if (!url) return '';
+            
+            const urlLower = url.toLowerCase();
+            
+            // YouTube
+            if (urlLower.includes('youtube.com/watch') || urlLower.includes('youtu.be/')) {
+                let videoId = '';
+                if (urlLower.includes('youtube.com/watch')) {
+                    const match = url.match(/[?&]v=([^&]+)/);
+                    videoId = match ? match[1] : '';
+                } else if (urlLower.includes('youtu.be/')) {
+                    const match = url.match(/youtu\.be\/([^?]+)/);
+                    videoId = match ? match[1] : '';
+                }
+                if (videoId) {
+                    return `https://www.youtube.com/embed/${videoId}`;
+                }
+            }
+            
+            // Vimeo
+            if (urlLower.includes('vimeo.com/')) {
+                const match = url.match(/vimeo\.com\/(\d+)/);
+                if (match && match[1]) {
+                    return `https://player.vimeo.com/video/${match[1]}`;
+                }
+            }
+            
+            // Default: return original URL
+            return url;
+        }
+
         // Helper: Get platform color
         function getPlatformColor(url) {
             const urlLower = url.toLowerCase();
@@ -6052,12 +9651,13 @@
                     socialLinksHTML += `
                         <div class="social-item" style="border-left: 3px solid ${color}; ${isHighRelevance ? 'box-shadow: 0 0 0 2px ' + color + '20;' : ''}">
                             <a href="${link.link}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
-                                <!-- Profile Image (ALWAYS SHOWN) -->
-                                <div style="width: 100%; height: 140px; overflow: hidden; border-radius: 8px; margin-bottom: 12px; background: linear-gradient(135deg, ${color}15, ${color}05);">
+                                <!-- Profile Image (ALWAYS SHOWN - Optimized for faster loading) -->
+                                <div style="width: 100%; height: 80px; overflow: hidden; border-radius: 6px; margin-bottom: 10px; background: linear-gradient(135deg, ${color}15, ${color}05);">
                                     <img src="${imageUrl}" 
                                          alt="${platform}" 
+                                         loading="lazy"
                                          style="width: 100%; height: 100%; object-fit: cover;"
-                                         onerror="this.style.objectFit='contain'; this.style.padding='20px';">
+                                         onerror="this.style.objectFit='contain'; this.style.padding='10px';">
                                 </div>
                                 
                                 <!-- Platform Info -->
@@ -6579,7 +10179,7 @@
                 : '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 10px; font-size: 0.7rem; font-weight: 600;"><i class="fab fa-google"></i> GOOGLE</span>';
             
             return `
-                <div class="result-item" style="border-left: 4px solid ${categoryColor}; background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s ease; ${locationScore >= 80 ? 'border-left-width: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);' : ''}">
+                <div class="result-item" style="border-left: 4px solid ${categoryColor}; background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s ease; ${locationScore >= 80 ? 'border-left-width: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);' : ''}">
                     <div class="result-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span class="content-type-tag" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: ${contentTypeInfo.color}15; color: ${contentTypeInfo.color}; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid ${contentTypeInfo.color}30;">
@@ -6597,17 +10197,22 @@
                         </div>
                     </div>
                     <div class="result-title" style="margin-bottom: 10px;">
-                        <a href="${result.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.1rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px; line-height: 1.4; transition: color 0.2s;" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#1f2937'">
+                        <a href="${result.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.1rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px; line-height: 1.4; transition: color 0.2s; word-break: break-word;" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#1f2937'">
                             <i class="fas fa-external-link-alt" style="font-size: 0.8rem; margin-top: 5px; color: ${categoryColor}; flex-shrink: 0;"></i>
-                            <span style="flex: 1;">${result.title || 'No Title'}</span>
+                            <span style="flex: 1; word-wrap: break-word; overflow-wrap: break-word;">${result.title || 'No Title'}</span>
                         </a>
                     </div>
-                    <div class="result-snippet" style="color: #4b5563; font-size: 0.95rem; line-height: 1.7; margin-bottom: 12px; padding: 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid ${contentTypeInfo.color}40;">
+                    <div class="result-snippet" style="color: #4b5563; font-size: 0.95rem; line-height: 1.7; margin-bottom: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; border-left: 3px solid ${contentTypeInfo.color}40; word-wrap: break-word; overflow-wrap: break-word;">
                         ${result.snippet || result.htmlSnippet || result.description || 'No description available'}
                     </div>
                     ${result.pagemap && result.pagemap.cse_thumbnail ? `
-                        <div class="result-thumbnail" style="margin-bottom: 10px;">
-                            <img src="${result.pagemap.cse_thumbnail[0].src}" alt="Thumbnail" style="max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                        <div class="result-thumbnail" style="width: 120px; height: 120px; float: left; margin-right: 12px; margin-bottom: 10px; flex-shrink: 0;">
+                            <img src="${result.pagemap.cse_thumbnail[0].src}" alt="Thumbnail" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer;" onclick="window.open('${result.pagemap.cse_thumbnail[0].src}', '_blank')" title="Klik untuk melihat gambar penuh">
+                        </div>
+                    ` : ''}
+                    ${result.content_type === 'video' || (result.link && (result.link.includes('youtube.com') || result.link.includes('youtu.be') || result.link.includes('vimeo.com'))) ? `
+                        <div class="video-embed-container" onclick="window.open('${result.link}', '_blank')" title="Klik untuk membuka video">
+                            <iframe src="${getVideoEmbedUrl(result.link)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                         </div>
                     ` : ''}
                     <div class="result-meta" style="display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; flex-wrap: wrap;">
@@ -6686,24 +10291,31 @@
                         : '<span style="display: inline-block; padding: 2px 8px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px; font-size: 0.7rem; font-weight: 600; margin-left: 8px;"><i class="fab fa-google"></i> GOOGLE</span>';
                     
                     html += `
-                        <div class="result-item" style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea;">
+                        <div class="result-item" style="padding: 15px; margin-bottom: 15px; background: white; border-radius: 12px; border-left: 4px solid #667eea; word-wrap: break-word; overflow-wrap: break-word;">
                             <div class="result-title" style="margin-bottom: 8px;">
-                                <a href="${result.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.05rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px;">
-                                    <i class="fas fa-external-link-alt" style="font-size: 0.8rem; margin-top: 4px; color: #667eea;"></i>
-                                    <span style="flex: 1;">${result.title || 'No Title'}</span>
-                                    ${sourceBadge}
-                                    ${platformBadge}
+                                <a href="${result.link}" target="_blank" rel="noopener noreferrer" style="font-size: 1.05rem; font-weight: 600; color: #1f2937; text-decoration: none; display: flex; align-items: start; gap: 8px; word-break: break-word; overflow-wrap: break-word; flex-wrap: wrap;">
+                                    <i class="fas fa-external-link-alt" style="font-size: 0.8rem; margin-top: 4px; color: #667eea; flex-shrink: 0;"></i>
+                                    <span style="flex: 1; word-wrap: break-word; overflow-wrap: break-word;">${result.title || 'No Title'}</span>
+                                    <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; width: 100%;">
+                                        ${sourceBadge}
+                                        ${platformBadge}
+                                    </div>
                             </a>
                         </div>
-                            <div class="result-snippet" style="color: #4b5563; font-size: 0.9rem; line-height: 1.6; margin-bottom: 10px;">
+                            <div class="result-snippet" style="color: #4b5563; font-size: 0.9rem; line-height: 1.6; margin-bottom: 10px; word-wrap: break-word; overflow-wrap: break-word;">
                                 ${result.snippet || result.htmlSnippet || result.description || 'No description available'}
                         </div>
                         ${result.pagemap && result.pagemap.cse_thumbnail ? `
-                            <div class="result-thumbnail" style="margin-bottom: 10px;">
-                                <img src="${result.pagemap.cse_thumbnail[0].src}" alt="Thumbnail" style="max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                            <div class="result-thumbnail" style="width: 120px; height: 120px; float: left; margin-right: 12px; margin-bottom: 10px; flex-shrink: 0;">
+                                <img src="${result.pagemap.cse_thumbnail[0].src}" alt="Thumbnail" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer;" onclick="window.open('${result.pagemap.cse_thumbnail[0].src}', '_blank')" title="Klik untuk melihat gambar penuh">
                             </div>
                         ` : ''}
-                            <div class="result-meta" style="display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; font-size: 0.8rem; color: #6b7280; flex-wrap: wrap;">
+                        ${result.content_type === 'video' || (result.link && (result.link.includes('youtube.com') || result.link.includes('youtu.be') || result.link.includes('vimeo.com'))) ? `
+                            <div class="video-embed-container" onclick="window.open('${result.link}', '_blank')" title="Klik untuk membuka video">
+                                <iframe src="${getVideoEmbedUrl(result.link)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            </div>
+                        ` : ''}
+                            <div class="result-meta" style="display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; font-size: 0.8rem; color: #6b7280; flex-wrap: wrap; word-wrap: break-word;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <i class="fas fa-link" style="color: #667eea;"></i>
                                     <span>${result.displayLink || result.formattedUrl || result.link?.replace(/^https?:\/\//, '').split('/')[0] || 'Unknown Source'}</span>
@@ -7735,6 +11347,11 @@
             window.profilingApp = new ProfilingApp();
             // Load provinsi data on page load
             loadProvinsi();
+            
+            // Initialize speech recognition for voice input
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                initSpeechRecognition();
+            }
         });
     </script>
 </body>

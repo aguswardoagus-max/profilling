@@ -1854,7 +1854,11 @@
                             <span class="search-type-badge ${searchTypeClass}">${searchTypeText}</span>
                         </td>
                         <td>
-                            <div style="font-weight: 600; color: #1a202c;">${item.user_name || item.username}</div>
+                            <div style="font-weight: 600; color: #1a202c;">
+                                ${item.user_name || item.username || 'Unknown User'}
+                                ${item.user_role ? `<span style="font-size: 0.75rem; color: #6b7280; font-weight: normal; margin-left: 6px;">(${item.user_role})</span>` : ''}
+                            </div>
+                            ${item.username && item.user_name !== item.username ? `<div style="font-size: 0.8rem; color: #9ca3af; margin-top: 2px;">@${item.username}</div>` : ''}
                         </td>
                         <td>
                             <div style="color: #6b7280; font-size: 0.9rem;">${searchDate}</div>

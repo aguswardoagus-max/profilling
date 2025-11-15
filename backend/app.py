@@ -18,7 +18,22 @@ from dotenv import load_dotenv
 from database import authenticate_user, validate_session_token, logout_user, db
 from functools import wraps
 from cekplat import cekplat_bp
-from ai_api_endpoints import ai_bp
+
+# Try to import AI endpoints (optional - may fail if sklearn/pandas have compatibility issues)
+ai_bp = None
+try:
+    from ai_api_endpoints import ai_bp
+    print("✅ AI endpoints module loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Warning: Could not import AI endpoints module: {e}")
+    print("   AI features will be disabled. To fix this, you may need to:")
+    print("   1. Downgrade NumPy: pip install 'numpy<2.0'")
+    print("   2. Or upgrade pandas and sklearn: pip install --upgrade pandas scikit-learn")
+    print("   3. Or reinstall all: pip install --upgrade --force-reinstall numpy pandas scikit-learn")
+except Exception as e:
+    print(f"⚠️ Warning: Error loading AI endpoints module: {e}")
+    print("   AI features will be disabled.")
+
 import numpy as np
 import requests
 
@@ -132,21 +147,41 @@ from clearance_face_search import (
 )
 
 # Konfigurasi Gemini AI
-GEMINI_API_KEY = 'AIzaSyDxxD5ZYEsW1Zeo4RiPcM_zEf2bvG8WF1A'
-genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'AIzaSyBfdNh4joV_ZTp-tZZH-hU7QDJxMKbF9x0')
+USE_NEW_GEMINI = False
+client = None
+model = None
 
-# Coba beberapa model yang tersedia
 try:
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except:
+    from google import genai as google_genai
+    client = google_genai.Client(api_key=GEMINI_API_KEY)
+    USE_NEW_GEMINI = True
+    print("✅ Menggunakan Google GenAI SDK baru")
+except Exception as e:
+    print(f"⚠️ Tidak bisa menggunakan Google GenAI SDK baru: {e}")
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
-    except:
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        USE_NEW_GEMINI = False
+        print("✅ Menggunakan Google Generative AI SDK lama")
+        
+        # Coba beberapa model yang tersedia
         try:
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            print("✅ Model gemini-1.5-flash berhasil diinisialisasi")
         except:
-            model = None
-            print("Warning: Tidak bisa menginisialisasi model Gemini AI")
+            try:
+                model = genai.GenerativeModel('gemini-1.5-pro')
+                print("✅ Model gemini-1.5-pro berhasil diinisialisasi")
+            except:
+                try:
+                    model = genai.GenerativeModel('gemini-pro')
+                    print("✅ Model gemini-pro berhasil diinisialisasi")
+                except Exception as model_error:
+                    model = None
+                    print(f"⚠️ Tidak bisa menginisialisasi model Gemini AI: {model_error}")
+    except Exception as e2:
+        print(f"⚠️ Tidak bisa menginisialisasi Gemini AI: {e2}")
 
 def calculate_data_richness(person_data, family_data):
     """Calculate data richness score for dynamic analysis"""
@@ -608,7 +643,13 @@ from mapping import mapping_bp
 
 # Register blueprints
 app.register_blueprint(cekplat_bp, url_prefix='/cekplat')
-app.register_blueprint(ai_bp)
+# Register blueprints (only if they exist)
+if ai_bp:
+    app.register_blueprint(ai_bp)
+    print("✅ AI blueprint registered")
+else:
+    print("⚠️ AI blueprint not registered (module not available)")
+
 app.register_blueprint(mapping_bp)
 
 # Configuration
@@ -2903,6 +2944,39 @@ def create_api_key():
         return jsonify({'error': f'Error creating API key: {str(e)}'}), 500
 
 
+@app.route('/api/api-keys/<int:key_id>', methods=['GET'])
+@require_auth
+def get_api_key_detail(key_id):
+    """Get a single API key by ID (with full key, not masked)"""
+    try:
+        keys = db.get_all_api_keys()
+        key = next((k for k in keys if k['id'] == key_id), None)
+        
+        if not key:
+            return jsonify({'error': 'API key not found'}), 404
+        
+        # Return full API key (not masked) for editing/copying
+        return jsonify({
+            'success': True,
+            'key': {
+                'id': key['id'],
+                'api_key': key.get('api_key', ''),  # Full key, not masked
+                'api_type': key.get('api_type'),
+                'status': key.get('status'),
+                'description': key.get('description'),
+                'priority': key.get('priority'),
+                'daily_limit': key.get('daily_limit'),
+                'usage_count': key.get('usage_count'),
+                'last_used': key.get('last_used'),
+                'created_at': key.get('created_at'),
+                'updated_at': key.get('updated_at')
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting API key detail: {e}")
+        return jsonify({'error': f'Error getting API key: {str(e)}'}), 500
+
+
 @app.route('/api/api-keys/<int:key_id>', methods=['PUT'])
 @require_auth
 def update_api_key(key_id):
@@ -3669,6 +3743,537 @@ def api_search():
     except Exception as e:
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
+@app.route('/api/chatbot/extract-document', methods=['POST'])
+@require_auth
+def chatbot_extract_document():
+    """API endpoint untuk mengekstrak data dari dokumen/foto menggunakan Gemini Vision"""
+    try:
+        # Validate session
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user = validate_session_token(session_token)
+        
+        if not user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({'error': 'File tidak ditemukan'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'File tidak dipilih'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'pdf'}
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'Format file tidak didukung. Format yang didukung: {", ".join(allowed_extensions)}'}), 400
+        
+        # Read file content
+        file_content = file.read()
+        file.seek(0)  # Reset file pointer
+        
+        # Prepare file for Gemini
+        import base64
+        import mimetypes
+        
+        # Determine MIME type
+        mime_type = mimetypes.guess_type(file.filename)[0] or 'image/jpeg'
+        
+        # Convert to base64 if needed
+        if file_ext in ['jpg', 'jpeg', 'png', 'gif']:
+            # Image file - encode to base64
+            file_base64 = base64.b64encode(file_content).decode('utf-8')
+        else:
+            # For PDF files, we'll need to convert or use OCR
+            return jsonify({'error': 'File PDF belum didukung. Silakan gunakan file gambar (JPG, PNG).'}), 400
+        
+        # Build prompt for Gemini Vision
+        prompt = """Analisis dokumen/foto ini dan ekstrak informasi berikut jika tersedia:
+1. NIK (Nomor Induk Kependudukan) - 16 digit
+2. Nama lengkap
+3. Nomor HP (telepon)
+4. Lokasi/Provinsi
+
+Jika ada beberapa data (misalnya beberapa orang dalam satu dokumen), ekstrak semua data yang ditemukan.
+
+Format output dalam JSON array, setiap item adalah objek dengan format:
+{
+  "nik": "nomor nik jika ditemukan",
+  "name": "nama lengkap jika ditemukan",
+  "phone": "nomor hp jika ditemukan",
+  "location": "lokasi/provinsi jika ditemukan"
+}
+
+Jika tidak ada data yang ditemukan, kembalikan array kosong [].
+Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
+        
+        # Call Gemini Vision API
+        extracted_data = []
+        result_text = None
+        
+        try:
+            # Using old SDK (google.generativeai)
+            if 'genai' in globals():
+                image = Image.open(io.BytesIO(file_content))
+                
+                # Try using the model that was already initialized
+                if 'model' in globals() and model:
+                    try:
+                        response = model.generate_content([prompt, image])
+                        result_text = response.text
+                        print(f"✅ Success using pre-initialized model with PIL Image")
+                    except Exception as pre_model_error:
+                        print(f"⚠️ Pre-initialized model failed: {pre_model_error}")
+                        # Try different models
+                        models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+                        for model_name in models_to_try:
+                            try:
+                                vision_model = genai.GenerativeModel(model_name)
+                                response = vision_model.generate_content([prompt, image])
+                                result_text = response.text
+                                print(f"✅ Success with model: {model_name}")
+                                break
+                            except Exception as model_error:
+                                print(f"⚠️ Model {model_name} failed: {model_error}")
+                                continue
+                else:
+                    # No pre-initialized model, try different models
+                    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+                    for model_name in models_to_try:
+                        try:
+                            vision_model = genai.GenerativeModel(model_name)
+                            response = vision_model.generate_content([prompt, image])
+                            result_text = response.text
+                            print(f"✅ Success with model: {model_name}")
+                            break
+                        except Exception as model_error:
+                            print(f"⚠️ Model {model_name} failed: {model_error}")
+                            continue
+            
+            if not result_text:
+                return jsonify({
+                    'success': False,
+                    'error': 'Tidak dapat memproses dokumen. Pastikan Gemini API key valid dan memiliki akses ke model vision.',
+                    'extracted_data': []
+                }), 500
+            
+            # Parse JSON response
+            import json
+            # Clean response text (remove markdown code blocks if any)
+            result_text = result_text.strip()
+            if result_text.startswith('```json'):
+                result_text = result_text[7:]
+            if result_text.startswith('```'):
+                result_text = result_text[3:]
+            if result_text.endswith('```'):
+                result_text = result_text[:-3]
+            result_text = result_text.strip()
+            
+            # Parse JSON
+            try:
+                extracted_data = json.loads(result_text)
+                if not isinstance(extracted_data, list):
+                    # If single object, wrap in array
+                    extracted_data = [extracted_data] if extracted_data else []
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON from Gemini: {e}")
+                print(f"Response text: {result_text}")
+                # Try to extract data manually using regex
+                import re
+                nik_match = re.search(r'\b\d{16}\b', result_text)
+                name_match = re.search(r'(?:nama|name)[\s:]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', result_text, re.IGNORECASE)
+                phone_match = re.search(r'(?:\+?62|0)?[\s-]?(\d{3,4})[\s-]?(\d{3,4})[\s-]?(\d{3,4})', result_text)
+                
+                if nik_match or name_match or phone_match:
+                    extracted_data = [{
+                        'nik': nik_match.group(0) if nik_match else '',
+                        'name': name_match.group(1) if name_match else '',
+                        'phone': phone_match.group(0) if phone_match else '',
+                        'location': ''
+                    }]
+                else:
+                    extracted_data = []
+            
+            # Filter out empty entries
+            extracted_data = [item for item in extracted_data if any([
+                item.get('nik', '').strip(),
+                item.get('name', '').strip(),
+                item.get('phone', '').strip(),
+                item.get('location', '').strip()
+            ])]
+            
+        except Exception as gemini_error:
+            print(f"Error calling Gemini Vision: {gemini_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Error memproses dokumen: {str(gemini_error)}',
+                'extracted_data': []
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'extracted_data': extracted_data,
+            'file_name': file.filename
+        })
+        
+    except Exception as e:
+        print(f"Error in chatbot_extract_document: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'extracted_data': []
+        }), 500
+
+@app.route('/api/chatbot/query-suggestions', methods=['POST'])
+@require_auth
+def chatbot_query_suggestions():
+    """API endpoint untuk mendapatkan smart query suggestions menggunakan Gemini"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        search_history = data.get('search_history', [])  # Optional: history untuk context
+        context = data.get('context', {})  # Optional: context tambahan
+        
+        if not query:
+            return jsonify({
+                'success': True,
+                'suggestions': [],
+                'typo_corrections': [],
+                'message': 'Masukkan query untuk mendapatkan suggestions'
+            })
+        
+        # Build prompt untuk Gemini
+        prompt = f"""Anda adalah asisten AI yang cerdas untuk sistem pencarian data profiling identitas.
+
+User sedang mengetik query: "{query}"
+
+Tugas Anda:
+1. Berikan 5-8 saran query pencarian yang lebih baik dan efektif
+2. Deteksi typo/kesalahan ketik dan berikan koreksi
+3. Saran kombinasi parameter pencarian yang mungkin lebih efektif
+4. Saran query alternatif yang mungkin lebih spesifik
+
+Parameter pencarian yang didukung:
+- NIK (16 digit): "Cari NIK 1505041107830002"
+- Nama: "Cari nama Jambi" atau "Cari nama Jefri Ginanjar"
+- Nomor HP: "Cari no HP 6285755349653" atau "Cari HP 081234567890"
+- Lokasi/Provinsi: "Cari lokasi Jambi" atau "Cari provinsi Sumatera Selatan"
+- Kombinasi: "Cari NIK 1505041107830002 nama Jambi" atau "Cari nama Jambi lokasi Jambi"
+
+Format response JSON (WAJIB):
+{{
+    "suggestions": [
+        {{
+            "query": "query suggestion 1",
+            "type": "complete|typo_fix|combination|alternative",
+            "description": "penjelasan singkat mengapa suggestion ini bagus",
+            "confidence": 0.95
+        }},
+        ...
+    ],
+    "typo_corrections": [
+        {{
+            "original": "kata yang salah",
+            "corrected": "kata yang benar",
+            "confidence": 0.9
+        }},
+        ...
+    ],
+    "quick_actions": [
+        {{
+            "action": "Cari NIK",
+            "icon": "id-card",
+            "description": "Pencarian berdasarkan NIK"
+        }},
+        ...
+    ]
+}}
+
+PENTING:
+- Berikan suggestions yang relevan dengan query user
+- Jika query sudah lengkap, berikan suggestions untuk kombinasi atau alternatif
+- Jika query tidak lengkap, lengkapi dengan parameter yang mungkin
+- Deteksi typo dengan baik (misal: "cari nik" bukan "cari nik", "jambi" bukan "jamby")
+- Gunakan bahasa Indonesia yang natural
+- Confidence score: 0.0-1.0 (1.0 = sangat yakin)
+
+Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
+"""
+        
+        # Add context if available
+        if search_history:
+            prompt += f"\n\nHistory pencarian user (untuk konteks):\n"
+            for i, hist in enumerate(search_history[-5:], 1):  # Last 5 searches
+                prompt += f"{i}. {hist}\n"
+        
+        # Call Gemini
+        try:
+            if USE_NEW_GEMINI and 'client' in globals() and client:
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt
+                )
+                gemini_response = response.text
+            else:
+                if 'model' in globals() and model:
+                    response = model.generate_content(prompt)
+                    gemini_response = response.text
+                else:
+                    # Fallback: simple suggestions
+                    return jsonify({
+                        'success': True,
+                        'suggestions': generate_fallback_suggestions(query),
+                        'typo_corrections': [],
+                        'quick_actions': []
+                    })
+            
+            # Parse JSON response from Gemini
+            # Try to extract JSON from response (might have markdown code blocks)
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', gemini_response)
+            if json_match:
+                json_str = json_match.group(0)
+                suggestions_data = json.loads(json_str)
+            else:
+                # If no JSON found, use fallback
+                suggestions_data = {
+                    'suggestions': generate_fallback_suggestions(query),
+                    'typo_corrections': [],
+                    'quick_actions': []
+                }
+            
+            return jsonify({
+                'success': True,
+                'suggestions': suggestions_data.get('suggestions', []),
+                'typo_corrections': suggestions_data.get('typo_corrections', []),
+                'quick_actions': suggestions_data.get('quick_actions', []),
+                'query': query
+            })
+            
+        except json.JSONDecodeError as e:
+            print(f"Error parsing Gemini JSON response: {e}")
+            print(f"Response was: {gemini_response[:500]}")
+            # Fallback to simple suggestions
+            return jsonify({
+                'success': True,
+                'suggestions': generate_fallback_suggestions(query),
+                'typo_corrections': [],
+                'quick_actions': []
+            })
+        except Exception as gemini_error:
+            print(f"Error calling Gemini for suggestions: {gemini_error}")
+            # Fallback to simple suggestions
+            return jsonify({
+                'success': True,
+                'suggestions': generate_fallback_suggestions(query),
+                'typo_corrections': [],
+                'quick_actions': []
+            })
+            
+    except Exception as e:
+        print(f"Error in chatbot_query_suggestions: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'suggestions': [],
+            'typo_corrections': [],
+            'quick_actions': []
+        }), 500
+
+def generate_fallback_suggestions(query):
+    """Generate simple fallback suggestions if Gemini is not available"""
+    suggestions = []
+    query_lower = query.lower()
+    
+    # Basic suggestions based on query content
+    if 'nik' in query_lower or any(c.isdigit() for c in query):
+        suggestions.append({
+            'query': f'Cari NIK {query}',
+            'type': 'complete',
+            'description': 'Lengkapi pencarian dengan keyword NIK',
+            'confidence': 0.8
+        })
+    
+    if 'nama' in query_lower or (len(query.split()) > 0 and not any(c.isdigit() for c in query)):
+        suggestions.append({
+            'query': f'Cari nama {query}',
+            'type': 'complete',
+            'description': 'Lengkapi pencarian dengan keyword nama',
+            'confidence': 0.8
+        })
+    
+    if 'hp' in query_lower or 'phone' in query_lower or any(c.isdigit() for c in query):
+        suggestions.append({
+            'query': f'Cari no HP {query}',
+            'type': 'complete',
+            'description': 'Lengkapi pencarian dengan keyword no HP',
+            'confidence': 0.8
+        })
+    
+    # Add generic suggestions
+    suggestions.extend([
+        {
+            'query': f'Cari {query}',
+            'type': 'complete',
+            'description': 'Tambahkan keyword "Cari" di depan',
+            'confidence': 0.7
+        }
+    ])
+    
+    return suggestions[:5]  # Limit to 5 suggestions
+
+@app.route('/api/chatbot/gemini-response', methods=['POST'])
+def chatbot_gemini_response():
+    """API endpoint untuk mendapatkan respons natural dari Gemini ketika data tidak ditemukan"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        search_params = data.get('search_params', {})
+        search_results = data.get('search_results', {})
+        has_results = data.get('has_results', False)
+        
+        if not query:
+            return jsonify({'error': 'Query diperlukan'}), 400
+        
+        # Check if it's a greeting or needs clarification
+        is_greeting = data.get('is_greeting', False)
+        needs_clarification = data.get('needs_clarification', False)
+        
+        # Build prompt untuk Gemini
+        if is_greeting:
+            prompt = f"""Anda adalah asisten AI yang ramah, cerdas, dan membantu untuk sistem pencarian data profiling identitas.
+
+User mengirim pesan: "{query}"
+
+Tugas Anda:
+1. RESPON SECARA ALAMI seperti manusia yang ramah dan membantu
+2. Jika ini adalah sapaan (halo, hi, selamat pagi, dll), balas dengan ramah dan tanyakan apa yang bisa dibantu
+3. Jika ini adalah pertanyaan umum, jawab dengan informatif dan ramah
+4. Jika ini adalah ucapan terima kasih, balas dengan sopan
+5. Jika ini adalah permintaan bantuan, jelaskan dengan jelas dan ramah
+
+PENTING:
+- Gunakan bahasa Indonesia yang natural dan ramah
+- Jangan terlalu formal, tapi tetap sopan
+- Jika user bertanya tentang cara menggunakan sistem, jelaskan dengan singkat dan jelas
+- Berikan contoh penggunaan jika relevan:
+  * "Cari NIK 1505041107830002"
+  * "Cari nama Jambi"
+  * "Cari no HP 6285755349653"
+  * Atau kombinasi parameter lainnya
+- Jangan terlalu panjang, cukup 2-4 kalimat yang natural
+- Sesuaikan respons dengan konteks pesan user
+
+Berikan respons yang natural dan ramah:
+"""
+        elif needs_clarification:
+            prompt = f"""Anda adalah asisten AI yang ramah dan cerdas untuk sistem pencarian data profiling identitas.
+
+User mengirim pesan: "{query}"
+
+Analisis pesan user:
+- Jika ini adalah percakapan umum atau pertanyaan, jawab secara natural dan ramah
+- Jika user sepertinya ingin mencari data tapi query tidak jelas, bantu dengan ramah
+- Jika ini adalah pertanyaan tentang sistem, jawab dengan informatif
+
+Untuk pencarian data, user bisa menggunakan:
+- NIK (16 digit): "Cari NIK 1505041107830002"
+- Nama: "Cari nama Jambi" atau "Cari nama Jefri Ginanjar"
+- Nomor HP: "Cari no HP 6285755349653"
+- Lokasi: "Cari lokasi Jambi"
+- Kombinasi: "Cari NIK 1505041107830002 nama Jambi"
+
+PENTING:
+- Gunakan bahasa Indonesia yang natural dan ramah
+- Jangan terlalu formal
+- Jika user bertanya sesuatu yang tidak terkait pencarian, jawab dengan ramah dan arahkan ke fungsi pencarian
+- Berikan contoh yang jelas jika user butuh bantuan
+- Jangan terlalu panjang, cukup 2-3 kalimat yang natural
+
+Berikan respons yang natural dan membantu:
+"""
+        else:
+            prompt = f"""Anda adalah asisten AI yang membantu dalam pencarian data profiling identitas. 
+User mencari dengan parameter berikut:
+"""
+            
+            if search_params.get('nik'):
+                prompt += f"- NIK: {search_params['nik']}\n"
+            if search_params.get('name'):
+                prompt += f"- Nama: {search_params['name']}\n"
+            if search_params.get('phone'):
+                prompt += f"- No HP: {search_params['phone']}\n"
+            if search_params.get('location'):
+                prompt += f"- Lokasi: {search_params['location']}\n"
+            
+            if has_results:
+                total = search_results.get('total_results', 0)
+                prompt += f"""
+Hasil pencarian: Ditemukan {total} hasil.
+
+Berikan respons yang ramah dan informatif dalam bahasa Indonesia, memberitahu user bahwa data ditemukan dan memberikan ringkasan singkat.
+"""
+            else:
+                prompt += f"""
+Hasil pencarian: Tidak ada data yang ditemukan.
+
+Berikan respons yang ramah, empatik, dan membantu dalam bahasa Indonesia. 
+Saran yang bisa diberikan:
+1. Periksa kembali parameter pencarian (NIK, nama, no HP, lokasi)
+2. Coba dengan parameter yang lebih spesifik
+3. Pastikan format input sudah benar
+4. Coba kombinasi parameter yang berbeda
+
+Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
+"""
+        
+        # Generate response menggunakan Gemini
+        try:
+            if USE_NEW_GEMINI and 'client' in globals():
+                # Menggunakan new Google GenAI SDK
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt
+                )
+                gemini_response = response.text
+            else:
+                # Fallback ke old SDK
+                if 'model' in globals() and model:
+                    response = model.generate_content(prompt)
+                    gemini_response = response.text
+                else:
+                    # Fallback response jika Gemini tidak tersedia
+                    if has_results:
+                        gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
+                    else:
+                        gemini_response = "Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda."
+        except Exception as gemini_error:
+            print(f"Error calling Gemini: {gemini_error}")
+            # Fallback response
+            if has_results:
+                gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
+            else:
+                gemini_response = "Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda."
+        
+        return jsonify({
+            'success': True,
+            'response': gemini_response,
+            'has_results': has_results
+        })
+        
+    except Exception as e:
+        print(f"Error in chatbot_gemini_response: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'response': 'Maaf, terjadi kesalahan saat memproses permintaan Anda.'
+        }), 500
+
 def perform_phone_search(token, params, data, user_data):
     """Perform phone number search"""
     try:
@@ -3774,9 +4379,8 @@ def perform_phone_search(token, params, data, user_data):
         
         # Save profiling data to database
         try:
-            # Get user data for saving
-            user_data = db.get_user_by_username(data.get('username'))
-            if user_data:
+            # Use user_data that was passed as parameter (already authenticated)
+            if user_data and user_data.get('id'):
                 # Prepare search parameters for saving
                 search_params = {
                     'search_type': 'phone',
@@ -3801,7 +4405,7 @@ def perform_phone_search(token, params, data, user_data):
                     ip_address=request.remote_addr,
                     user_agent=request.headers.get('User-Agent')
                 )
-                print(f"Saved phone search profiling data for user {user_data['username']}")
+                print(f"Saved phone search profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
         except Exception as save_error:
             print(f"Error saving phone search profiling data: {save_error}")
         
@@ -3891,9 +4495,8 @@ def perform_face_search(token, params, data, user_data):
             
             # Save profiling data to database
             try:
-                # Get user data for saving
-                user_data = db.get_user_by_username(data.get('username'))
-                if user_data:
+                # Use user_data that was passed as parameter (already authenticated)
+                if user_data and user_data.get('id'):
                     # Prepare search parameters for saving
                     search_params = {
                         'search_type': 'face',
@@ -3919,7 +4522,7 @@ def perform_face_search(token, params, data, user_data):
                         ip_address=request.remote_addr,
                         user_agent=request.headers.get('User-Agent')
                     )
-                    print(f"Saved face search profiling data for user {user_data['username']}")
+                    print(f"Saved face search profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
             except Exception as save_error:
                 print(f"Error saving face search profiling data: {save_error}")
             
@@ -3993,9 +4596,8 @@ def perform_regular_search(token, params, data, user_data):
         
         # Save profiling data to database
         try:
-            # Get user data for saving
-            user_data = db.get_user_by_username(data.get('username'))
-            if user_data:
+            # Use user_data that was passed as parameter (already authenticated)
+            if user_data and user_data.get('id'):
                 # Prepare search parameters for saving
                 search_params = {
                     'search_type': 'identity',
@@ -4020,7 +4622,7 @@ def perform_regular_search(token, params, data, user_data):
                     ip_address=request.remote_addr,
                     user_agent=request.headers.get('User-Agent')
                 )
-                print(f"Saved profiling data for user {user_data['username']}")
+                print(f"Saved profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
         except Exception as save_error:
             print(f"Error saving profiling data: {save_error}")
         
