@@ -513,72 +513,6 @@ FAMILY_API_BASE = config.get('FAMILY_API_BASE', 'http://10.1.54.224:4646/json/cl
 FAMILY_API_ALT = config.get('FAMILY_API_ALT', 'http://10.1.54.116:27682/api/v1/ktp/internal')
 PHONE_API_BASE = config.get('PHONE_API_BASE', 'http://10.1.54.224:4646/json/clearance/phones')
 
-# Helper function to get Google CSE API Key with automatic rotation
-# Cache untuk menghindari query database berulang saat error
-_db_connection_failed = False
-_db_failure_count = 0
-_last_env_api_key = None
-
-def get_google_cse_api_key(used_key: str = None, error_code: int = None, error_message: str = None):
-    """
-    Get Google CSE API Key with automatic rotation and error handling
-    
-    Args:
-        used_key: The API key that was just used (to mark as quota exceeded if needed)
-        error_code: Error code from API response (429 = quota exceeded)
-        error_message: Error message from API response
-    
-    Returns:
-        Active API key string, or None if no active keys available
-    """
-    global _db_connection_failed, _db_failure_count, _last_env_api_key
-    
-    # If we got an error, handle it silently (only if DB is available)
-    if used_key and error_code and not _db_connection_failed:
-        try:
-            if error_code == 429:  # Quota exceeded
-                db.mark_api_key_quota_exceeded(used_key, error_message)
-            elif error_code in [400, 403]:  # Invalid or forbidden
-                db.mark_api_key_error(used_key, error_message or f"Error code: {error_code}")
-        except Exception:
-            # Silent fail - DB may be unavailable
-            pass
-    
-    # Check environment variable first if DB has been failing
-    env_api_key = os.getenv('GOOGLE_CSE_API_KEY', '')
-    if env_api_key:
-        _last_env_api_key = env_api_key
-    
-    # If DB connection has been failing repeatedly, skip DB and use env var silently
-    if _db_connection_failed and _db_failure_count > 3:
-        if env_api_key:
-            return env_api_key
-        return ''
-    
-    # Try to get active API key from api_keys table (with rotation)
-    # Silent try - no error logging if DB fails
-    api_key = db.get_active_api_key('GOOGLE_CSE')
-    if api_key:
-        # Reset failure counter on success
-        _db_connection_failed = False
-        _db_failure_count = 0
-        return api_key
-    
-    # Fall back to system_settings (backward compatibility)
-    db_api_key = db.get_setting('GOOGLE_CSE_API_KEY')
-    if db_api_key:
-        # Reset failure counter on success
-        _db_connection_failed = False
-        _db_failure_count = 0
-        return db_api_key
-    
-    # Fall back to environment variable (always available, no errors)
-    if env_api_key:
-        return env_api_key
-    
-    # No API key available anywhere
-    return ''
-
 app = Flask(__name__, 
            static_folder=frontend_static_dir,
            template_folder=frontend_pages_dir)
@@ -3073,266 +3007,6 @@ def api_validate_session():
         print(f"Session validation error: {str(e)}")
         return jsonify({'valid': False, 'error': f'Session validation error: {str(e)}'}), 500
 
-@app.route('/api/settings/api-key', methods=['GET'])
-@require_auth
-def api_get_api_key():
-    """API endpoint untuk mendapatkan Google CSE API Key (masked)"""
-    try:
-        # Get session token from cookie or header
-        session_token = request.cookies.get('session_token')
-        if not session_token:
-            session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        
-        # Validate session (require_auth already does this, but double-check for safety)
-        if session_token:
-            user = validate_session_token(session_token)
-            if not user:
-                return jsonify({'error': 'Invalid or expired session'}), 401
-        
-        # Get all API keys from api_keys table (for multiple API key support)
-        all_api_keys = db.get_all_api_keys('GOOGLE_CSE')
-        
-        # Also get from system_settings for backward compatibility
-        system_setting_key = db.get_setting('GOOGLE_CSE_API_KEY')
-        
-        # Get current active API key
-        current_api_key = get_google_cse_api_key()
-        
-        # Mask current API key for security
-        if current_api_key and len(current_api_key) > 14:
-            masked_key = f"{current_api_key[:10]}...{current_api_key[-4:]}"
-        elif current_api_key:
-            masked_key = "***"
-        else:
-            masked_key = ""
-        
-        return jsonify({
-            'success': True,
-            'api_key_masked': masked_key,
-            'has_api_key': bool(current_api_key),
-            'key_length': len(current_api_key) if current_api_key else 0,
-            'total_api_keys': len(all_api_keys),
-            'api_keys': all_api_keys,  # List of all API keys (masked)
-            'has_system_setting': bool(system_setting_key)
-        })
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in api_get_api_key: {error_trace}")
-        return jsonify({
-            'success': False,
-            'error': f'Error getting API key: {str(e)}'
-        }), 500
-
-@app.route('/api/settings/api-key/<int:key_id>', methods=['DELETE'])
-@require_auth
-def api_delete_api_key(key_id):
-    """API endpoint untuk menghapus API key"""
-    try:
-        # Check if user is admin
-        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        if not session_token:
-            session_token = request.cookies.get('session_token')
-        
-        user = validate_session_token(session_token)
-        if not user or user.get('role') != 'admin':
-            return jsonify({'error': 'Only administrators can delete API keys'}), 403
-        
-        # Delete API key
-        success = db.delete_api_key(key_id)
-        
-        if success:
-            # Log activity
-            try:
-                db.log_user_activity(
-                    user_id=user.get('id'),
-                    activity_type='api_key_deleted',
-                    description=f'Deleted API key ID: {key_id}',
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent', '')
-                )
-            except:
-                pass  # Non-critical
-            
-            return jsonify({
-                'success': True,
-                'message': 'API key deleted successfully'
-            })
-        else:
-            return jsonify({'error': 'API key not found or failed to delete'}), 404
-            
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in api_delete_api_key: {error_trace}")
-        return jsonify({
-            'success': False,
-            'error': f'Error deleting API key: {str(e)}'
-        }), 500
-
-@app.route('/api/settings/api-key/cleanup', methods=['POST'])
-@require_auth
-def api_cleanup_old_api_keys():
-    """API endpoint untuk auto-cleanup API keys yang error lama"""
-    try:
-        # Check if user is admin
-        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        if not session_token:
-            session_token = request.cookies.get('session_token')
-        
-        user = validate_session_token(session_token)
-        if not user or user.get('role') != 'admin':
-            return jsonify({'error': 'Only administrators can cleanup API keys'}), 403
-        
-        data = request.get_json() or {}
-        days_old = int(data.get('days_old', 30))  # Default 30 days
-        
-        # Cleanup old error API keys
-        deleted_count = db.cleanup_old_error_api_keys(days_old)
-        
-        # Log activity
-        try:
-            db.log_user_activity(
-                user_id=user.get('id'),
-                activity_type='api_key_cleanup',
-                description=f'Cleaned up {deleted_count} old error API keys (older than {days_old} days)',
-                ip_address=request.remote_addr,
-                user_agent=request.headers.get('User-Agent', '')
-            )
-        except:
-            pass  # Non-critical
-        
-        return jsonify({
-            'success': True,
-            'message': f'Cleaned up {deleted_count} old error API key(s)',
-            'deleted_count': deleted_count
-        })
-            
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in api_cleanup_old_api_keys: {error_trace}")
-        return jsonify({
-            'success': False,
-            'error': f'Error cleaning up API keys: {str(e)}'
-        }), 500
-
-@app.route('/api/settings/api-key', methods=['POST'])
-@require_auth
-def api_update_api_key():
-    """API endpoint untuk update Google CSE API Key"""
-    try:
-        # Check if user is admin
-        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        if not session_token:
-            session_token = request.cookies.get('session_token')
-        
-        user = validate_session_token(session_token)
-        if not user or user.get('role') != 'admin':
-            return jsonify({'error': 'Only administrators can update API keys'}), 403
-        
-        data = request.get_json()
-        api_key = data.get('api_key', '').strip()
-        
-        if not api_key:
-            return jsonify({'error': 'API key is required'}), 400
-        
-        # Validate API key format (Google API keys usually start with AIza)
-        if not api_key.startswith('AIza'):
-            return jsonify({'error': 'Invalid API key format. Google API keys should start with "AIza"'}), 400
-        
-        # Save to api_keys table (for multiple API key support with rotation)
-        # This allows automatic rotation when quota exceeded
-        description = data.get('description', 'Google CSE API Key from Settings')
-        priority = int(data.get('priority', 0))  # Higher priority used first
-        
-        # Add to api_keys table (will create new entry or update existing for rotation support)
-        # add_api_key() will automatically check for duplicates and update if exists
-        success_api_keys = db.add_api_key(
-            api_key=api_key,
-            api_type='GOOGLE_CSE',
-            description=description,
-            priority=priority
-        )
-        
-        # Also save to system_settings for backward compatibility
-        success_settings = db.update_setting(
-            'GOOGLE_CSE_API_KEY',
-            api_key,
-            'Google Custom Search Engine API Key'
-        )
-        
-        if not success_api_keys and not success_settings:
-            return jsonify({'error': 'Failed to save API key to database'}), 500
-        
-        # Also update .env file
-        env_paths = [
-            Path(project_root) / '.env',
-            Path(project_root) / 'backend' / '.env'
-        ]
-        
-        env_updated = False
-        for env_path in env_paths:
-            if env_path.exists():
-                try:
-                    # Read existing .env file
-                    with open(env_path, 'r', encoding='utf-8') as f:
-                        lines = f.readlines()
-                    
-                    # Update or add GOOGLE_CSE_API_KEY
-                    updated = False
-                    new_lines = []
-                    for line in lines:
-                        if line.strip().startswith('GOOGLE_CSE_API_KEY='):
-                            new_lines.append(f'GOOGLE_CSE_API_KEY={api_key}\n')
-                            updated = True
-                        else:
-                            new_lines.append(line)
-                    
-                    # If not found, add it
-                    if not updated:
-                        new_lines.append(f'GOOGLE_CSE_API_KEY={api_key}\n')
-                    
-                    # Write back to file
-                    with open(env_path, 'w', encoding='utf-8') as f:
-                        f.writelines(new_lines)
-                    
-                    env_updated = True
-                    logger.info(f"Updated .env file at {env_path}")
-                    break
-                except Exception as e:
-                    logger.error(f"Error updating .env file at {env_path}: {e}")
-        
-        # Update environment variable for current session
-        os.environ['GOOGLE_CSE_API_KEY'] = api_key
-        
-        # Log activity
-        if user:
-            db.log_activity(
-                user['id'],
-                'settings_update',
-                'Updated Google CSE API Key',
-                request.remote_addr,
-                request.headers.get('User-Agent')
-            )
-        
-        # Count total active API keys
-        all_keys = db.get_all_api_keys('GOOGLE_CSE')
-        active_count = sum(1 for k in all_keys if k.get('status') == 'active')
-        
-        return jsonify({
-            'success': True,
-            'message': f'API key berhasil ditambahkan! Total {len(all_keys)} API key(s), {active_count} aktif',
-            'env_updated': env_updated,
-            'total_api_keys': len(all_keys),
-            'active_api_keys': active_count,
-            'note': 'API key akan otomatis di-rotate jika quota habis. Restart server untuk perubahan .env berlaku penuh.'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error updating API key: {e}")
-        return jsonify({'error': f'Error updating API key: {str(e)}'}), 500
-
 @app.route('/api/debug/session-status', methods=['GET'])
 def debug_session_status():
     """Debug endpoint to check session status"""
@@ -5099,99 +4773,23 @@ def api_social_media_search():
         
         # Google Custom Search Engine API
         CSE_ID = '7693f5093e95e4c28'
+        # Get API key from environment variable
+        API_KEY = os.getenv('GOOGLE_CSE_API_KEY') or request.args.get('key')
+        if not API_KEY:
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
         
         # Build search query untuk social media - format lebih beragam untuk hasil yang seimbang
         # Gunakan nama dengan quotes untuk exact match, tapi tanpa bias ke social media
         query = name if 'site:' in name else f'"{name}"'  # Support advanced queries
         
-        # Get API key first (with retry support)
-        API_KEY = get_google_cse_api_key() or request.args.get('key')
-        
-        if not API_KEY:
-            logger.error("❌ No Google CSE API key available")
-            return jsonify({
-                'success': False,
-                'error': 'API key tidak ditemukan',
-                'message': 'Silakan set Google CSE API key di Settings page',
-                'data': {
-                    'web': [],
-                    'images': [],
-                    'social_links': []
-                }
-            }), 200
-        
-        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
-        
         # Google CSE API endpoint
         search_url = 'https://www.googleapis.com/customsearch/v1'
         
-        # REDUCED: Fetch fewer pages to prevent timeout (3 pages = 30 results, enough for most searches)
-        # This prevents server crashes from long-running requests
+        # OPTIMIZED: Maximum coverage untuk hasil yang lebih banyak dan detail
+        # 10 pages × 10 results = 100 results per query (MAXIMUM COVERAGE!)
         all_results = []
-        pages_to_fetch = 3  # Reduced from 10 to 3 to prevent timeout issues
-        max_retries_per_page = 2  # Retry each page up to 2 times if it fails
+        pages_to_fetch = 10  # 10 pages = 100 results (Maximum untuk hasil yang lebih banyak!)
         
-        # First, test API key with a single request
-        test_params = {
-            'key': API_KEY,
-            'cx': CSE_ID,
-            'q': query,
-            'num': 1,  # Just 1 result to test
-            'safe': 'active',
-        }
-        if search_type == 'image':
-            test_params['searchType'] = 'image'
-        
-        try:
-            test_response = requests.get(search_url, params=test_params, timeout=10)
-            if test_response.status_code != 200:
-                error_json = test_response.json() if test_response.headers.get('content-type', '').startswith('application/json') else {}
-                error_message = error_json.get('error', {}).get('message', 'Unknown error')
-                error_code = error_json.get('error', {}).get('code', test_response.status_code)
-                
-                logger.error(f"❌ API Key test failed: {error_code} - {error_message}")
-                
-                # Try to get another API key if quota exceeded
-                if error_code == 429:
-                    logger.info("Trying to get alternative API key...")
-                    API_KEY = get_google_cse_api_key(
-                        used_key=API_KEY,
-                        error_code=error_code,
-                        error_message=error_message
-                    )
-                    if not API_KEY:
-                        return jsonify({
-                            'success': False,
-                            'error': 'Quota exceeded dan tidak ada API key alternatif',
-                            'error_code': 429,
-                            'message': 'Google CSE API quota habis. Gunakan tab "Categorized" untuk hasil dari Universal Search.',
-                            'fallback': 'universal_search',
-                            'data': {
-                                'web': [],
-                                'images': [],
-                                'social_links': []
-                            }
-                        }), 200
-                    logger.info(f"Switched to alternative API key: {API_KEY[:20]}...")
-        except requests.exceptions.Timeout:
-            logger.error("❌ API Key test timeout - mungkin API key tidak valid atau network issue")
-            return jsonify({
-                'success': False,
-                'error': 'Timeout saat test API key',
-                'error_type': 'timeout',
-                'message': 'Google CSE API tidak merespons. Periksa API key atau koneksi internet.',
-                'fallback': 'universal_search',
-                'data': {
-                    'web': [],
-                    'images': [],
-                    'social_links': []
-                }
-            }), 200
-        except Exception as test_error:
-            logger.error(f"❌ API Key test error: {str(test_error)}")
-            # Continue anyway, might be a network issue
-        
-        # Now fetch multiple pages with the validated API key
         for page in range(pages_to_fetch):
             start_index = (page * 10) + 1  # Google CSE uses 1-based indexing
             
@@ -5203,6 +4801,7 @@ def api_social_media_search():
                 'num': 10,  # Standard 10 results per query (free tier limit)
                 'start': start_index,  # Pagination
                 'safe': 'active',
+                # TIDAK menambahkan filter social media agar hasil lebih beragam
             }
             
             # Add searchType for images
@@ -5212,75 +4811,142 @@ def api_social_media_search():
             # Log request for debugging
             logger.info(f"Google CSE Request Page {page+1}/{pages_to_fetch} - Query: {query}, Start: {start_index}, Type: {search_type}")
             
-            page_success = False
-            for retry in range(max_retries_per_page):
-                try:
-                    # Make request to Google CSE with shorter timeout to prevent hanging
-                    response = requests.get(search_url, params=params, timeout=10)
+            try:
+                # Make request to Google CSE
+                response = requests.get(search_url, params=params, timeout=15)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    items = data.get('items', [])
+                    all_results.extend(items)
+                    logger.info(f"✓ Page {page+1}: Got {len(items)} results (total so far: {len(all_results)})")
                     
-                    if response.status_code == 200:
-                        data = response.json()
-                        items = data.get('items', [])
-                        all_results.extend(items)
-                        logger.info(f"✓ Page {page+1}: Got {len(items)} results (total so far: {len(all_results)})")
-                        page_success = True
-                        
-                        # If this page has less than 10 results, stop fetching
-                        if len(items) < 10:
-                            logger.info(f"Last page reached (got {len(items)} < 10 results)")
-                            break
+                    # If this page has less than 10 results, stop fetching
+                    if len(items) < 10:
+                        logger.info(f"Last page reached (got {len(items)} < 10 results)")
                         break
-                    elif response.status_code == 429:
-                        # Quota exceeded - try alternative API key
-                        error_json = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                        error_message = error_json.get('error', {}).get('message', 'Quota exceeded')
-                        logger.error(f"❌ QUOTA EXCEEDED on page {page+1}! Trying alternative API key...")
-                        
-                        API_KEY = get_google_cse_api_key(
-                            used_key=API_KEY,
-                            error_code=429,
-                            error_message=error_message
-                        )
-                        if not API_KEY:
-                            logger.error("No alternative API key available, stopping")
-                            break
-                        logger.info(f"Switched to alternative API key: {API_KEY[:20]}...")
-                        params['key'] = API_KEY  # Update params with new key
-                        continue  # Retry with new key
-                    else:
-                        error_text = response.text[:200] if hasattr(response, 'text') else 'N/A'
-                        logger.warning(f"Page {page+1} failed with status {response.status_code}: {error_text}")
-                        if retry < max_retries_per_page - 1:
-                            logger.info(f"Retrying page {page+1}... (attempt {retry + 2}/{max_retries_per_page})")
-                            continue
-                        else:
-                            # Last retry failed, skip this page
-                            break
-                            
-                except requests.exceptions.Timeout:
-                    logger.warning(f"Timeout on page {page+1}, attempt {retry + 1}/{max_retries_per_page}")
-                    if retry < max_retries_per_page - 1:
-                        continue  # Retry
-                    else:
-                        logger.error(f"Page {page+1} failed after {max_retries_per_page} attempts, skipping")
-                        break  # Skip this page
-                except Exception as page_error:
-                    logger.error(f"Error fetching page {page+1}: {str(page_error)}")
-                    if retry < max_retries_per_page - 1:
-                        continue  # Retry
-                    else:
-                        break  # Skip this page
-            
-            # If page failed and we got some results, stop trying more pages
-            if not page_success and len(all_results) > 0:
-                logger.info(f"Stopping after page {page+1} due to errors (but got {len(all_results)} results)")
-                break
+                else:
+                    error_text = response.text[:200] if hasattr(response, 'text') else 'N/A'
+                    logger.warning(f"Page {page+1} failed with status {response.status_code}: {error_text}")
+                    
+                    # If it's a quota error (429), stop trying more pages
+                    if response.status_code == 429:
+                        logger.error(f"❌ QUOTA EXCEEDED! Stopping multi-page fetch at page {page+1}")
+                        break
+                    
+                    # Continue to next page even if one fails
+                    continue
+                    
+            except Exception as page_error:
+                logger.error(f"Error fetching page {page+1}: {str(page_error)}")
+                # Continue to next page
+                continue
         
         logger.info(f"=== TOTAL RESULTS FETCHED: {len(all_results)} ===")
         
-        # Use the first successful response for metadata, or create mock if we have results
+        # Now process the combined results (use first response for metadata)
+        # Re-fetch first page for standard error handling
+        params = {
+            'key': API_KEY,
+            'cx': CSE_ID,
+            'q': query,
+            'num': 10,
+            'safe': 'active',
+        }
+        if search_type == 'image':
+            params['searchType'] = 'image'
+            
+        response = requests.get(search_url, params=params, timeout=15)
+        
+        # Log API key being used (first 20 chars only for security)
+        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
+        
+        # Better error handling with detailed logging
+        if response.status_code != 200:
+            error_details = {}
+            error_message = 'Unknown error'
+            try:
+                error_json = response.json()
+                error_message = error_json.get('error', {}).get('message', 'Unknown error')
+                error_code = error_json.get('error', {}).get('code', response.status_code)
+                error_details = {
+                    'error': error_message,
+                    'code': error_code,
+                    'errors': error_json.get('error', {}).get('errors', [])
+                }
+                
+                # Detailed error logging
+                logger.error(f"❌ Google CSE API Error {error_code}: {error_message}")
+                logger.error(f"   Query: {query}")
+                logger.error(f"   CSE ID: {CSE_ID}")
+                logger.error(f"   API Key: {API_KEY[:20]}... (truncated)")
+                logger.error(f"   Full error: {json.dumps(error_json, indent=2)}")
+                
+                # Try fallback: Use Google Search directly (scraping) if API fails
+                logger.warning(f"Google CSE API failed, trying fallback Google Search for: {query}")
+                try:
+                    # Use Google Search HTML scraping as fallback
+                    google_search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=10"
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                    search_response = requests.get(google_search_url, headers=headers, timeout=10)
+                    
+                    if search_response.status_code == 200:
+                        # Parse HTML results (simplified - just return empty for now)
+                        # In production, you'd want to use BeautifulSoup or similar
+                        logger.info("Fallback Google Search successful, but HTML parsing not implemented")
+                        # For now, return empty results with message
+                        return jsonify({
+                            'success': False,
+                            'error': error_message,
+                            'details': error_details,
+                            'message': 'Google CSE API tidak tersedia. Gunakan tab "Web" atau "Gambar" untuk pencarian langsung melalui Google CSE widget.',
+                            'fallback': 'widget',
+                            'data': {
+                                'web': [],
+                                'images': [],
+                                'social_links': []
+                            }
+                        }), 200
+                except Exception as fallback_error:
+                    logger.error(f"Fallback Google Search also failed: {str(fallback_error)}")
+                
+                # Provide more helpful error messages based on error code
+                if 'quota' in error_message.lower() or error_code == 429:
+                    error_message = 'Quota Google CSE API habis. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                elif 'invalid' in error_message.lower() or error_code == 400:
+                    error_message = 'API key atau CSE ID tidak valid. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+                elif error_code == 403:
+                    error_message = 'Akses ditolak oleh Google CSE API. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
+            except:
+                error_details = {
+                    'error': response.text[:500],
+                    'status_code': response.status_code
+                }
+                error_message = f'Error dari Google CSE API: {response.status_code}'
+            
+            logger.error(f"Google CSE Error Details: {json.dumps(error_details, indent=2)}")
+            
+            # Return 200 with success: false so frontend can read the error message
+            return jsonify({
+                'success': False,
+                'error': error_message,
+                'error_code': error_code,
+                'details': error_details,
+                'message': 'Google CSE API error. Gunakan tab "Categorized" atau "Social Links" untuk hasil dari Universal Search (Internal).',
+                'fallback': 'universal_search',
+                'data': {
+                    'web': [],
+                    'images': [],
+                    'social_links': []
+                }
+            }), 200  # Return 200 so frontend can read the error message
+        
+        # Check if we have results from multi-page fetch
         if len(all_results) > 0:
-            # We have results, create mock search_data
+            logger.info(f"✅ Using {len(all_results)} results from multi-page fetch")
+            # Create a mock search_data structure for processing
             search_data = {
                 'items': all_results,
                 'searchInformation': {
@@ -5288,137 +4954,12 @@ def api_social_media_search():
                     'searchTime': 0.5
                 }
             }
-            response = None  # No need for additional request
+            items_to_process = all_results
         else:
-            # No results from multi-page fetch, try one more time with first page
-            params = {
-                'key': API_KEY,
-                'cx': CSE_ID,
-                'q': query,
-                'num': 10,
-                'safe': 'active',
-            }
-            if search_type == 'image':
-                params['searchType'] = 'image'
-            
-            try:
-                response = requests.get(search_url, params=params, timeout=10)
-            except Exception as e:
-                logger.error(f"Final request failed: {str(e)}")
-                response = None
-        
-        # Log API key being used (first 20 chars only for security)
-        logger.info(f"Using API Key: {API_KEY[:20]}... (truncated)")
-        
-        # Better error handling with detailed logging
-        # Check if we have results from multi-page fetch first
-        if len(all_results) == 0:
-            # No results, check if response failed
-            if response is None:
-                logger.error("❌ No response received from Google CSE API")
-                return jsonify({
-                    'success': False,
-                    'error': 'Tidak ada response dari Google CSE API',
-                    'message': 'Google CSE API tidak merespons. Periksa API key atau koneksi internet.',
-                    'fallback': 'universal_search',
-                    'data': {
-                        'web': [],
-                        'images': [],
-                        'social_links': []
-                    }
-                }), 200
-            
-            # Response exists but status is not 200
-            if response.status_code != 200:
-                error_details = {}
-                error_message = 'Unknown error'
-                error_code = response.status_code
-                try:
-                    error_json = response.json()
-                    error_message = error_json.get('error', {}).get('message', 'Unknown error')
-                    error_code = error_json.get('error', {}).get('code', response.status_code)
-                    error_details = {
-                        'error': error_message,
-                        'code': error_code,
-                        'errors': error_json.get('error', {}).get('errors', [])
-                    }
-                    
-                    # Detailed error logging
-                    logger.error(f"❌ Google CSE API Error {error_code}: {error_message}")
-                    logger.error(f"   Query: {query}")
-                    logger.error(f"   CSE ID: {CSE_ID}")
-                    logger.error(f"   API Key: {API_KEY[:20]}... (truncated)")
-                    logger.error(f"   Full error: {json.dumps(error_json, indent=2)}")
-                    
-                    # Try fallback: Use Google Search directly (scraping) if API fails
-                    logger.warning(f"Google CSE API failed, trying fallback Google Search for: {query}")
-                    try:
-                        # Use Google Search HTML scraping as fallback
-                        google_search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=10"
-                        headers = {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                        }
-                        search_response = requests.get(google_search_url, headers=headers, timeout=10)
-                        
-                        if search_response.status_code == 200:
-                            # Parse HTML results (simplified - just return empty for now)
-                            # In production, you'd want to use BeautifulSoup or similar
-                            logger.info("Fallback Google Search successful, but HTML parsing not implemented")
-                            # For now, return empty results with message
-                            return jsonify({
-                                'success': False,
-                                'error': error_message,
-                                'details': error_details,
-                                'message': 'Google CSE API tidak tersedia. Gunakan tab "Web" atau "Gambar" untuk pencarian langsung melalui Google CSE widget.',
-                                'fallback': 'widget',
-                                'data': {
-                                    'web': [],
-                                    'images': [],
-                                    'social_links': []
-                                }
-                            }), 200
-                    except Exception as fallback_error:
-                        logger.error(f"Fallback Google Search also failed: {str(fallback_error)}")
-                    
-                    # Provide more helpful error messages based on error code
-                    if 'quota' in error_message.lower() or error_code == 429:
-                        error_message = 'Quota Google CSE API habis. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-                    elif 'invalid' in error_message.lower() or error_code == 400:
-                        error_message = 'API key atau CSE ID tidak valid. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-                    elif error_code == 403:
-                        error_message = 'Akses ditolak oleh Google CSE API. Gunakan Google CSE widget sebagai alternatif (tab "Web" atau "Gambar").'
-                except:
-                    error_details = {
-                        'error': response.text[:500] if hasattr(response, 'text') else 'Unknown error',
-                        'status_code': response.status_code
-                    }
-                    error_message = f'Error dari Google CSE API: {response.status_code}'
-                    error_code = response.status_code
-                
-                logger.error(f"Google CSE Error Details: {json.dumps(error_details, indent=2)}")
-                
-                # Return 200 with success: false so frontend can read the error message
-                return jsonify({
-                    'success': False,
-                    'error': error_message,
-                    'error_code': error_code,
-                    'details': error_details,
-                    'message': 'Google CSE API error. Gunakan tab "Categorized" atau "Social Links" untuk hasil dari Universal Search (Internal).',
-                    'fallback': 'universal_search',
-                    'data': {
-                        'web': [],
-                        'images': [],
-                        'social_links': []
-                    }
-                }), 200  # Return 200 so frontend can read the error message
-        
-        # If we reach here, we have results (either from all_results or response)
-        # search_data is already set above if all_results > 0, otherwise use response
-        if len(all_results) == 0 and response and response.status_code == 200:
+            # Fallback to single page response
+            logger.warning("⚠️ No results from multi-page fetch, using single page response")
             search_data = response.json()
             items_to_process = search_data.get('items', [])
-        else:
-            items_to_process = all_results
         
         # Format results - USE ALL_RESULTS from multiple pages!
         results = {
@@ -5749,10 +5290,9 @@ def test_google_cse():
         import urllib.parse
         
         CSE_ID = '7693f5093e95e4c28'
-        # Get API key from database first, then environment variable
-        API_KEY = get_google_cse_api_key()
+        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
         if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di Settings page atau file .env'}), 500
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
         
         # Test query
         test_query = request.args.get('q', 'test') or (request.get_json() or {}).get('q', 'test')
@@ -6192,10 +5732,10 @@ def api_social_searcher_style():
         
         # Google CSE Configuration - USE API (not scraping!)
         CSE_ID = '7693f5093e95e4c28'
-        # Get API key from database first, then environment variable
-        API_KEY = get_google_cse_api_key()
+        # Get API key from environment variable
+        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
         if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di Settings page atau file .env'}), 500
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
         
         # Platform-specific search queries dengan fokus pada profil dengan gambar
         platforms = {
