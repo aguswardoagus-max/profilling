@@ -6,39 +6,43 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 import os
+import threading
 
 class UserDatabase:
     def __init__(self):
-        self.connection = None
+        # Use thread-local storage for connections (thread-safe)
+        self._local = threading.local()
+        self._init_connection = None  # Only for init_database
         self.init_database()
     
     def get_connection(self, force_new=False):
-        """Get MySQL database connection"""
+        """Get MySQL database connection - thread-safe version"""
         try:
-            # Check if connection exists and is still connected
-            if not force_new and self.connection is not None:
-                try:
-                    # Simple check without ping to avoid issues
-                    if hasattr(self.connection, 'is_connected') and self.connection.is_connected():
-                        return self.connection
-                    else:
-                        # Connection is not connected, close it
+            # Get thread-local connection
+            if not force_new and hasattr(self._local, 'connection'):
+                conn = self._local.connection
+                if conn is not None:
+                    try:
+                        # Quick check if connection is still alive
+                        if hasattr(conn, 'is_connected') and conn.is_connected():
+                            return conn
+                        else:
+                            # Connection is dead, close it
+                            try:
+                                conn.close()
+                            except:
+                                pass
+                            self._local.connection = None
+                    except:
+                        # Error checking, assume dead
                         try:
-                            self.connection.close()
+                            conn.close()
                         except:
                             pass
-                        self.connection = None
-                except Exception as e:
-                    # Error checking connection, assume it's dead
-                    print(f"Connection check error: {e}")
-                    try:
-                        self.connection.close()
-                    except:
-                        pass
-                    self.connection = None
+                        self._local.connection = None
             
-            # Create new connection
-            self.connection = mysql.connector.connect(
+            # Create new connection for this thread
+            conn = mysql.connector.connect(
                 host=os.getenv('DB_HOST', 'localhost'),
                 port=int(os.getenv('DB_PORT', 3306)),
                 user=os.getenv('DB_USER', 'root'),
@@ -47,22 +51,47 @@ class UserDatabase:
                 charset='utf8mb4',
                 collation='utf8mb4_unicode_ci',
                 autocommit=True,
-                connect_timeout=10,
-                sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+                connect_timeout=30,  # Increased timeout
+                sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION',
+                use_unicode=True,
+                raise_on_warnings=False
             )
-            return self.connection
+            
+            # Store in thread-local storage
+            self._local.connection = conn
+            return conn
+            
         except Error as e:
             print(f"Error connecting to MySQL: {e}")
-            self.connection = None
+            if hasattr(self._local, 'connection'):
+                self._local.connection = None
             return None
         except Exception as e:
             print(f"Unexpected error connecting to MySQL: {e}")
-            self.connection = None
+            if hasattr(self._local, 'connection'):
+                self._local.connection = None
             return None
     
     def init_database(self):
         """Initialize the database with required tables"""
-        conn = self.get_connection()
+        # Use a separate connection for initialization
+        try:
+            self._init_connection = mysql.connector.connect(
+                host=os.getenv('DB_HOST', 'localhost'),
+                port=int(os.getenv('DB_PORT', 3306)),
+                user=os.getenv('DB_USER', 'root'),
+                password=os.getenv('DB_PASSWORD', ''),
+                database=os.getenv('DB_NAME', 'clearance_facesearch'),
+                charset='utf8mb4',
+                collation='utf8mb4_unicode_ci',
+                autocommit=True,
+                connect_timeout=30
+            )
+            conn = self._init_connection
+        except Exception as e:
+            print(f"Failed to connect to MySQL database for initialization: {e}")
+            return
+        
         if not conn:
             print("Failed to connect to MySQL database")
             return
@@ -1159,19 +1188,29 @@ class UserDatabase:
     # API Keys Management Methods
     def get_api_key(self, api_type: str = 'GOOGLE_CSE') -> Optional[str]:
         """Get an active API key from database with rotation logic"""
-        max_retries = 2
+        max_retries = 3  # Increased retries for better reliability
         for attempt in range(max_retries):
             cursor = None
+            conn = None
             try:
-                # Force fresh connection for each attempt to avoid stale connections
-                conn = self.get_connection(force_new=(attempt > 0))
+                # Always get fresh connection for thread safety (each thread gets its own)
+                conn = self.get_connection(force_new=True)
                 if not conn:
                     if attempt < max_retries - 1:
+                        import time
+                        time.sleep(0.1 * (attempt + 1))  # Small delay before retry
                         continue
                     return None
                 
                 # Use a single cursor for all operations to avoid sync issues
                 cursor = conn.cursor(buffered=True)
+                
+                # Set connection timeout to prevent hanging
+                try:
+                    cursor.execute("SET SESSION wait_timeout = 300")
+                    cursor.execute("SET SESSION interactive_timeout = 300")
+                except:
+                    pass  # Ignore if can't set timeout
                 
                 # Get the best available API key
                 cursor.execute('''
@@ -1281,8 +1320,20 @@ class UserDatabase:
                 
                 # Close cursor before returning
                 if cursor:
-                    cursor.close()
+                    try:
+                        cursor.close()
+                    except:
+                        pass
                     cursor = None
+                
+                # Close connection after use (thread-safe: each thread has its own)
+                if conn:
+                    try:
+                        # Don't close thread-local connection, just clear it if needed
+                        # Connection will be reused in same thread
+                        pass
+                    except:
+                        pass
                 
                 return api_key
                 
@@ -1298,8 +1349,22 @@ class UserDatabase:
                         pass
                     cursor = None
                 
-                # If it's a connection error and we have retries left, try again
-                if ('Lost connection' in error_msg or 'not available' in error_msg) and attempt < max_retries - 1:
+                # Close connection on error
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                    # Clear thread-local connection
+                    if hasattr(self._local, 'connection'):
+                        self._local.connection = None
+                
+                # If it's a connection/packet error and we have retries left, try again
+                if (('Lost connection' in error_msg or 'not available' in error_msg or 
+                     'Malformed packet' in error_msg or '2027' in error_msg) and 
+                    attempt < max_retries - 1):
+                    import time
+                    time.sleep(0.2 * (attempt + 1))  # Delay before retry
                     continue
                 
                 # If no more retries or different error, return None
@@ -1318,8 +1383,21 @@ class UserDatabase:
                         pass
                     cursor = None
                 
+                # Close connection on error
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                    # Clear thread-local connection
+                    if hasattr(self._local, 'connection'):
+                        self._local.connection = None
+                
                 # If it's a subscriptable error or fetch error, try again with fresh connection
-                if ('subscriptable' in error_msg or 'fetch' in error_msg.lower()) and attempt < max_retries - 1:
+                if (('subscriptable' in error_msg or 'fetch' in error_msg.lower() or 
+                     'NoneType' in error_msg) and attempt < max_retries - 1):
+                    import time
+                    time.sleep(0.2 * (attempt + 1))  # Delay before retry
                     continue
                 
                 # If no more retries, return None
