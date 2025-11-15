@@ -12,13 +12,14 @@ class UserDatabase:
         self.connection = None
         self.init_database()
     
-    def get_connection(self):
+    def get_connection(self, force_new=False):
         """Get MySQL database connection"""
         try:
             # Check if connection exists and is still connected
-            if self.connection is not None:
+            if not force_new and self.connection is not None:
                 try:
-                    if self.connection.is_connected():
+                    # Simple check without ping to avoid issues
+                    if hasattr(self.connection, 'is_connected') and self.connection.is_connected():
                         return self.connection
                     else:
                         # Connection is not connected, close it
@@ -27,8 +28,13 @@ class UserDatabase:
                         except:
                             pass
                         self.connection = None
-                except:
+                except Exception as e:
                     # Error checking connection, assume it's dead
+                    print(f"Connection check error: {e}")
+                    try:
+                        self.connection.close()
+                    except:
+                        pass
                     self.connection = None
             
             # Create new connection
@@ -42,7 +48,7 @@ class UserDatabase:
                 collation='utf8mb4_unicode_ci',
                 autocommit=True,
                 connect_timeout=10,
-                buffered=True
+                sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
             )
             return self.connection
         except Error as e:
@@ -1153,15 +1159,20 @@ class UserDatabase:
     # API Keys Management Methods
     def get_api_key(self, api_type: str = 'GOOGLE_CSE') -> Optional[str]:
         """Get an active API key from database with rotation logic"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return None
-            
-            # Use a single cursor for all operations to avoid sync issues
-            cursor = conn.cursor(buffered=True)
-            
+        max_retries = 2
+        for attempt in range(max_retries):
+            cursor = None
             try:
+                # Force fresh connection for each attempt to avoid stale connections
+                conn = self.get_connection(force_new=(attempt > 0))
+                if not conn:
+                    if attempt < max_retries - 1:
+                        continue
+                    return None
+                
+                # Use a single cursor for all operations to avoid sync issues
+                cursor = conn.cursor(buffered=True)
+                
                 # Get the best available API key
                 cursor.execute('''
                     SELECT id, api_key, usage_count, daily_limit, last_used
@@ -1173,15 +1184,44 @@ class UserDatabase:
                 
                 result = cursor.fetchone()
                 
-                if not result:
+                # Validate result before unpacking - check None first!
+                if result is None:
+                    if cursor:
+                        cursor.close()
                     return None
                 
-                key_id, api_key, usage_count, daily_limit, last_used = result
+                # Check if result has enough elements (must be tuple/list with 5 elements)
+                try:
+                    if len(result) < 5:
+                        if cursor:
+                            cursor.close()
+                        return None
+                except (TypeError, AttributeError):
+                    # Result is not a sequence, can't unpack
+                    if cursor:
+                        cursor.close()
+                    return None
+                
+                # Now safe to unpack
+                try:
+                    key_id, api_key, usage_count, daily_limit, last_used = result
+                except (ValueError, TypeError) as e:
+                    # Can't unpack - wrong number of values or wrong type
+                    print(f"Error unpacking result: {e}, result: {result}")
+                    if cursor:
+                        cursor.close()
+                    return None
+                
+                # Validate all values are not None
+                if key_id is None or api_key is None:
+                    if cursor:
+                        cursor.close()
+                    return None
                 
                 # Check if daily limit is exceeded
-                if daily_limit > 0 and usage_count >= daily_limit:
+                if daily_limit and daily_limit > 0 and usage_count and usage_count >= daily_limit:
                     # Check if it's a new day (reset usage)
-                    if last_used and last_used.date() < datetime.now().date():
+                    if last_used and hasattr(last_used, 'date') and last_used.date() < datetime.now().date():
                         # Reset usage count for new day
                         cursor.execute('''
                             UPDATE api_keys SET usage_count = 0 WHERE id = %s
@@ -1198,9 +1238,38 @@ class UserDatabase:
                         ''', (api_type, key_id))
                         next_result = cursor.fetchone()
                         
-                        if next_result:
+                        # Validate next_result before unpacking - check None first!
+                        if next_result is None:
+                            if cursor:
+                                cursor.close()
+                            return None
+                        
+                        # Check if next_result has enough elements
+                        try:
+                            if len(next_result) < 5:
+                                if cursor:
+                                    cursor.close()
+                                return None
+                        except (TypeError, AttributeError):
+                            # next_result is not a sequence
+                            if cursor:
+                                cursor.close()
+                            return None
+                        
+                        # Now safe to unpack
+                        try:
                             key_id, api_key, usage_count, daily_limit, last_used = next_result
-                        else:
+                        except (ValueError, TypeError) as e:
+                            # Can't unpack
+                            print(f"Error unpacking next_result: {e}, result: {next_result}")
+                            if cursor:
+                                cursor.close()
+                            return None
+                        
+                        # Validate values are not None
+                        if key_id is None or api_key is None:
+                            if cursor:
+                                cursor.close()
                             return None
                 
                 # Update last_used and increment usage_count
@@ -1210,19 +1279,54 @@ class UserDatabase:
                     WHERE id = %s
                 ''', (key_id,))
                 
-                return api_key
-                
-            finally:
-                # Always close cursor
+                # Close cursor before returning
                 if cursor:
                     cursor.close()
-            
-        except Error as e:
-            print(f"Error getting API key: {e}")
-            return None
-        except Exception as e:
-            print(f"Unexpected error getting API key: {e}")
-            return None
+                    cursor = None
+                
+                return api_key
+                
+            except Error as e:
+                error_msg = str(e)
+                print(f"Error getting API key (attempt {attempt + 1}/{max_retries}): {e}")
+                
+                # Close cursor on error
+                if cursor:
+                    try:
+                        cursor.close()
+                    except:
+                        pass
+                    cursor = None
+                
+                # If it's a connection error and we have retries left, try again
+                if ('Lost connection' in error_msg or 'not available' in error_msg) and attempt < max_retries - 1:
+                    continue
+                
+                # If no more retries or different error, return None
+                if attempt >= max_retries - 1:
+                    return None
+                    
+            except Exception as e:
+                error_msg = str(e)
+                print(f"Unexpected error getting API key (attempt {attempt + 1}/{max_retries}): {e}")
+                
+                # Close cursor on error
+                if cursor:
+                    try:
+                        cursor.close()
+                    except:
+                        pass
+                    cursor = None
+                
+                # If it's a subscriptable error or fetch error, try again with fresh connection
+                if ('subscriptable' in error_msg or 'fetch' in error_msg.lower()) and attempt < max_retries - 1:
+                    continue
+                
+                # If no more retries, return None
+                if attempt >= max_retries - 1:
+                    return None
+        
+        return None
     
     def get_all_api_keys(self, api_type: str = None) -> List[Dict]:
         """Get all API keys with optional filter by type"""
