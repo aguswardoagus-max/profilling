@@ -6531,23 +6531,36 @@
                 clearTimeout(suggestionsDebounceTimer);
             }
             
-            // Hide suggestions if query is empty
-            if (!query) {
+            // Hide suggestions if query is empty or too short
+            if (!query || query.length < 2) {
                 hideSuggestions();
                 return;
             }
             
-            // Debounce API call (wait 300ms after user stops typing)
+            // Debounce API call (wait 500ms after user stops typing - increased from 300ms)
             suggestionsDebounceTimer = setTimeout(() => {
-                fetchQuerySuggestions(query);
-            }, 300);
+                // Double check query is still valid before fetching
+                const currentQuery = document.getElementById('chatbotInput')?.value.trim();
+                if (currentQuery && currentQuery.length >= 2) {
+                    fetchQuerySuggestions(currentQuery);
+                } else {
+                    hideSuggestions();
+                }
+            }, 500);
         }
 
-        // Handle focus event
+        // Handle focus event - only show suggestions if there's meaningful input
         function handleChatbotInputFocus(event) {
             const query = event.target.value.trim();
-            if (query) {
-                fetchQuerySuggestions(query);
+            // Only show suggestions if query has at least 2 characters
+            if (query && query.length >= 2) {
+                // Add small delay to prevent aggressive showing
+                setTimeout(() => {
+                    const currentQuery = document.getElementById('chatbotInput')?.value.trim();
+                    if (currentQuery && currentQuery.length >= 2) {
+                        fetchQuerySuggestions(currentQuery);
+                    }
+                }, 200);
             }
         }
 
@@ -6614,6 +6627,20 @@
             const dropdown = document.getElementById('querySuggestionsDropdown');
             if (!dropdown) return;
 
+            // Validate query before making API call
+            const trimmedQuery = query.trim();
+            if (!trimmedQuery || trimmedQuery.length < 2) {
+                hideSuggestions();
+                return;
+            }
+
+            // Check if input is still focused (user is still typing/interacting)
+            const input = document.getElementById('chatbotInput');
+            if (!input || document.activeElement !== input) {
+                // Input is not focused, don't show suggestions
+                return;
+            }
+
             // Show loading state
             dropdown.innerHTML = `
                 <div class="suggestions-loading">
@@ -6631,12 +6658,18 @@
                         'Authorization': `Bearer ${localStorage.getItem('session_token')}`
                     },
                     body: JSON.stringify({
-                        query: query,
+                        query: trimmedQuery,
                         search_history: searchHistory.slice(-5) // Last 5 searches
                     })
                 });
 
                 const data = await response.json();
+                
+                // Double check input is still focused before displaying
+                if (document.activeElement !== input) {
+                    hideSuggestions();
+                    return;
+                }
                 
                 if (data.success) {
                     currentSuggestions = data.suggestions || [];
@@ -6655,18 +6688,21 @@
             const dropdown = document.getElementById('querySuggestionsDropdown');
             if (!dropdown) return;
 
+            // Check if input is still focused before showing suggestions
+            const input = document.getElementById('chatbotInput');
+            if (!input || document.activeElement !== input) {
+                // Input is not focused, don't show suggestions
+                hideSuggestions();
+                return;
+            }
+
             const suggestions = data.suggestions || [];
             const typoCorrections = data.typo_corrections || [];
             const quickActions = data.quick_actions || [];
 
             if (suggestions.length === 0 && typoCorrections.length === 0 && quickActions.length === 0) {
-                dropdown.innerHTML = `
-                    <div class="no-suggestions">
-                        <i class="fas fa-lightbulb"></i>
-                        Tidak ada suggestions untuk query ini
-                    </div>
-                `;
-                dropdown.classList.add('active');
+                // Don't show "no suggestions" message, just hide
+                hideSuggestions();
                 return;
             }
 
