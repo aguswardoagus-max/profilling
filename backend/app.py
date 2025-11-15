@@ -2863,6 +2863,110 @@ def settings_page():
     return send_from_directory(frontend_pages_dir, 'settings.html')
 
 
+# API Keys Management Endpoints
+@app.route('/api/api-keys', methods=['GET'])
+@require_auth
+def get_api_keys():
+    """Get all API keys"""
+    try:
+        api_type = request.args.get('type')
+        keys = db.get_all_api_keys(api_type)
+        return jsonify({'success': True, 'keys': keys}), 200
+    except Exception as e:
+        logger.error(f"Error getting API keys: {e}")
+        return jsonify({'error': f'Error getting API keys: {str(e)}'}), 500
+
+
+@app.route('/api/api-keys', methods=['POST'])
+@require_auth
+def create_api_key():
+    """Create a new API key"""
+    try:
+        data = request.get_json()
+        api_key = data.get('api_key')
+        api_type = data.get('api_type', 'GOOGLE_CSE')
+        description = data.get('description', '')
+        priority = int(data.get('priority', 0))
+        daily_limit = int(data.get('daily_limit', 100))
+        status = data.get('status', 'active')
+        
+        if not api_key:
+            return jsonify({'error': 'API key is required'}), 400
+        
+        success = db.create_api_key(api_key, api_type, description, priority, daily_limit, status)
+        if success:
+            return jsonify({'success': True, 'message': 'API key created successfully'}), 201
+        else:
+            return jsonify({'error': 'Failed to create API key'}), 500
+    except Exception as e:
+        logger.error(f"Error creating API key: {e}")
+        return jsonify({'error': f'Error creating API key: {str(e)}'}), 500
+
+
+@app.route('/api/api-keys/<int:key_id>', methods=['PUT'])
+@require_auth
+def update_api_key(key_id):
+    """Update an API key"""
+    try:
+        data = request.get_json()
+        
+        # Build update dict with only provided fields
+        update_data = {}
+        if 'api_key' in data:
+            update_data['api_key'] = data['api_key']
+        if 'api_type' in data:
+            update_data['api_type'] = data['api_type']
+        if 'status' in data:
+            update_data['status'] = data['status']
+        if 'description' in data:
+            update_data['description'] = data['description']
+        if 'priority' in data:
+            update_data['priority'] = int(data['priority'])
+        if 'daily_limit' in data:
+            update_data['daily_limit'] = int(data['daily_limit'])
+        if 'usage_count' in data:
+            update_data['usage_count'] = int(data['usage_count'])
+        
+        success = db.update_api_key(key_id, **update_data)
+        if success:
+            return jsonify({'success': True, 'message': 'API key updated successfully'}), 200
+        else:
+            return jsonify({'error': 'Failed to update API key'}), 500
+    except Exception as e:
+        logger.error(f"Error updating API key: {e}")
+        return jsonify({'error': f'Error updating API key: {str(e)}'}), 500
+
+
+@app.route('/api/api-keys/<int:key_id>', methods=['DELETE'])
+@require_auth
+def delete_api_key(key_id):
+    """Delete an API key"""
+    try:
+        success = db.delete_api_key(key_id)
+        if success:
+            return jsonify({'success': True, 'message': 'API key deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Failed to delete API key'}), 500
+    except Exception as e:
+        logger.error(f"Error deleting API key: {e}")
+        return jsonify({'error': f'Error deleting API key: {str(e)}'}), 500
+
+
+@app.route('/api/api-keys/<int:key_id>/reset', methods=['POST'])
+@require_auth
+def reset_api_key_usage(key_id):
+    """Reset usage count for an API key"""
+    try:
+        success = db.reset_api_key_usage(key_id)
+        if success:
+            return jsonify({'success': True, 'message': 'API key usage reset successfully'}), 200
+        else:
+            return jsonify({'error': 'Failed to reset API key usage'}), 500
+    except Exception as e:
+        logger.error(f"Error resetting API key usage: {e}")
+        return jsonify({'error': f'Error resetting API key usage: {str(e)}'}), 500
+
+
 @app.route('/api/login', methods=['POST'])
 def api_login():
     """API endpoint untuk login"""
@@ -4773,10 +4877,10 @@ def api_social_media_search():
         
         # Google Custom Search Engine API
         CSE_ID = '7693f5093e95e4c28'
-        # Get API key from environment variable
-        API_KEY = os.getenv('GOOGLE_CSE_API_KEY') or request.args.get('key')
+        # Get API key from database first, then fallback to environment variable
+        API_KEY = db.get_api_key('GOOGLE_CSE') or os.getenv('GOOGLE_CSE_API_KEY') or request.args.get('key')
         if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan tambahkan API key di Settings atau set di file .env'}), 500
         
         # Build search query untuk social media - format lebih beragam untuk hasil yang seimbang
         # Gunakan nama dengan quotes untuk exact match, tapi tanpa bias ke social media
@@ -5290,9 +5394,10 @@ def test_google_cse():
         import urllib.parse
         
         CSE_ID = '7693f5093e95e4c28'
-        API_KEY = os.getenv('GOOGLE_CSE_API_KEY')
+        # Get API key from database first, then fallback to environment variable
+        API_KEY = db.get_api_key('GOOGLE_CSE') or os.getenv('GOOGLE_CSE_API_KEY')
         if not API_KEY:
-            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan set di file .env'}), 500
+            return jsonify({'error': 'GOOGLE_CSE_API_KEY tidak ditemukan. Silakan tambahkan API key di Settings atau set di file .env'}), 500
         
         # Test query
         test_query = request.args.get('q', 'test') or (request.get_json() or {}).get('q', 'test')

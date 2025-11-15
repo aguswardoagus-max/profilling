@@ -946,6 +946,9 @@
                 <div class="settings-tab" onclick="switchTab('system')">
                     <i class="fas fa-server"></i> System
                 </div>
+                <div class="settings-tab" onclick="switchTab('apikeys')">
+                    <i class="fas fa-key"></i> API Keys
+                </div>
             </div>
 
             <!-- General Settings Panel -->
@@ -1391,6 +1394,82 @@
                 </div>
             </div>
 
+            <!-- API Keys Management Panel -->
+            <div class="settings-panel" id="apikeysPanel">
+                <h2 class="panel-title">
+                    <div class="panel-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    API Keys Management
+                </h2>
+
+                <div class="settings-grid">
+                    <div class="settings-card" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <div class="card-icon security">
+                                <i class="fas fa-plus-circle"></i>
+                            </div>
+                            <div class="card-title">Add New API Key</div>
+                        </div>
+                        <div class="card-description">
+                            Add a new Google CSE API key to the system
+                        </div>
+                        <form id="apiKeyForm" onsubmit="addApiKey(event)">
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 2;">
+                                    <label>API Key</label>
+                                    <input type="text" id="newApiKey" placeholder="Enter Google CSE API Key" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>API Type</label>
+                                    <select id="newApiType">
+                                        <option value="GOOGLE_CSE">Google CSE</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Description</label>
+                                    <input type="text" id="newApiDescription" placeholder="Optional description">
+                                </div>
+                                <div class="form-group">
+                                    <label>Priority</label>
+                                    <input type="number" id="newApiPriority" value="0" min="0" max="100">
+                                    <small style="color: #6b7280;">Higher priority keys are used first</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Daily Limit</label>
+                                    <input type="number" id="newApiDailyLimit" value="100" min="0">
+                                    <small style="color: #6b7280;">0 = unlimited</small>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i>
+                                Add API Key
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="settings-card" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <div class="card-icon system">
+                                <i class="fas fa-list"></i>
+                            </div>
+                            <div class="card-title">API Keys List</div>
+                        </div>
+                        <div class="card-description">
+                            Manage your API keys - view, edit, activate/deactivate, and set limits
+                        </div>
+                        <div id="apiKeysList" style="margin-top: 20px;">
+                            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                                <p>Loading API keys...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Loading -->
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -1568,16 +1647,6 @@
                 localStorage.removeItem('user_data');
                 window.location.href = '/login';
             }
-        }
-
-        function switchTab(tabName) {
-            // Remove active class from all tabs and panels
-            document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.settings-panel').forEach(panel => panel.classList.remove('active'));
-            
-            // Add active class to selected tab and panel
-            event.target.classList.add('active');
-            document.getElementById(tabName + 'Panel').classList.add('active');
         }
 
         // Settings functions
@@ -1764,6 +1833,325 @@
                 app.showLoading(false);
                 app.showAlert('System settings saved successfully!');
             }, 1000);
+        }
+
+        // API Keys Management Functions
+        async function loadApiKeys() {
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch('/api/api-keys?type=GOOGLE_CSE', {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load API keys');
+                }
+
+                const data = await response.json();
+                displayApiKeys(data.keys || []);
+            } catch (error) {
+                console.error('Error loading API keys:', error);
+                document.getElementById('apiKeysList').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Error loading API keys: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayApiKeys(keys) {
+            const container = document.getElementById('apiKeysList');
+            
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <i class="fas fa-key" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>No API keys found. Add your first API key above.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const table = `
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <thead>
+                        <tr style="background: #f8f9fa; border-bottom: 2px solid #e5e7eb;">
+                            <th style="padding: 12px; text-align: left;">API Key</th>
+                            <th style="padding: 12px; text-align: left;">Description</th>
+                            <th style="padding: 12px; text-align: center;">Status</th>
+                            <th style="padding: 12px; text-align: center;">Usage</th>
+                            <th style="padding: 12px; text-align: center;">Limit</th>
+                            <th style="padding: 12px; text-align: center;">Priority</th>
+                            <th style="padding: 12px; text-align: center;">Last Used</th>
+                            <th style="padding: 12px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${keys.map(key => `
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 12px;">
+                                    <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                                        ${key.api_key_masked || '***'}
+                                    </code>
+                                </td>
+                                <td style="padding: 12px;">${key.description || '-'}</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span class="status-badge ${key.status === 'active' ? 'active' : key.status === 'quota_exceeded' ? 'inactive' : 'inactive'}">
+                                        ${key.status}
+                                    </span>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    ${key.usage_count || 0}
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    ${key.daily_limit || '∞'}
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    ${key.priority || 0}
+                                </td>
+                                <td style="padding: 12px; text-align: center; font-size: 0.85rem; color: #6b7280;">
+                                    ${key.last_used ? new Date(key.last_used).toLocaleString('id-ID') : 'Never'}
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <div style="display: flex; gap: 5px; justify-content: center;">
+                                        <button onclick="editApiKey(${key.id})" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="toggleApiKeyStatus(${key.id}, '${key.status}')" 
+                                                class="btn ${key.status === 'active' ? 'btn-warning' : 'btn-success'}" 
+                                                style="padding: 4px 8px; font-size: 0.8rem;">
+                                            <i class="fas fa-${key.status === 'active' ? 'pause' : 'play'}"></i>
+                                        </button>
+                                        <button onclick="resetApiKeyUsage(${key.id})" class="btn btn-info" style="padding: 4px 8px; font-size: 0.8rem;">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                        <button onclick="deleteApiKey(${key.id})" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8rem;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = table;
+        }
+
+        async function addApiKey(event) {
+            event.preventDefault();
+            
+            const apiKey = document.getElementById('newApiKey').value;
+            const apiType = document.getElementById('newApiType').value;
+            const description = document.getElementById('newApiDescription').value;
+            const priority = parseInt(document.getElementById('newApiPriority').value) || 0;
+            const dailyLimit = parseInt(document.getElementById('newApiDailyLimit').value) || 100;
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch('/api/api-keys', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        api_key: apiKey,
+                        api_type: apiType,
+                        description: description,
+                        priority: priority,
+                        daily_limit: dailyLimit,
+                        status: 'active'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    app.showAlert('API key added successfully!', 'success');
+                    document.getElementById('apiKeyForm').reset();
+                    loadApiKeys();
+                } else {
+                    app.showAlert(data.error || 'Failed to add API key', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding API key:', error);
+                app.showAlert('Error adding API key: ' + error.message, 'error');
+            }
+        }
+
+        async function editApiKey(keyId) {
+            // Get current key data
+            const sessionToken = localStorage.getItem('session_token');
+            const response = await fetch('/api/api-keys?type=GOOGLE_CSE', {
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+            const key = data.keys.find(k => k.id === keyId);
+
+            if (!key) {
+                app.showAlert('API key not found', 'error');
+                return;
+            }
+
+            // Show edit modal (simplified - using prompt for now)
+            const newDescription = prompt('Enter new description:', key.description || '');
+            if (newDescription === null) return;
+
+            const newPriority = prompt('Enter new priority (0-100):', key.priority || 0);
+            if (newPriority === null) return;
+
+            const newDailyLimit = prompt('Enter new daily limit (0 = unlimited):', key.daily_limit || 100);
+            if (newDailyLimit === null) return;
+
+            try {
+                const updateResponse = await fetch(`/api/api-keys/${keyId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        description: newDescription,
+                        priority: parseInt(newPriority) || 0,
+                        daily_limit: parseInt(newDailyLimit) || 0
+                    })
+                });
+
+                const updateData = await updateResponse.json();
+
+                if (updateResponse.ok && updateData.success) {
+                    app.showAlert('API key updated successfully!', 'success');
+                    loadApiKeys();
+                } else {
+                    app.showAlert(updateData.error || 'Failed to update API key', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating API key:', error);
+                app.showAlert('Error updating API key: ' + error.message, 'error');
+            }
+        }
+
+        async function toggleApiKeyStatus(keyId, currentStatus) {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+
+            if (!confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} this API key?`)) {
+                return;
+            }
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch(`/api/api-keys/${keyId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    app.showAlert(`API key ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`, 'success');
+                    loadApiKeys();
+                } else {
+                    app.showAlert(data.error || 'Failed to update API key status', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating API key status:', error);
+                app.showAlert('Error updating API key status: ' + error.message, 'error');
+            }
+        }
+
+        async function resetApiKeyUsage(keyId) {
+            if (!confirm('Are you sure you want to reset the usage count for this API key?')) {
+                return;
+            }
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch(`/api/api-keys/${keyId}/reset`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    app.showAlert('API key usage reset successfully!', 'success');
+                    loadApiKeys();
+                } else {
+                    app.showAlert(data.error || 'Failed to reset API key usage', 'error');
+                }
+            } catch (error) {
+                console.error('Error resetting API key usage:', error);
+                app.showAlert('Error resetting API key usage: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteApiKey(keyId) {
+            if (!confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                const response = await fetch(`/api/api-keys/${keyId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    app.showAlert('API key deleted successfully!', 'success');
+                    loadApiKeys();
+                } else {
+                    app.showAlert(data.error || 'Failed to delete API key', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting API key:', error);
+                app.showAlert('Error deleting API key: ' + error.message, 'error');
+            }
+        }
+
+        // Load API keys when API Keys tab is opened
+        function switchTab(tabName) {
+            // Remove active class from all tabs and panels
+            document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.settings-panel').forEach(panel => panel.classList.remove('active'));
+            
+            // Add active class to selected tab and panel
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Panel').classList.add('active');
+            
+            // Load API keys if API Keys tab is selected
+            if (tabName === 'apikeys') {
+                loadApiKeys();
+            }
         }
     </script>
 </body>

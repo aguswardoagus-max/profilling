@@ -15,20 +15,43 @@ class UserDatabase:
     def get_connection(self):
         """Get MySQL database connection"""
         try:
-            if self.connection is None or not self.connection.is_connected():
-                self.connection = mysql.connector.connect(
-                    host=os.getenv('DB_HOST', 'localhost'),
-                    port=int(os.getenv('DB_PORT', 3306)),
-                    user=os.getenv('DB_USER', 'root'),
-                    password=os.getenv('DB_PASSWORD', ''),
-                    database=os.getenv('DB_NAME', 'clearance_facesearch'),
-                    charset='utf8mb4',
-                    collation='utf8mb4_unicode_ci',
-                    autocommit=True
-                )
+            # Check if connection exists and is still connected
+            if self.connection is not None:
+                try:
+                    if self.connection.is_connected():
+                        return self.connection
+                    else:
+                        # Connection is not connected, close it
+                        try:
+                            self.connection.close()
+                        except:
+                            pass
+                        self.connection = None
+                except:
+                    # Error checking connection, assume it's dead
+                    self.connection = None
+            
+            # Create new connection
+            self.connection = mysql.connector.connect(
+                host=os.getenv('DB_HOST', 'localhost'),
+                port=int(os.getenv('DB_PORT', 3306)),
+                user=os.getenv('DB_USER', 'root'),
+                password=os.getenv('DB_PASSWORD', ''),
+                database=os.getenv('DB_NAME', 'clearance_facesearch'),
+                charset='utf8mb4',
+                collation='utf8mb4_unicode_ci',
+                autocommit=True,
+                connect_timeout=10,
+                buffered=True
+            )
             return self.connection
         except Error as e:
             print(f"Error connecting to MySQL: {e}")
+            self.connection = None
+            return None
+        except Exception as e:
+            print(f"Unexpected error connecting to MySQL: {e}")
+            self.connection = None
             return None
     
     def init_database(self):
@@ -108,6 +131,115 @@ class UserDatabase:
                     INDEX idx_setting_key (setting_key)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ''')
+            
+            # API keys table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS api_keys (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    api_key VARCHAR(255) NOT NULL,
+                    api_type VARCHAR(50) NOT NULL DEFAULT 'GOOGLE_CSE',
+                    status ENUM('active', 'inactive', 'quota_exceeded') NOT NULL DEFAULT 'active',
+                    usage_count INT DEFAULT 0,
+                    daily_limit INT DEFAULT 100,
+                    last_used TIMESTAMP NULL,
+                    quota_exceeded_at TIMESTAMP NULL,
+                    error_message TEXT,
+                    description TEXT,
+                    priority INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_api_type (api_type),
+                    INDEX idx_status (status),
+                    INDEX idx_priority (priority),
+                    INDEX idx_last_used (last_used)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ''')
+            
+            # Migrate existing api_keys table - add missing columns if they don't exist
+            try:
+                # Check and add daily_limit column
+                cursor.execute('''
+                    SELECT COUNT(*) as col_count
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'api_keys'
+                    AND COLUMN_NAME = 'daily_limit'
+                ''')
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('ALTER TABLE api_keys ADD COLUMN daily_limit INT DEFAULT 100')
+                    print("Added daily_limit column to api_keys table")
+                
+                # Check and add priority column
+                cursor.execute('''
+                    SELECT COUNT(*) as col_count
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'api_keys'
+                    AND COLUMN_NAME = 'priority'
+                ''')
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('ALTER TABLE api_keys ADD COLUMN priority INT DEFAULT 0')
+                    print("Added priority column to api_keys table")
+                
+                # Check and add description column
+                cursor.execute('''
+                    SELECT COUNT(*) as col_count
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'api_keys'
+                    AND COLUMN_NAME = 'description'
+                ''')
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('ALTER TABLE api_keys ADD COLUMN description TEXT')
+                    print("Added description column to api_keys table")
+                
+                # Check and add error_message column
+                cursor.execute('''
+                    SELECT COUNT(*) as col_count
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'api_keys'
+                    AND COLUMN_NAME = 'error_message'
+                ''')
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('ALTER TABLE api_keys ADD COLUMN error_message TEXT')
+                    print("Added error_message column to api_keys table")
+                
+                # Check and add quota_exceeded_at column
+                cursor.execute('''
+                    SELECT COUNT(*) as col_count
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'api_keys'
+                    AND COLUMN_NAME = 'quota_exceeded_at'
+                ''')
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('ALTER TABLE api_keys ADD COLUMN quota_exceeded_at TIMESTAMP NULL')
+                    print("Added quota_exceeded_at column to api_keys table")
+                
+                # Check and update status ENUM if needed (add quota_exceeded if missing)
+                cursor.execute('''
+                    SELECT COLUMN_TYPE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'api_keys'
+                    AND COLUMN_NAME = 'status'
+                ''')
+                status_result = cursor.fetchone()
+                if status_result and 'quota_exceeded' not in status_result[0]:
+                    try:
+                        cursor.execute('''
+                            ALTER TABLE api_keys 
+                            MODIFY COLUMN status ENUM('active', 'inactive', 'quota_exceeded') 
+                            NOT NULL DEFAULT 'active'
+                        ''')
+                        print("Updated status ENUM to include quota_exceeded")
+                    except Error as e:
+                        print(f"Note: Could not update status ENUM (may already be correct): {e}")
+                
+            except Error as e:
+                print(f"Error migrating api_keys table: {e}")
+                # Continue anyway - table might already have all columns
             
             # Profiling data table
             cursor.execute('''
@@ -1017,6 +1149,285 @@ class UserDatabase:
                 cursor.close()
             if conn:
                 conn.close()
+
+    # API Keys Management Methods
+    def get_api_key(self, api_type: str = 'GOOGLE_CSE') -> Optional[str]:
+        """Get an active API key from database with rotation logic"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return None
+            
+            # Use a single cursor for all operations to avoid sync issues
+            cursor = conn.cursor(buffered=True)
+            
+            try:
+                # Get the best available API key
+                cursor.execute('''
+                    SELECT id, api_key, usage_count, daily_limit, last_used
+                    FROM api_keys
+                    WHERE api_type = %s AND status = 'active'
+                    ORDER BY priority DESC, (last_used IS NULL) DESC, last_used ASC, id ASC
+                    LIMIT 1
+                ''', (api_type,))
+                
+                result = cursor.fetchone()
+                
+                if not result:
+                    return None
+                
+                key_id, api_key, usage_count, daily_limit, last_used = result
+                
+                # Check if daily limit is exceeded
+                if daily_limit > 0 and usage_count >= daily_limit:
+                    # Check if it's a new day (reset usage)
+                    if last_used and last_used.date() < datetime.now().date():
+                        # Reset usage count for new day
+                        cursor.execute('''
+                            UPDATE api_keys SET usage_count = 0 WHERE id = %s
+                        ''', (key_id,))
+                        usage_count = 0
+                    else:
+                        # Try next key
+                        cursor.execute('''
+                            SELECT id, api_key, usage_count, daily_limit, last_used
+                            FROM api_keys
+                            WHERE api_type = %s AND status = 'active' AND id != %s
+                            ORDER BY priority DESC, (last_used IS NULL) DESC, last_used ASC, id ASC
+                            LIMIT 1
+                        ''', (api_type, key_id))
+                        next_result = cursor.fetchone()
+                        
+                        if next_result:
+                            key_id, api_key, usage_count, daily_limit, last_used = next_result
+                        else:
+                            return None
+                
+                # Update last_used and increment usage_count
+                cursor.execute('''
+                    UPDATE api_keys 
+                    SET usage_count = usage_count + 1, last_used = NOW()
+                    WHERE id = %s
+                ''', (key_id,))
+                
+                return api_key
+                
+            finally:
+                # Always close cursor
+                if cursor:
+                    cursor.close()
+            
+        except Error as e:
+            print(f"Error getting API key: {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error getting API key: {e}")
+            return None
+    
+    def get_all_api_keys(self, api_type: str = None) -> List[Dict]:
+        """Get all API keys with optional filter by type"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor(dictionary=True)
+            
+            if api_type:
+                cursor.execute('''
+                    SELECT id, api_key, api_type, status, usage_count, daily_limit,
+                           last_used, quota_exceeded_at, error_message, description,
+                           priority, created_at, updated_at
+                    FROM api_keys
+                    WHERE api_type = %s
+                    ORDER BY priority DESC, created_at DESC
+                ''', (api_type,))
+            else:
+                cursor.execute('''
+                    SELECT id, api_key, api_type, status, usage_count, daily_limit,
+                           last_used, quota_exceeded_at, error_message, description,
+                           priority, created_at, updated_at
+                    FROM api_keys
+                    ORDER BY api_type, priority DESC, created_at DESC
+                ''')
+            
+            results = cursor.fetchall()
+            
+            # Format datetime fields
+            for result in results:
+                if result.get('last_used'):
+                    result['last_used'] = result['last_used'].isoformat() if hasattr(result['last_used'], 'isoformat') else str(result['last_used'])
+                if result.get('quota_exceeded_at'):
+                    result['quota_exceeded_at'] = result['quota_exceeded_at'].isoformat() if hasattr(result['quota_exceeded_at'], 'isoformat') else str(result['quota_exceeded_at'])
+                if result.get('created_at'):
+                    result['created_at'] = result['created_at'].isoformat() if hasattr(result['created_at'], 'isoformat') else str(result['created_at'])
+                if result.get('updated_at'):
+                    result['updated_at'] = result['updated_at'].isoformat() if hasattr(result['updated_at'], 'isoformat') else str(result['updated_at'])
+                # Mask API key for security (show only first 10 and last 10 chars)
+                if result.get('api_key'):
+                    key = result['api_key']
+                    if len(key) > 20:
+                        result['api_key_masked'] = f"{key[:10]}...{key[-10:]}"
+                    else:
+                        result['api_key_masked'] = "***"
+            
+            return results
+        except Error as e:
+            print(f"Error getting API keys: {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def create_api_key(self, api_key: str, api_type: str = 'GOOGLE_CSE', 
+                      description: str = None, priority: int = 0, 
+                      daily_limit: int = 100, status: str = 'active') -> bool:
+        """Create a new API key"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO api_keys (api_key, api_type, description, priority, daily_limit, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (api_key, api_type, description, priority, daily_limit, status))
+            
+            return True
+        except Error as e:
+            print(f"Error creating API key: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def update_api_key(self, key_id: int, **kwargs) -> bool:
+        """Update API key information"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            # Build update query dynamically
+            update_fields = []
+            values = []
+            
+            allowed_fields = ['api_key', 'api_type', 'status', 'description', 'priority', 
+                            'daily_limit', 'usage_count', 'error_message', 'quota_exceeded_at']
+            
+            for key, value in kwargs.items():
+                if key in allowed_fields:
+                    update_fields.append(f"{key} = %s")
+                    values.append(value)
+            
+            if not update_fields:
+                return False
+            
+            update_fields.append("updated_at = NOW()")
+            values.append(key_id)
+            
+            query = f"UPDATE api_keys SET {', '.join(update_fields)} WHERE id = %s"
+            cursor.execute(query, values)
+            
+            return True
+        except Error as e:
+            print(f"Error updating API key: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def delete_api_key(self, key_id: int) -> bool:
+        """Delete an API key"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('DELETE FROM api_keys WHERE id = %s', (key_id,))
+            
+            return True
+        except Error as e:
+            print(f"Error deleting API key: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def mark_api_key_quota_exceeded(self, key_id: int, error_message: str = None) -> bool:
+        """Mark API key as quota exceeded"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE api_keys 
+                SET status = 'quota_exceeded', 
+                    quota_exceeded_at = NOW(),
+                    error_message = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+            ''', (error_message, key_id))
+            
+            return True
+        except Error as e:
+            print(f"Error marking API key quota exceeded: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def reset_api_key_usage(self, key_id: int = None) -> bool:
+        """Reset usage count for API key(s) - useful for daily reset"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            if key_id:
+                cursor.execute('''
+                    UPDATE api_keys 
+                    SET usage_count = 0, 
+                        status = CASE 
+                            WHEN status = 'quota_exceeded' THEN 'active'
+                            ELSE status
+                        END,
+                        quota_exceeded_at = NULL,
+                        error_message = NULL
+                    WHERE id = %s
+                ''', (key_id,))
+            else:
+                # Reset all keys that haven't been used today
+                cursor.execute('''
+                    UPDATE api_keys 
+                    SET usage_count = 0,
+                        status = CASE 
+                            WHEN status = 'quota_exceeded' THEN 'active'
+                            ELSE status
+                        END,
+                        quota_exceeded_at = NULL,
+                        error_message = NULL
+                    WHERE DATE(last_used) < CURDATE() OR last_used IS NULL
+                ''')
+            
+            return True
+        except Error as e:
+            print(f"Error resetting API key usage: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
 
     def log_export_audit(self, user_id: int, export_type: str, record_ids: list, 
                         filename: str, file_path: str, ip_address: str = None, 
