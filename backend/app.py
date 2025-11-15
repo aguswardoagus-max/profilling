@@ -177,30 +177,62 @@ except Exception as e:
     USE_NEW_GEMINI = False
 
 # Always try to initialize old SDK as fallback
+# Note: Old SDK models may not be available, so we'll try to list available models first
 try:
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_API_KEY)
     print("✅ Menggunakan Google Generative AI SDK lama")
     
+    # Try to list available models first
+    available_model_names = []
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                model_name = m.name.replace('models/', '')  # Remove 'models/' prefix
+                available_model_names.append(model_name)
+        if available_model_names:
+            print(f"✅ Available models in old SDK: {', '.join(available_model_names[:5])}...")
+    except Exception as list_error:
+        print(f"⚠️ Cannot list models: {list_error}")
+        # Fallback to trying common model names
+        available_model_names = []
+    
     # Coba beberapa model yang tersedia (prioritaskan yang lebih baru)
-    models_to_try = [
-        'gemini-1.5-flash',
-        'gemini-1.5-pro', 
-        'gemini-pro'
-    ]
+    # Updated to try newer models first, but only if available
+    models_to_try = []
+    
+    # If we have available models list, use those first
+    if available_model_names:
+        models_to_try = available_model_names[:5]  # Use first 5 available
+    else:
+        # Fallback: try newer models first, but these may not work
+        models_to_try = [
+            'gemini-2.0-flash-exp',
+            'gemini-2.5-flash',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro', 
+            'gemini-pro'
+        ]
     
     model = None
     for model_name in models_to_try:
         try:
-            model = genai.GenerativeModel(model_name)
+            # Test if model can be initialized by trying to create it
+            test_model = genai.GenerativeModel(model_name)
+            # Try a simple test call (optional, but helps verify)
+            model = test_model
             print(f"✅ Model {model_name} berhasil diinisialisasi")
             break
         except Exception as model_error:
-            print(f"⚠️ Model {model_name} gagal: {model_error}")
+            error_str = str(model_error)
+            # Don't log 404 errors for every model
+            if "404" not in error_str and "not found" not in error_str.lower():
+                print(f"⚠️ Model {model_name} gagal: {model_error}")
             continue
     
     if not model:
-        print(f"⚠️ Tidak bisa menginisialisasi model Gemini AI dari daftar: {models_to_try}")
+        print(f"⚠️ Tidak bisa menginisialisasi model Gemini AI dari daftar. Old SDK akan di-disable.")
+        model = None
 except Exception as e2:
     print(f"⚠️ Tidak bisa menginisialisasi Gemini AI SDK lama: {e2}")
     model = None
@@ -502,7 +534,10 @@ PENTING: Gunakan nama {nama} dan data spesifik dalam setiap analisis. Buat anali
                 response = model.generate_content(prompt)
                 response_text = response.text
             except Exception as model_error:
-                print(f"⚠️ AI Analysis: Model failed: {model_error}")
+                error_str = str(model_error)
+                # Don't log 404 errors, they're expected if model not available
+                if "404" not in error_str and "not found" not in error_str.lower():
+                    print(f"⚠️ AI Analysis: Model failed: {model_error}")
                 response_text = None
         
         if not response_text:
@@ -3904,9 +3939,17 @@ Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
                         result_text = response.text
                         print(f"✅ Success using pre-initialized model with PIL Image")
                     except Exception as pre_model_error:
-                        print(f"⚠️ Pre-initialized model failed: {pre_model_error}")
-                        # Try different models
-                        models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+                        error_str = str(pre_model_error)
+                        if "404" not in error_str and "not found" not in error_str.lower():
+                            print(f"⚠️ Pre-initialized model failed: {pre_model_error}")
+                        # Try different models - use newer models first
+                        models_to_try = [
+                            'gemini-2.0-flash-exp',
+                            'gemini-2.5-flash',
+                            'gemini-1.5-flash',
+                            'gemini-1.5-pro',
+                            'gemini-pro'
+                        ]
                         for model_name in models_to_try:
                             try:
                                 vision_model = genai.GenerativeModel(model_name)
@@ -3915,11 +3958,20 @@ Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
                                 print(f"✅ Success with model: {model_name}")
                                 break
                             except Exception as model_error:
-                                print(f"⚠️ Model {model_name} failed: {model_error}")
+                                error_str = str(model_error)
+                                # Don't log 404 errors for every model
+                                if "404" not in error_str and "not found" not in error_str.lower():
+                                    print(f"⚠️ Model {model_name} failed: {model_error}")
                                 continue
                 else:
-                    # No pre-initialized model, try different models
-                    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+                    # No pre-initialized model, try different models - use newer models first
+                    models_to_try = [
+                        'gemini-2.0-flash-exp',
+                        'gemini-2.5-flash',
+                        'gemini-1.5-flash',
+                        'gemini-1.5-pro',
+                        'gemini-pro'
+                    ]
                     for model_name in models_to_try:
                         try:
                             vision_model = genai.GenerativeModel(model_name)
@@ -3928,7 +3980,10 @@ Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
                             print(f"✅ Success with model: {model_name}")
                             break
                         except Exception as model_error:
-                            print(f"⚠️ Model {model_name} failed: {model_error}")
+                            error_str = str(model_error)
+                            # Don't log 404 errors for every model
+                            if "404" not in error_str and "not found" not in error_str.lower():
+                                print(f"⚠️ Model {model_name} failed: {model_error}")
                             continue
             
             if not result_text:
@@ -4155,8 +4210,18 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
                     })
             else:
                 if 'model' in globals() and model:
-                    response = model.generate_content(prompt)
-                    gemini_response = response.text
+                    try:
+                        response = model.generate_content(prompt)
+                        gemini_response = response.text
+                    except Exception as old_model_error:
+                        print(f"⚠️ Old SDK model failed: {old_model_error}")
+                        # Fallback: simple suggestions
+                        return jsonify({
+                            'success': True,
+                            'suggestions': generate_fallback_suggestions(query),
+                            'typo_corrections': [],
+                            'quick_actions': []
+                        })
                 else:
                     # Fallback: simple suggestions
                     return jsonify({
@@ -4437,8 +4502,16 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
             else:
                 # Fallback ke old SDK
                 if 'model' in globals() and model:
-                    response = model.generate_content(prompt)
-                    gemini_response = response.text
+                    try:
+                        response = model.generate_content(prompt)
+                        gemini_response = response.text
+                    except Exception as old_model_error:
+                        print(f"⚠️ Old SDK model failed: {old_model_error}")
+                        # Fallback response jika Gemini tidak tersedia
+                        if has_results:
+                            gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
+                        else:
+                            gemini_response = "Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda."
                 else:
                     # Fallback response jika Gemini tidak tersedia
                     if has_results:
