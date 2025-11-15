@@ -157,31 +157,53 @@ try:
     client = google_genai.Client(api_key=GEMINI_API_KEY)
     USE_NEW_GEMINI = True
     print("✅ Menggunakan Google GenAI SDK baru")
+    
+    # Try to list available models to see what's available
+    try:
+        # This is optional, don't fail if it doesn't work
+        try:
+            models = client.models.list()
+            available_models = [m.name for m in models if hasattr(m, 'name')]
+            if available_models:
+                print(f"✅ Available models: {', '.join(available_models[:5])}...")  # Show first 5
+        except:
+            pass  # Ignore if list_models fails
+    except Exception as test_error:
+        print(f"⚠️ Client initialized but test failed: {test_error}")
+        # Continue anyway, might work for generate_content
 except Exception as e:
     print(f"⚠️ Tidak bisa menggunakan Google GenAI SDK baru: {e}")
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        USE_NEW_GEMINI = False
-        print("✅ Menggunakan Google Generative AI SDK lama")
-        
-        # Coba beberapa model yang tersedia
+    client = None
+    USE_NEW_GEMINI = False
+
+# Always try to initialize old SDK as fallback
+try:
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("✅ Menggunakan Google Generative AI SDK lama")
+    
+    # Coba beberapa model yang tersedia (prioritaskan yang lebih baru)
+    models_to_try = [
+        'gemini-1.5-flash',
+        'gemini-1.5-pro', 
+        'gemini-pro'
+    ]
+    
+    model = None
+    for model_name in models_to_try:
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            print("✅ Model gemini-1.5-flash berhasil diinisialisasi")
-        except:
-            try:
-                model = genai.GenerativeModel('gemini-1.5-pro')
-                print("✅ Model gemini-1.5-pro berhasil diinisialisasi")
-            except:
-                try:
-                    model = genai.GenerativeModel('gemini-pro')
-                    print("✅ Model gemini-pro berhasil diinisialisasi")
-                except Exception as model_error:
-                    model = None
-                    print(f"⚠️ Tidak bisa menginisialisasi model Gemini AI: {model_error}")
-    except Exception as e2:
-        print(f"⚠️ Tidak bisa menginisialisasi Gemini AI: {e2}")
+            model = genai.GenerativeModel(model_name)
+            print(f"✅ Model {model_name} berhasil diinisialisasi")
+            break
+        except Exception as model_error:
+            print(f"⚠️ Model {model_name} gagal: {model_error}")
+            continue
+    
+    if not model:
+        print(f"⚠️ Tidak bisa menginisialisasi model Gemini AI dari daftar: {models_to_try}")
+except Exception as e2:
+    print(f"⚠️ Tidak bisa menginisialisasi Gemini AI SDK lama: {e2}")
+    model = None
 
 def calculate_data_richness(person_data, family_data):
     """Calculate data richness score for dynamic analysis"""
@@ -339,7 +361,14 @@ def generate_dynamic_section_titles(subtitle_context):
 def generate_ai_analysis(person_data, family_data=None, search_type='identity', subtitle=None, location=None):
     """Generate AI analysis using Gemini AI with dynamic and flexible analysis"""
     try:
-        if not model:
+        # Check if we have any working model (new or old SDK)
+        has_model = False
+        if USE_NEW_GEMINI and 'client' in globals() and client:
+            has_model = True
+        elif 'model' in globals() and model:
+            has_model = True
+        
+        if not has_model:
             return generate_dynamic_fallback_analysis(person_data, family_data, search_type, subtitle, location)
         
         # Prepare comprehensive data for AI analysis
@@ -426,12 +455,63 @@ PENTING: Gunakan nama {nama} dan data spesifik dalam setiap analisis. Buat anali
 """
         
         # Generate response from Gemini AI
-        response = model.generate_content(prompt)
+        response_text = None
+        
+        # Try new SDK first, then fallback to old SDK
+        if USE_NEW_GEMINI and 'client' in globals() and client:
+            models_to_try = [
+                "gemini-2.0-flash-exp",  # Newer experimental model
+                "gemini-2.5-flash",      # Latest stable
+                "gemini-1.5-flash",       # Fallback to older
+                "gemini-1.5-pro",
+                "gemini-pro",
+                "models/gemini-2.0-flash-exp",  # Try with models/ prefix
+                "models/gemini-2.5-flash",
+                "models/gemini-1.5-flash",
+                "models/gemini-1.5-pro",
+                "models/gemini-pro"
+            ]
+            
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    response_text = response.text
+                    print(f"✅ AI Analysis: Successfully used model: {model_name}")
+                    break
+                except Exception as model_error:
+                    error_str = str(model_error)
+                    if "404" not in error_str and "not found" not in error_str.lower():
+                        print(f"⚠️ AI Analysis: Model {model_name} failed: {model_error}")
+                    continue
+            
+            # Fallback to old SDK if new SDK fails
+            if not response_text and 'model' in globals() and model:
+                try:
+                    response = model.generate_content(prompt)
+                    response_text = response.text
+                    print("✅ AI Analysis: Successfully used old SDK model")
+                except Exception as old_sdk_error:
+                    print(f"⚠️ AI Analysis: Old SDK also failed: {old_sdk_error}")
+                    # Don't raise, just use fallback
+                    response_text = None
+        elif 'model' in globals() and model:
+            try:
+                response = model.generate_content(prompt)
+                response_text = response.text
+            except Exception as model_error:
+                print(f"⚠️ AI Analysis: Model failed: {model_error}")
+                response_text = None
+        
+        if not response_text:
+            print("⚠️ AI Analysis: All models failed, using fallback analysis")
+            return generate_dynamic_fallback_analysis(person_data, family_data, search_type, subtitle, location)
         
         # Parse JSON response
         try:
             # Extract JSON from response text
-            response_text = response.text
             # Find JSON part in response
             start_idx = response_text.find('{')
             end_idx = response_text.rfind('}') + 1
@@ -4012,11 +4092,67 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
         # Call Gemini
         try:
             if USE_NEW_GEMINI and 'client' in globals() and client:
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt
-                )
-                gemini_response = response.text
+                # Try multiple model names for compatibility
+                # Note: Model names may vary by API version and region
+                # Updated to use newer model names (gemini-2.0, gemini-2.5)
+                models_to_try = [
+                    "gemini-2.0-flash-exp",  # Newer experimental model
+                    "gemini-2.5-flash",      # Latest stable
+                    "gemini-1.5-flash",       # Fallback to older
+                    "gemini-1.5-pro",
+                    "gemini-pro",
+                    "models/gemini-2.0-flash-exp",  # Try with models/ prefix
+                    "models/gemini-2.5-flash",
+                    "models/gemini-1.5-flash",
+                    "models/gemini-1.5-pro",
+                    "models/gemini-pro"
+                ]
+                
+                gemini_response = None
+                last_error = None
+                
+                for model_name in models_to_try:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt
+                        )
+                        gemini_response = response.text
+                        print(f"✅ Successfully used model: {model_name}")
+                        break
+                    except Exception as model_error:
+                        last_error = model_error
+                        error_str = str(model_error)
+                        # Don't log 404 errors for every model, only log if it's a different error
+                        if "404" not in error_str and "not found" not in error_str.lower():
+                            print(f"⚠️ Model {model_name} failed: {model_error}")
+                        continue
+                
+                if not gemini_response:
+                    # Fallback to old SDK if new SDK fails
+                    print("⚠️ New Gemini SDK failed, trying old SDK...")
+                    if 'model' in globals() and model:
+                        try:
+                            response = model.generate_content(prompt)
+                            gemini_response = response.text
+                            print("✅ Successfully used old SDK model")
+                        except Exception as old_sdk_error:
+                            print(f"⚠️ Old SDK also failed: {old_sdk_error}")
+                            # Don't raise, just fallback to simple suggestions
+                            gemini_response = None
+                    else:
+                        # Don't raise, just fallback to simple suggestions
+                        gemini_response = None
+                
+                # If still no response, use fallback
+                if not gemini_response:
+                    print("⚠️ All Gemini models failed, using fallback suggestions")
+                    return jsonify({
+                        'success': True,
+                        'suggestions': generate_fallback_suggestions(query),
+                        'typo_corrections': [],
+                        'quick_actions': []
+                    })
             else:
                 if 'model' in globals() and model:
                     response = model.generate_content(prompt)
@@ -4055,7 +4191,9 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
             
         except json.JSONDecodeError as e:
             print(f"Error parsing Gemini JSON response: {e}")
-            print(f"Response was: {gemini_response[:500]}")
+            print(f"Response was: {gemini_response[:500] if gemini_response else 'None'}")
+            import traceback
+            traceback.print_exc()
             # Fallback to simple suggestions
             return jsonify({
                 'success': True,
@@ -4065,6 +4203,8 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
             })
         except Exception as gemini_error:
             print(f"Error calling Gemini for suggestions: {gemini_error}")
+            import traceback
+            traceback.print_exc()
             # Fallback to simple suggestions
             return jsonify({
                 'success': True,
@@ -4234,13 +4374,66 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
         
         # Generate response menggunakan Gemini
         try:
-            if USE_NEW_GEMINI and 'client' in globals():
-                # Menggunakan new Google GenAI SDK
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt
-                )
-                gemini_response = response.text
+            if USE_NEW_GEMINI and 'client' in globals() and client:
+                # Menggunakan new Google GenAI SDK - Try multiple models
+                # Note: Model names may vary by API version and region
+                # Updated to use newer model names (gemini-2.0, gemini-2.5)
+                models_to_try = [
+                    "gemini-2.0-flash-exp",  # Newer experimental model
+                    "gemini-2.5-flash",      # Latest stable
+                    "gemini-1.5-flash",       # Fallback to older
+                    "gemini-1.5-pro",
+                    "gemini-pro",
+                    "models/gemini-2.0-flash-exp",  # Try with models/ prefix
+                    "models/gemini-2.5-flash",
+                    "models/gemini-1.5-flash",
+                    "models/gemini-1.5-pro",
+                    "models/gemini-pro"
+                ]
+                
+                gemini_response = None
+                last_error = None
+                
+                for model_name in models_to_try:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt
+                        )
+                        gemini_response = response.text
+                        print(f"✅ Successfully used model: {model_name}")
+                        break
+                    except Exception as model_error:
+                        last_error = model_error
+                        error_str = str(model_error)
+                        # Don't log 404 errors for every model, only log if it's a different error
+                        if "404" not in error_str and "not found" not in error_str.lower():
+                            print(f"⚠️ Model {model_name} failed: {model_error}")
+                        continue
+                
+                if not gemini_response:
+                    # Fallback to old SDK if new SDK fails
+                    print("⚠️ New Gemini SDK failed, trying old SDK...")
+                    if 'model' in globals() and model:
+                        try:
+                            response = model.generate_content(prompt)
+                            gemini_response = response.text
+                            print("✅ Successfully used old SDK model")
+                        except Exception as old_sdk_error:
+                            print(f"⚠️ Old SDK also failed: {old_sdk_error}")
+                            # Don't raise, just use fallback response
+                            gemini_response = None
+                    else:
+                        # Don't raise, just use fallback response
+                        gemini_response = None
+                
+                # If still no response, use fallback
+                if not gemini_response:
+                    print("⚠️ All Gemini models failed, using fallback response")
+                    if has_results:
+                        gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
+                    else:
+                        gemini_response = "Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda."
             else:
                 # Fallback ke old SDK
                 if 'model' in globals() and model:
@@ -4254,6 +4447,8 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
                         gemini_response = "Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda."
         except Exception as gemini_error:
             print(f"Error calling Gemini: {gemini_error}")
+            import traceback
+            traceback.print_exc()
             # Fallback response
             if has_results:
                 gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
