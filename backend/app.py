@@ -147,7 +147,23 @@ from clearance_face_search import (
 )
 
 # Konfigurasi Gemini AI
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'AIzaSyBfdNh4joV_ZTp-tZZH-hU7QDJxMKbF9x0')
+# Try to get from database first, then fallback to environment variable
+def get_gemini_api_key():
+    """Get Gemini API key from database or environment variable"""
+    try:
+        # Try to get from database first
+        from database import UserDatabase
+        db = UserDatabase()
+        api_key = db.get_api_key('GEMINI')
+        if api_key:
+            return api_key
+    except Exception as e:
+        print(f"⚠️ Cannot get Gemini API key from database: {e}")
+    
+    # Fallback to environment variable
+    return os.getenv('GEMINI_API_KEY', 'AIzaSyDLM8CF-CePwAgxb0TYw6kvw-bLS_q2AXY')
+
+GEMINI_API_KEY = get_gemini_api_key()
 USE_NEW_GEMINI = False
 client = None
 model = None
@@ -203,13 +219,16 @@ try:
     
     # If we have available models list, use those first
     if available_model_names:
-        models_to_try = available_model_names[:5]  # Use first 5 available
+        # Filter out experimental models that may not be available in free tier
+        free_tier_models = [m for m in available_model_names if 'exp' not in m.lower() and '2.5' not in m and '2.0' not in m]
+        if free_tier_models:
+            models_to_try = free_tier_models[:5]  # Use first 5 available free tier models
+        else:
+            models_to_try = available_model_names[:5]  # Fallback to all available
     else:
-        # Fallback: try newer models first, but these may not work
+        # Fallback: use only free tier models (no experimental models)
         models_to_try = [
-            'gemini-2.0-flash-exp',
-            'gemini-2.5-flash',
-            'gemini-1.5-flash',
+            'gemini-1.5-flash',  # Most commonly available in free tier
             'gemini-1.5-pro', 
             'gemini-pro'
         ]
@@ -491,15 +510,12 @@ PENTING: Gunakan nama {nama} dan data spesifik dalam setiap analisis. Buat anali
         
         # Try new SDK first, then fallback to old SDK
         if USE_NEW_GEMINI and 'client' in globals() and client:
+            # Use only free tier models (no experimental models)
             models_to_try = [
-                "gemini-2.0-flash-exp",  # Newer experimental model
-                "gemini-2.5-flash",      # Latest stable
-                "gemini-1.5-flash",       # Fallback to older
+                "gemini-1.5-flash",       # Most commonly available in free tier
                 "gemini-1.5-pro",
                 "gemini-pro",
-                "models/gemini-2.0-flash-exp",  # Try with models/ prefix
-                "models/gemini-2.5-flash",
-                "models/gemini-1.5-flash",
+                "models/gemini-1.5-flash",  # Try with models/ prefix
                 "models/gemini-1.5-pro",
                 "models/gemini-pro"
             ]
@@ -515,8 +531,13 @@ PENTING: Gunakan nama {nama} dan data spesifik dalam setiap analisis. Buat anali
                     break
                 except Exception as model_error:
                     error_str = str(model_error)
-                    if "404" not in error_str and "not found" not in error_str.lower():
+                    # Skip 404 (model not found) and 429 (quota exceeded) errors silently
+                    if "404" not in error_str and "429" not in error_str and "not found" not in error_str.lower() and "quota" not in error_str.lower():
                         print(f"⚠️ AI Analysis: Model {model_name} failed: {model_error}")
+                    # If quota exceeded, don't try other models
+                    if "429" in error_str or "quota" in error_str.lower():
+                        print(f"⚠️ AI Analysis: Quota exceeded, using fallback")
+                        break
                     continue
             
             # Fallback to old SDK if new SDK fails
@@ -535,8 +556,8 @@ PENTING: Gunakan nama {nama} dan data spesifik dalam setiap analisis. Buat anali
                 response_text = response.text
             except Exception as model_error:
                 error_str = str(model_error)
-                # Don't log 404 errors, they're expected if model not available
-                if "404" not in error_str and "not found" not in error_str.lower():
+                # Don't log 404 (not found) and 429 (quota exceeded) errors, they're expected
+                if "404" not in error_str and "429" not in error_str and "not found" not in error_str.lower() and "quota" not in error_str.lower():
                     print(f"⚠️ AI Analysis: Model failed: {model_error}")
                 response_text = None
         
@@ -3942,11 +3963,9 @@ Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
                         error_str = str(pre_model_error)
                         if "404" not in error_str and "not found" not in error_str.lower():
                             print(f"⚠️ Pre-initialized model failed: {pre_model_error}")
-                        # Try different models - use newer models first
+                        # Try different models - use only free tier models
                         models_to_try = [
-                            'gemini-2.0-flash-exp',
-                            'gemini-2.5-flash',
-                            'gemini-1.5-flash',
+                            'gemini-1.5-flash',  # Most commonly available in free tier
                             'gemini-1.5-pro',
                             'gemini-pro'
                         ]
@@ -3959,16 +3978,18 @@ Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
                                 break
                             except Exception as model_error:
                                 error_str = str(model_error)
-                                # Don't log 404 errors for every model
-                                if "404" not in error_str and "not found" not in error_str.lower():
+                                # Don't log 404 (not found) and 429 (quota exceeded) errors
+                                if "404" not in error_str and "429" not in error_str and "not found" not in error_str.lower() and "quota" not in error_str.lower():
                                     print(f"⚠️ Model {model_name} failed: {model_error}")
+                                # If quota exceeded, don't try other models
+                                if "429" in error_str or "quota" in error_str.lower():
+                                    print(f"⚠️ Quota exceeded, stopping model attempts")
+                                    break
                                 continue
                 else:
-                    # No pre-initialized model, try different models - use newer models first
+                    # No pre-initialized model, try different models - use only free tier models
                     models_to_try = [
-                        'gemini-2.0-flash-exp',
-                        'gemini-2.5-flash',
-                        'gemini-1.5-flash',
+                        'gemini-1.5-flash',  # Most commonly available in free tier
                         'gemini-1.5-pro',
                         'gemini-pro'
                     ]
@@ -3981,9 +4002,13 @@ Hanya kembalikan JSON array, tanpa penjelasan tambahan."""
                             break
                         except Exception as model_error:
                             error_str = str(model_error)
-                            # Don't log 404 errors for every model
-                            if "404" not in error_str and "not found" not in error_str.lower():
+                            # Don't log 404 (not found) and 429 (quota exceeded) errors
+                            if "404" not in error_str and "429" not in error_str and "not found" not in error_str.lower() and "quota" not in error_str.lower():
                                 print(f"⚠️ Model {model_name} failed: {model_error}")
+                            # If quota exceeded, don't try other models
+                            if "429" in error_str or "quota" in error_str.lower():
+                                print(f"⚠️ Quota exceeded, stopping model attempts")
+                                break
                             continue
             
             if not result_text:
@@ -4147,18 +4172,12 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
         # Call Gemini
         try:
             if USE_NEW_GEMINI and 'client' in globals() and client:
-                # Try multiple model names for compatibility
-                # Note: Model names may vary by API version and region
-                # Updated to use newer model names (gemini-2.0, gemini-2.5)
+                # Use only free tier models (no experimental models)
                 models_to_try = [
-                    "gemini-2.0-flash-exp",  # Newer experimental model
-                    "gemini-2.5-flash",      # Latest stable
-                    "gemini-1.5-flash",       # Fallback to older
+                    "gemini-1.5-flash",       # Most commonly available in free tier
                     "gemini-1.5-pro",
                     "gemini-pro",
-                    "models/gemini-2.0-flash-exp",  # Try with models/ prefix
-                    "models/gemini-2.5-flash",
-                    "models/gemini-1.5-flash",
+                    "models/gemini-1.5-flash",  # Try with models/ prefix
                     "models/gemini-1.5-pro",
                     "models/gemini-pro"
                 ]
@@ -4173,14 +4192,29 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
                             contents=prompt
                         )
                         gemini_response = response.text
-                        print(f"✅ Successfully used model: {model_name}")
+                        print(f"✅ Query suggestions: Successfully used model: {model_name}")
                         break
                     except Exception as model_error:
                         last_error = model_error
                         error_str = str(model_error)
-                        # Don't log 404 errors for every model, only log if it's a different error
-                        if "404" not in error_str and "not found" not in error_str.lower():
-                            print(f"⚠️ Model {model_name} failed: {model_error}")
+                        # Check for specific error types
+                        is_404 = "404" in error_str or "not found" in error_str.lower()
+                        is_429 = "429" in error_str or "quota" in error_str.lower()
+                        is_402 = "402" in error_str or "payment" in error_str.lower()
+                        is_598 = "598" in error_str or "timeout" in error_str.lower() or "network" in error_str.lower()
+                        
+                        # If quota exceeded, don't try other models
+                        if is_429:
+                            print(f"⚠️ Query suggestions: Quota exceeded, using fallback")
+                            break
+                        
+                        # Log important errors (402, 598, and other non-404 errors)
+                        if is_402:
+                            print(f"⚠️ Query suggestions: Model {model_name} failed: Payment issue (402) - {model_error}")
+                        elif is_598:
+                            print(f"⚠️ Query suggestions: Model {model_name} failed: Network timeout (598) - {model_error}")
+                        elif not is_404:
+                            print(f"⚠️ Query suggestions: Model {model_name} failed: {model_error}")
                         continue
                 
                 if not gemini_response:
@@ -4192,7 +4226,10 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
                             gemini_response = response.text
                             print("✅ Successfully used old SDK model")
                         except Exception as old_sdk_error:
-                            print(f"⚠️ Old SDK also failed: {old_sdk_error}")
+                            error_str = str(old_sdk_error)
+                            # Don't log 429 (quota exceeded) errors, they're expected
+                            if "429" not in error_str and "quota" not in error_str.lower():
+                                print(f"⚠️ Old SDK model failed: {old_sdk_error}")
                             # Don't raise, just fallback to simple suggestions
                             gemini_response = None
                     else:
@@ -4214,7 +4251,10 @@ Berikan response dalam format JSON saja, tanpa penjelasan tambahan:
                         response = model.generate_content(prompt)
                         gemini_response = response.text
                     except Exception as old_model_error:
-                        print(f"⚠️ Old SDK model failed: {old_model_error}")
+                        error_str = str(old_model_error)
+                        # Don't log 429 (quota exceeded) errors, they're expected
+                        if "429" not in error_str and "quota" not in error_str.lower():
+                            print(f"⚠️ Old SDK model failed: {old_model_error}")
                         # Fallback: simple suggestions
                         return jsonify({
                             'success': True,
@@ -4440,18 +4480,12 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
         # Generate response menggunakan Gemini
         try:
             if USE_NEW_GEMINI and 'client' in globals() and client:
-                # Menggunakan new Google GenAI SDK - Try multiple models
-                # Note: Model names may vary by API version and region
-                # Updated to use newer model names (gemini-2.0, gemini-2.5)
+                # Menggunakan new Google GenAI SDK - Use only free tier models
                 models_to_try = [
-                    "gemini-2.0-flash-exp",  # Newer experimental model
-                    "gemini-2.5-flash",      # Latest stable
-                    "gemini-1.5-flash",       # Fallback to older
+                    "gemini-1.5-flash",       # Most commonly available in free tier
                     "gemini-1.5-pro",
                     "gemini-pro",
-                    "models/gemini-2.0-flash-exp",  # Try with models/ prefix
-                    "models/gemini-2.5-flash",
-                    "models/gemini-1.5-flash",
+                    "models/gemini-1.5-flash",  # Try with models/ prefix
                     "models/gemini-1.5-pro",
                     "models/gemini-pro"
                 ]
@@ -4466,14 +4500,29 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
                             contents=prompt
                         )
                         gemini_response = response.text
-                        print(f"✅ Successfully used model: {model_name}")
+                        print(f"✅ Gemini response: Successfully used model: {model_name}")
                         break
                     except Exception as model_error:
                         last_error = model_error
                         error_str = str(model_error)
-                        # Don't log 404 errors for every model, only log if it's a different error
-                        if "404" not in error_str and "not found" not in error_str.lower():
-                            print(f"⚠️ Model {model_name} failed: {model_error}")
+                        # Check for specific error types
+                        is_404 = "404" in error_str or "not found" in error_str.lower()
+                        is_429 = "429" in error_str or "quota" in error_str.lower()
+                        is_402 = "402" in error_str or "payment" in error_str.lower()
+                        is_598 = "598" in error_str or "timeout" in error_str.lower() or "network" in error_str.lower()
+                        
+                        # If quota exceeded, don't try other models
+                        if is_429:
+                            print(f"⚠️ Gemini response: Quota exceeded, using fallback")
+                            break
+                        
+                        # Log important errors (402, 598, and other non-404 errors)
+                        if is_402:
+                            print(f"⚠️ Gemini response: Model {model_name} failed: Payment issue (402) - {model_error}")
+                        elif is_598:
+                            print(f"⚠️ Gemini response: Model {model_name} failed: Network timeout (598) - {model_error}")
+                        elif not is_404:
+                            print(f"⚠️ Gemini response: Model {model_name} failed: {model_error}")
                         continue
                 
                 if not gemini_response:
@@ -4485,7 +4534,10 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
                             gemini_response = response.text
                             print("✅ Successfully used old SDK model")
                         except Exception as old_sdk_error:
-                            print(f"⚠️ Old SDK also failed: {old_sdk_error}")
+                            error_str = str(old_sdk_error)
+                            # Don't log 429 (quota exceeded) errors, they're expected
+                            if "429" not in error_str and "quota" not in error_str.lower():
+                                print(f"⚠️ Old SDK model failed: {old_sdk_error}")
                             # Don't raise, just use fallback response
                             gemini_response = None
                     else:
@@ -4506,7 +4558,10 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
                         response = model.generate_content(prompt)
                         gemini_response = response.text
                     except Exception as old_model_error:
-                        print(f"⚠️ Old SDK model failed: {old_model_error}")
+                        error_str = str(old_model_error)
+                        # Don't log 429 (quota exceeded) errors, they're expected
+                        if "429" not in error_str and "quota" not in error_str.lower():
+                            print(f"⚠️ Old SDK model failed: {old_model_error}")
                         # Fallback response jika Gemini tidak tersedia
                         if has_results:
                             gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
@@ -4519,9 +4574,21 @@ Jangan terlalu panjang, cukup 2-3 kalimat yang informatif dan membantu.
                     else:
                         gemini_response = "Maaf, tidak ada data yang ditemukan untuk pencarian Anda. Silakan periksa kembali parameter pencarian atau coba dengan kombinasi yang berbeda."
         except Exception as gemini_error:
-            print(f"Error calling Gemini: {gemini_error}")
-            import traceback
-            traceback.print_exc()
+            error_str = str(gemini_error)
+            is_402 = "402" in error_str or "payment" in error_str.lower() or "quota" in error_str.lower() or "billing" in error_str.lower()
+            is_598 = "598" in error_str or "timeout" in error_str.lower() or "network" in error_str.lower() or "connection" in error_str.lower()
+            
+            if is_402:
+                print(f"⚠️ Error calling Gemini: Payment/Quota issue (402) - API key mungkin tidak valid atau quota habis")
+                print(f"   Error details: {gemini_error}")
+            elif is_598:
+                print(f"⚠️ Error calling Gemini: Network timeout (598) - Masalah koneksi ke server Gemini")
+                print(f"   Error details: {gemini_error}")
+            else:
+                print(f"⚠️ Error calling Gemini: {gemini_error}")
+                import traceback
+                traceback.print_exc()
+            
             # Fallback response
             if has_results:
                 gemini_response = f"Berhasil menemukan {search_results.get('total_results', 0)} hasil untuk pencarian Anda."
