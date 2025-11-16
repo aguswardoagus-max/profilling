@@ -1124,6 +1124,8 @@
             .sidebar {
                 transform: translateX(-100%);
                 transition: transform 0.3s ease;
+                width: 280px;
+                z-index: 1001;
             }
 
             .sidebar.mobile-open {
@@ -1131,11 +1133,19 @@
             }
 
             .main-content {
-                margin-left: 0;
+                margin-left: 0 !important;
+                width: 100%;
             }
             
             .sidebar-overlay {
                 display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 1000;
             }
             
             .sidebar-overlay.active {
@@ -1143,41 +1153,95 @@
             }
 
             .topbar {
-                padding: 15px 20px;
+                padding: 12px 15px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .topbar-left {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .topbar-right {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
             }
 
             .page-title {
-                font-size: 1.4rem;
+                font-size: 1.3rem;
+                flex: 1;
+            }
+
+            .search-box {
+                flex: 1;
+                min-width: 0;
             }
 
             .search-box input {
-                width: 200px;
+                width: 100%;
+                max-width: 100%;
+                font-size: 0.9rem;
+                padding: 8px 12px 8px 35px;
+            }
+
+            .notification-btn {
+                padding: 8px;
+                font-size: 1.1rem;
             }
 
             .dashboard-content {
-                padding: 20px;
+                padding: 15px 10px;
             }
 
             .chart-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-
-            .chart-wrapper {
-                height: 250px;
-            }
-
-            .chart-container {
-                padding: 20px;
-            }
-
-            .kpi-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr !important;
                 gap: 15px;
             }
 
+            .chart-wrapper {
+                height: 220px;
+            }
+
+            .chart-container {
+                padding: 15px;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .chart-title {
+                font-size: 1rem;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+            }
+
             .kpi-card {
-                padding: 20px;
+                padding: 18px;
+            }
+
+            .kpi-header {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+
+            .kpi-value {
+                font-size: 1.6rem;
+            }
+
+            .kpi-change {
+                font-size: 0.75rem;
             }
 
             /* Activity Monitoring Mobile */
@@ -1432,134 +1496,121 @@
             }
         }
 
-        /* Enhanced Mobile Responsive */
-        @media (max-width: 768px) {
-            .topbar {
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-
-            .topbar-left {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                width: 100%;
-            }
-
-            .topbar-right {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .search-box {
-                width: 100%;
-                max-width: 100%;
-                margin: 10px 0;
-            }
-
-            .search-box input {
-                width: 100%;
-                font-size: 14px;
-                padding: 8px 12px 8px 35px;
-            }
-
-            .search-box i {
-                left: 12px;
-            }
-
-            .notification-btn {
-                margin-left: 0;
-                padding: 8px;
-            }
-
-            .kpi-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .kpi-icon {
-                align-self: flex-end;
-                width: 50px;
-                height: 50px;
-            }
-
-            .kpi-value {
-                font-size: 1.8rem;
-            }
-
-            .kpi-change {
-                font-size: 0.8rem;
-            }
-
-            .activity-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-
-            .activity-info {
-                width: 100%;
-            }
-
-            .activity-time {
-                align-self: flex-end;
-                font-size: 0.7rem;
-            }
-        }
 
         /* Small Mobile Responsive */
         @media (max-width: 480px) {
             .topbar {
-                padding: 10px 15px;
+                padding: 10px 12px;
             }
 
             .page-title {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
             }
 
             .dashboard-content {
-                padding: 10px;
+                padding: 12px 8px;
             }
 
             .kpi-card {
                 padding: 15px;
             }
 
+            .kpi-header {
+                margin-bottom: 12px;
+            }
+
+            .kpi-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
+
             .kpi-value {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
             }
 
             .kpi-title {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
+            }
+
+            .kpi-change {
+                font-size: 0.7rem;
             }
 
             .chart-container {
-                padding: 10px;
+                padding: 12px;
             }
 
             .chart-wrapper {
-                height: 200px;
+                height: 180px;
+            }
+
+            .chart-title {
+                font-size: 0.95rem;
+            }
+
+            .chart-subtitle {
+                font-size: 0.8rem;
             }
 
             .activity-card {
-                padding: 15px;
+                padding: 12px;
             }
 
             .activity-item {
-                padding: 10px;
+                padding: 10px 0;
+            }
+
+            .activity-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.85rem;
+            }
+
+            .activity-item-title {
+                font-size: 0.85rem;
+            }
+
+            .activity-time {
+                font-size: 0.7rem;
             }
 
             .search-box input {
-                font-size: 12px;
-                padding: 6px 10px 6px 30px;
+                font-size: 0.85rem;
+                padding: 7px 10px 7px 32px;
             }
 
             .search-box i {
                 left: 10px;
+                font-size: 0.85rem;
+            }
+
+            .notification-btn {
+                padding: 6px;
+                font-size: 1rem;
+            }
+
+            .activity-stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 8px;
+            }
+
+            .activity-stat-card {
+                padding: 10px;
+            }
+
+            .stat-icon {
+                width: 30px;
+                height: 30px;
+                font-size: 0.9rem;
+            }
+
+            .stat-value {
+                font-size: 1.2rem;
+            }
+
+            .stat-label {
+                font-size: 0.65rem;
             }
         }
 
