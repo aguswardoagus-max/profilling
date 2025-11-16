@@ -56,8 +56,25 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #f0f4f8 100%);
+            background-attachment: fixed;
             color: #333;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         /* Sidebar */
@@ -279,12 +296,18 @@
         }
 
         .topbar {
-            background: white;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+            backdrop-filter: blur(20px);
             padding: 20px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 
+                0 4px 20px rgba(102, 126, 234, 0.08),
+                0 0 0 1px rgba(102, 126, 234, 0.05);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
+            z-index: 10;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
         }
 
         .topbar-left {
@@ -310,8 +333,12 @@
 
         .page-title {
             font-size: 1.8rem;
-            font-weight: 700;
-            color: #1a202c;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
         }
 
         .topbar-right {
@@ -381,7 +408,21 @@
 
         /* Profiling Content */
         .profiling-content {
-            padding: 30px;
+            padding: 40px;
+            position: relative;
+            z-index: 1;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .ai-suggestions-header {
@@ -1092,10 +1133,118 @@
         }
 
         .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            position: relative;
+            padding: 35px 40px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 
+                0 20px 60px rgba(102, 126, 234, 0.1),
+                0 0 0 1px rgba(102, 126, 234, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            animation: slideInDown 0.6s ease-out;
+        }
+
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+            background-size: 200% 100%;
+            animation: shimmerHeader 3s linear infinite;
+        }
+
+        @keyframes shimmerHeader {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            50% {
+                transform: translate(-20px, -20px) scale(1.1);
+            }
+        }
+
+        .page-header-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .page-header h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            position: relative;
+        }
+
+        .page-header h2::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+            animation: expandLine 0.8s ease-out 0.3s both;
+        }
+
+        @keyframes expandLine {
+            from {
+                width: 0;
+                opacity: 0;
+            }
+            to {
+                width: 60px;
+                opacity: 1;
+            }
+        }
+
+        .page-header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-top: 15px;
+            font-weight: 400;
         }
 
         .page-actions {
@@ -1148,14 +1297,27 @@
 
         /* Chatbot Container */
         .chatbot-container {
-            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.95) 100%);
+            backdrop-filter: blur(20px);
             border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.15), 0 0 0 1px rgba(102, 126, 234, 0.1);
-            margin-bottom: 25px;
+            box-shadow: 
+                0 25px 70px rgba(102, 126, 234, 0.18),
+                0 0 0 1px rgba(102, 126, 234, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            margin-bottom: 30px;
             overflow: hidden;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 2px solid rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.15);
             position: relative;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .chatbot-container:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 30px 80px rgba(102, 126, 234, 0.25),
+                0 0 0 1px rgba(102, 126, 234, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         .chatbot-container::before {
@@ -1328,8 +1490,9 @@
         }
 
         .chatbot-body {
-            padding: 28px;
-            max-height: 600px;
+            padding: 28px 28px 50px 28px;
+            min-height: 500px;
+            max-height: 800px;
             display: flex;
             flex-direction: column;
             background: rgba(255,255,255,0.05);
@@ -1343,8 +1506,8 @@
             overflow-y: auto;
             margin-bottom: 20px;
             padding-right: 10px;
-            min-height: 200px;
-            max-height: 400px;
+            min-height: 350px;
+            max-height: 600px;
         }
 
         .chatbot-messages::-webkit-scrollbar {
@@ -1478,13 +1641,39 @@
         .chatbot-input-container {
             border-top: 2px solid #e1e5e9;
             padding-top: 15px;
+            position: relative;
         }
 
         .chatbot-input-wrapper {
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            gap: 0;
             margin-bottom: 15px;
             position: relative;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 16px;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .chatbot-input-wrapper:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .chatbot-input-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .chatbot-input-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
         }
 
         /* Typing Indicator Styles (Gemini-like) */
@@ -1858,11 +2047,11 @@
 
         /* Voice Input Button */
         .chatbot-voice-btn {
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             background: #f8f9fa;
             color: #667eea;
-            border: 2px solid #e1e5e9;
+            border: none;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
@@ -1874,16 +2063,14 @@
         }
 
         .chatbot-voice-btn:hover {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+            background: #e8f0ff;
+            color: #667eea;
             transform: scale(1.05);
         }
 
         .chatbot-voice-btn.recording {
             background: #ef4444;
             color: white;
-            border-color: #ef4444;
             animation: pulseRecording 1.5s ease-in-out infinite;
         }
 
@@ -1897,18 +2084,19 @@
         }
 
         .chatbot-voice-btn i {
-            font-size: 20px;
+            font-size: 18px;
         }
 
         .chatbot-input {
             flex: 1;
-            padding: 15px 20px;
-            border: 2px solid #e1e5e9;
-            border-radius: 25px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
             font-size: 14px;
             transition: all 0.3s ease;
             font-family: 'Inter', sans-serif;
-            min-width: 0; /* Allow input to shrink on mobile */
+            min-width: 0;
+            background: transparent;
         }
 
         .chatbot-input::placeholder {
@@ -1918,8 +2106,6 @@
 
         .chatbot-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         /* Smart Query Suggestions Dropdown */
@@ -2170,8 +2356,8 @@
         }
 
         .chatbot-send-btn {
-            width: 56px;
-            height: 56px;
+            width: 40px;
+            height: 40px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -2180,52 +2366,30 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             flex-shrink: 0;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
             position: relative;
             overflow: hidden;
         }
 
-        .chatbot-send-btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .chatbot-send-btn:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
         .chatbot-send-btn:hover {
-            transform: scale(1.1) rotate(5deg);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         .chatbot-send-btn:active {
-            transform: scale(0.95) rotate(0deg);
+            transform: scale(0.95);
         }
 
         .chatbot-send-btn i {
+            font-size: 16px;
             position: relative;
             z-index: 1;
-            transition: transform 0.3s ease;
-        }
-
-        .chatbot-send-btn:hover i {
-            transform: translateX(2px) translateY(-2px);
         }
 
         .chatbot-suggestions {
-            display: flex;
+            display: none; /* Hidden - suggestion chips hidden but not removed */
             gap: 10px;
             flex-wrap: wrap;
         }
@@ -2246,6 +2410,95 @@
             color: white;
             border-color: #667eea;
             transform: translateY(-2px);
+        }
+
+        /* Auto Dropdown */
+        .auto-dropdown-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .auto-dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4b5563;
+        }
+
+        .auto-dropdown-btn:hover {
+            background: #e8f0ff;
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .auto-dropdown-btn i {
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .auto-dropdown-wrapper.active .auto-dropdown-btn i.fa-chevron-down {
+            transform: rotate(180deg);
+        }
+
+        .auto-dropdown-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            min-width: 180px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .auto-dropdown-wrapper.active .auto-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .auto-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #4b5563;
+        }
+
+        .auto-dropdown-item:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .auto-dropdown-item i {
+            font-size: 14px;
+            width: 18px;
+            text-align: center;
+        }
+
+        .chatbot-input-right-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         /* Responsive Chatbot - Tablet */
@@ -2285,10 +2538,34 @@
 
         /* Responsive Chatbot - Mobile */
         @media (max-width: 768px) {
+            .profiling-content {
+                padding: 20px 15px;
+            }
+
+            .page-header {
+                padding: 25px 20px;
+                margin-bottom: 25px;
+                border-radius: 20px;
+            }
+
+            .page-header h2 {
+                font-size: 1.8rem;
+            }
+
+            .page-header p {
+                font-size: 0.95rem;
+                margin-top: 10px;
+            }
+
+            .page-header::after {
+                width: 200px;
+                height: 200px;
+            }
+
             .chatbot-container {
-                border-radius: 0;
-                margin-left: -30px;
-                margin-right: -30px;
+                border-radius: 20px;
+                margin-left: 0;
+                margin-right: 0;
                 margin-bottom: 20px;
             }
 
@@ -2321,14 +2598,18 @@
             }
 
             .chatbot-body {
-                padding: 15px 18px;
-                max-height: 500px;
+                padding: 15px 18px 40px 18px;
+                min-height: 550px;
+                max-height: 700px;
+                display: flex;
+                flex-direction: column;
             }
 
             .chatbot-messages {
-                min-height: 150px;
-                max-height: 300px;
-                margin-bottom: 15px;
+                min-height: 300px;
+                max-height: 500px;
+                margin-bottom: 25px;
+                flex: 1;
             }
 
             .chatbot-message {
@@ -2366,9 +2647,14 @@
                 font-size: 12px;
             }
 
+            .chatbot-input-container {
+                margin-top: 30px;
+                padding-top: 25px;
+            }
+
             .chatbot-input-wrapper {
                 gap: 8px;
-                margin-bottom: 12px;
+                margin-bottom: 18px;
             }
 
             .chatbot-input {
@@ -2401,12 +2687,13 @@
             }
 
             .chatbot-suggestions {
-                gap: 8px;
+                gap: 10px;
+                margin-top: 15px;
             }
 
             .suggestion-chip {
-                padding: 6px 12px;
-                font-size: 11px;
+                padding: 10px 16px;
+                font-size: 12px;
             }
 
             .message-parsed {
@@ -2417,9 +2704,34 @@
 
         /* Responsive Chatbot - Small Mobile */
         @media (max-width: 480px) {
+            .profiling-content {
+                padding: 15px 10px;
+            }
+
+            .page-header {
+                padding: 20px 15px;
+                margin-bottom: 20px;
+                border-radius: 16px;
+            }
+
+            .page-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .page-header p {
+                font-size: 0.85rem;
+                margin-top: 8px;
+            }
+
+            .page-header::after {
+                width: 150px;
+                height: 150px;
+            }
+
             .chatbot-container {
-                margin-left: -20px;
-                margin-right: -20px;
+                margin-left: 0;
+                margin-right: 0;
+                border-radius: 16px;
             }
 
             .chatbot-header {
@@ -2441,46 +2753,27 @@
             }
 
             .chatbot-body {
-                padding: 12px 15px;
-                max-height: 450px;
+                padding: 12px 15px 40px 15px;
+                min-height: 500px;
+                max-height: 650px;
+                display: flex;
+                flex-direction: column;
             }
 
             .chatbot-messages {
-                min-height: 120px;
-                max-height: 250px;
-                margin-bottom: 12px;
+                min-height: 280px;
+                max-height: 450px;
+                margin-bottom: 30px;
+                flex: 1;
             }
 
-            .message-avatar {
-                width: 32px;
-                height: 32px;
-                font-size: 14px;
-            }
-
-            .message-content {
-                max-width: 90%;
-                padding: 12px 14px;
-                font-size: 12px;
-            }
-
-            .message-content p {
-                font-size: 12px;
-            }
-
-            .typing-indicator-content {
-                padding: 10px 14px !important;
-            }
-
-            .typing-dot {
-                width: 7px;
-                height: 7px;
-            }
-
-            .typing-text {
-                font-size: 11px;
+            .chatbot-input-container {
+                margin-top: 35px;
+                padding-top: 30px;
             }
 
             .chatbot-input-wrapper {
+                margin-bottom: 20px;
                 gap: 6px;
             }
 
@@ -2507,12 +2800,13 @@
             }
 
             .chatbot-suggestions {
-                gap: 6px;
+                gap: 8px;
+                margin-top: 20px;
             }
 
             .suggestion-chip {
-                padding: 5px 10px;
-                font-size: 10px;
+                padding: 9px 14px;
+                font-size: 11px;
             }
 
             .streaming-text {
@@ -4981,9 +5275,9 @@
         <div class="profiling-content">
             <!-- Page Header -->
             <div class="page-header">
-                <div>
+                <div class="page-header-content">
                     <h2>Profiling Identitas</h2>
-                    <p style="color: #6b7280; margin-top: 5px;">Cari dan analisis informasi identitas menggunakan berbagai metode</p>
+                    <p>Cari dan analisis informasi identitas menggunakan berbagai metode</p>
                 </div>
             </div>
 
@@ -5018,21 +5312,50 @@
                     <div class="chatbot-input-container">
                         <div class="chatbot-input-wrapper" style="position: relative;">
                             <input type="file" id="chatbotFileInput" accept="image/*,.pdf" style="display: none;" onchange="handleChatbotFileUpload(event)">
-                            <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Ketik pencarian Anda..." onkeypress="handleChatbotKeyPress(event)" onkeydown="handleChatbotKeyDown(event)" oninput="handleChatbotInput(event)" onfocus="handleChatbotInputFocus(event)" onblur="handleChatbotInputBlur(event)">
                             <!-- Smart Query Suggestions Dropdown -->
                             <div class="query-suggestions-dropdown" id="querySuggestionsDropdown">
                                 <!-- Content will be populated by JavaScript -->
                             </div>
-                            <!-- Upload button hidden - not needed yet -->
-                            <!-- <button class="chatbot-upload-btn" id="chatbotUploadBtn" onclick="document.getElementById('chatbotFileInput').click()" title="Upload Foto/Dokumen">
-                                <i class="fas fa-paperclip"></i>
-                            </button> -->
-                            <button class="chatbot-voice-btn" id="chatbotVoiceBtn" onclick="toggleVoiceInput()" title="Voice Input">
-                                <i class="fas fa-microphone"></i>
-                            </button>
-                            <button class="chatbot-send-btn" onclick="handleChatbotSubmit()">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
+                            <!-- Top Section: Input Field -->
+                            <div class="chatbot-input-top">
+                                <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Ketik pencarian Anda..." onkeypress="handleChatbotKeyPress(event)" onkeydown="handleChatbotKeyDown(event)" oninput="handleChatbotInput(event)" onfocus="handleChatbotInputFocus(event)" onblur="handleChatbotInputBlur(event)">
+                            </div>
+                            <!-- Bottom Section: Auto Dropdown (Left) and Action Buttons (Right) -->
+                            <div class="chatbot-input-bottom">
+                                <div class="auto-dropdown-wrapper" id="autoDropdownWrapper">
+                                    <button class="auto-dropdown-btn" onclick="event.stopPropagation(); toggleAutoDropdown()">
+                                        <i class="fas fa-cog"></i>
+                                        <span>Auto</span>
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                    <div class="auto-dropdown-menu" id="autoDropdownMenu">
+                                        <div class="auto-dropdown-item" onclick="setAutoMode('nik')">
+                                            <i class="fas fa-id-card"></i>
+                                            <span>Auto NIK</span>
+                                        </div>
+                                        <div class="auto-dropdown-item" onclick="setAutoMode('nama')">
+                                            <i class="fas fa-user"></i>
+                                            <span>Auto Nama</span>
+                                        </div>
+                                        <div class="auto-dropdown-item" onclick="setAutoMode('phone')">
+                                            <i class="fas fa-phone"></i>
+                                            <span>Auto No HP</span>
+                                        </div>
+                                        <div class="auto-dropdown-item" onclick="setAutoMode('kombinasi')">
+                                            <i class="fas fa-layer-group"></i>
+                                            <span>Auto Kombinasi</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chatbot-input-right-buttons">
+                                    <button class="chatbot-voice-btn" id="chatbotVoiceBtn" onclick="toggleVoiceInput()" title="Voice Input">
+                                        <i class="fas fa-microphone"></i>
+                                    </button>
+                                    <button class="chatbot-send-btn" onclick="handleChatbotSubmit()">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="chatbot-suggestions" id="chatbotSuggestions">
                             <button class="suggestion-chip" onclick="fillChatbotInput('Cari NIK 1505041107830002')">Cari NIK</button>
@@ -6502,6 +6825,64 @@
             const container = document.getElementById('chatbotContainer');
             container.classList.toggle('collapsed');
         }
+
+        // Auto Dropdown Functions
+        let currentAutoMode = null;
+
+        function toggleAutoDropdown() {
+            const wrapper = document.getElementById('autoDropdownWrapper');
+            if (wrapper) {
+                wrapper.classList.toggle('active');
+            }
+        }
+
+        function setAutoMode(mode) {
+            currentAutoMode = mode;
+            const wrapper = document.getElementById('autoDropdownWrapper');
+            if (!wrapper) return;
+            
+            const btn = wrapper.querySelector('.auto-dropdown-btn span');
+            if (!btn) return;
+            
+            const modeNames = {
+                'nik': 'Auto NIK',
+                'nama': 'Auto Nama',
+                'phone': 'Auto No HP',
+                'kombinasi': 'Auto Kombinasi'
+            };
+            
+            btn.textContent = modeNames[mode] || 'Auto';
+            wrapper.classList.remove('active');
+            
+            // Auto-fill input with command based on mode
+            const input = document.getElementById('chatbotInput');
+            if (input) {
+                if (mode === 'nik') {
+                    input.value = 'Cari NIK ';
+                    input.placeholder = 'Masukkan NIK...';
+                } else if (mode === 'nama') {
+                    input.value = 'Cari nama ';
+                    input.placeholder = 'Masukkan Nama...';
+                } else if (mode === 'phone') {
+                    input.value = 'Cari no HP ';
+                    input.placeholder = 'Masukkan No HP...';
+                } else if (mode === 'kombinasi') {
+                    input.value = 'Cari NIK nama ';
+                    input.placeholder = 'Masukkan NIK, Nama, atau No HP...';
+                }
+                // Focus and move cursor to end
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const wrapper = document.getElementById('autoDropdownWrapper');
+            if (wrapper && !wrapper.contains(event.target)) {
+                wrapper.classList.remove('active');
+            }
+        });
 
         function fillChatbotInput(text) {
             const input = document.getElementById('chatbotInput');
