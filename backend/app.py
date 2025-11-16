@@ -3383,12 +3383,14 @@ def api_login():
         if not username or not password:
             return jsonify({'error': 'Username dan password diperlukan'}), 400
         
-        # Get client info
-        ip_address = request.remote_addr
+        # Get client info with real IP address
+        ip_address = get_client_ip()
         user_agent = request.headers.get('User-Agent')
         
         # Authenticate user
         auth_result = authenticate_user(username, password, ip_address, user_agent)
+        if auth_result:
+            print(f"✅ User {username} logged in from IP {ip_address}")
         
         if auth_result:
             response = jsonify({
@@ -3421,8 +3423,21 @@ def api_logout():
         data = request.get_json()
         session_token = data.get('session_token')
         
+        # Get user info before logout (if session is valid)
+        user_id = None
         if session_token:
-            logout_user(session_token)
+            user = validate_session_token(session_token)
+            if user:
+                user_id = user.get('id')
+        
+        # Get client info with real IP address
+        ip_address = get_client_ip()
+        user_agent = request.headers.get('User-Agent')
+        
+        if session_token:
+            logout_user(session_token, user_id, ip_address, user_agent)
+            if user_id:
+                print(f"✅ User ID {user_id} logged out from IP {ip_address}")
         
         response = jsonify({'success': True, 'message': 'Logged out successfully'})
         
@@ -3440,10 +3455,22 @@ def logout_page():
         # Get session token from cookie
         session_token = request.cookies.get('session_token')
         
+        # Get user info before logout (if session is valid)
+        user_id = None
+        if session_token:
+            user = validate_session_token(session_token)
+            if user:
+                user_id = user.get('id')
+        
+        # Get client info with real IP address
+        ip_address = get_client_ip()
+        user_agent = request.headers.get('User-Agent')
+        
         if session_token:
             # Logout user
-            logout_user(session_token)
-            print(f"User logged out via logout page")
+            logout_user(session_token, user_id, ip_address, user_agent)
+            if user_id:
+                print(f"✅ User ID {user_id} logged out via logout page from IP {ip_address}")
         
         # Create response that redirects to login
         response = redirect('/login')

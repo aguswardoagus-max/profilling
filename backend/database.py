@@ -1964,9 +1964,9 @@ def validate_session_token(session_token: str) -> Optional[Dict]:
     """Validate session token"""
     return db.validate_session(session_token)
 
-def logout_user(session_token: str, user_id: int = None):
+def logout_user(session_token: str, user_id: int = None, ip_address: str = None, user_agent: str = None):
     """Logout user"""
     success = db.logout_session(session_token)
     if success and user_id:
-        db.log_activity(user_id, 'logout', 'User logged out')
+        db.log_activity(user_id, 'logout', 'User logged out', ip_address, user_agent)
     return success
