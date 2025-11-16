@@ -7131,7 +7131,7 @@
             const typingId = addTypingIndicator();
 
             try {
-                // IMPORTANT: Check if it's a greeting FIRST before parsing
+                // IMPORTANT: Check if it's a greeting/conversation FIRST before parsing
                 // This prevents greetings from being treated as search queries
                 const isGreeting = isGreetingOrGeneralQuery(query);
                 
@@ -7144,7 +7144,23 @@
                     return; // IMPORTANT: Exit early, don't proceed to search
                 }
                 
-                // Only parse if it's NOT a greeting
+                // Check if query contains explicit search keywords
+                // If no search keyword, treat as conversation even if it has numbers/names
+                const lowerQuery = query.toLowerCase();
+                const searchKeywords = ['cari', 'search', 'find', 'carikan', 'cariin', 'tolong cari'];
+                const hasExplicitSearchKeyword = searchKeywords.some(keyword => lowerQuery.includes(keyword));
+                
+                if (!hasExplicitSearchKeyword) {
+                    // No explicit search keyword - treat as general conversation
+                    // Don't search even if it has numbers or names
+                    removeTypingIndicator(typingId);
+                    const clarificationResponse = await getClarificationResponse(query);
+                    // Use streaming effect for clarification response
+                    addChatbotMessage(clarificationResponse, 'bot', null, true);
+                    return; // Exit early, don't proceed to search
+                }
+                
+                // Only parse if it has explicit search keyword
                 const parsed = parseNaturalLanguageQuery(query);
                 
                 // Check if we have valid search parameters
@@ -7159,8 +7175,7 @@
                     // Auto-fill form and trigger search
                     await autoFillAndSearch(parsed, query);
                 } else {
-                    // No valid search parameters found - treat as general conversation
-                    // Let Gemini handle it naturally
+                    // Has search keyword but no valid parameters - ask for clarification
                     removeTypingIndicator(typingId);
                     const clarificationResponse = await getClarificationResponse(query);
                     // Use streaming effect for clarification response
@@ -7261,9 +7276,15 @@
             }
             
             // Check if query doesn't contain search keywords and is conversational
-            if (!hasSearchKeyword && lowerQuery.length < 30 && !/\d{10,}/.test(lowerQuery)) {
-                // Likely a conversational query
-                return true;
+            // Be more strict: only return true if it's clearly conversational
+            if (!hasSearchKeyword && !hasSearchParam && lowerQuery.length < 50) {
+                // Check if it's a simple conversational statement (no numbers, no search params)
+                const hasNumbers = /\d{4,}/.test(lowerQuery); // 4+ consecutive digits
+                
+                if (!hasNumbers && !hasSearchParam) {
+                    // Likely a conversational query - no numbers, no search params, no search keywords
+                    return true;
+                }
             }
             
             return false;
