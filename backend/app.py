@@ -2979,6 +2979,109 @@ def dashboard_stats():
         print(f"Error getting dashboard stats: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/dashboard/user-activities', methods=['GET'])
+@require_auth
+def get_user_activities():
+    """Get user activities with filters and pagination"""
+    try:
+        # Get query parameters
+        user_id = request.args.get('user_id', type=int)
+        activity_type = request.args.get('activity_type', type=str)
+        start_date = request.args.get('start_date', type=str)
+        end_date = request.args.get('end_date', type=str)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        search = request.args.get('search', type=str)
+        
+        # Get current user
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        current_user = validate_session_token(session_token)
+        
+        if not current_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Admin can see all activities, regular users can only see their own
+        if current_user.get('role') != 'admin' and user_id and user_id != current_user['id']:
+            return jsonify({'error': 'Forbidden'}), 403
+        
+        # If not admin and no user_id specified, show only current user's activities
+        if current_user.get('role') != 'admin' and not user_id:
+            user_id = current_user['id']
+        
+        # Get activities from database
+        activities = db.get_user_activities_filtered(
+            user_id=user_id,
+            activity_type=activity_type,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            page=page,
+            per_page=per_page
+        )
+        
+        # Get total count for pagination
+        total = db.get_user_activities_count(
+            user_id=user_id,
+            activity_type=activity_type,
+            start_date=start_date,
+            end_date=end_date,
+            search=search
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': activities,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'pages': (total + per_page - 1) // per_page
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error getting user activities: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/dashboard/activity-stats', methods=['GET'])
+@require_auth
+def get_activity_stats():
+    """Get activity statistics per user"""
+    try:
+        # Get current user
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        current_user = validate_session_token(session_token)
+        
+        if not current_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Get user_id parameter (optional, admin can see all)
+        user_id = request.args.get('user_id', type=int)
+        
+        # Admin can see all stats, regular users can only see their own
+        if current_user.get('role') != 'admin' and user_id and user_id != current_user['id']:
+            return jsonify({'error': 'Forbidden'}), 403
+        
+        # If not admin and no user_id specified, show only current user's stats
+        if current_user.get('role') != 'admin' and not user_id:
+            user_id = current_user['id']
+        
+        # Get activity statistics
+        stats = db.get_activity_stats(user_id=user_id)
+        
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+        
+    except Exception as e:
+        print(f"Error getting activity stats: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/profiling')
 @require_auth
 def profiling_page():
