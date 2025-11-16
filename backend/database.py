@@ -680,11 +680,12 @@ class UserDatabase:
             if not conn:
                 return []
             
-            cursor = conn.cursor()
+            cursor = conn.cursor(dictionary=True)
             
             if user_id:
                 cursor.execute('''
-                    SELECT ua.activity_type, ua.description, ua.ip_address, ua.created_at, u.username
+                    SELECT ua.id, ua.user_id, ua.activity_type, ua.description, ua.ip_address, 
+                           ua.user_agent, ua.created_at, u.username, u.full_name, u.role
                     FROM user_activities ua
                     JOIN users u ON ua.user_id = u.id
                     WHERE ua.user_id = %s
@@ -693,7 +694,8 @@ class UserDatabase:
                 ''', (user_id, limit))
             else:
                 cursor.execute('''
-                    SELECT ua.activity_type, ua.description, ua.ip_address, ua.created_at, u.username
+                    SELECT ua.id, ua.user_id, ua.activity_type, ua.description, ua.ip_address,
+                           ua.user_agent, ua.created_at, u.username, u.full_name, u.role
                     FROM user_activities ua
                     JOIN users u ON ua.user_id = u.id
                     ORDER BY ua.created_at DESC
@@ -703,11 +705,16 @@ class UserDatabase:
             activities = []
             for row in cursor.fetchall():
                 activities.append({
-                    'activity_type': row[0],
-                    'description': row[1],
-                    'ip_address': row[2],
-                    'created_at': row[3].isoformat() if row[3] else None,
-                    'username': row[4]
+                    'id': row.get('id'),
+                    'user_id': row.get('user_id'),
+                    'activity_type': row.get('activity_type'),
+                    'description': row.get('description'),
+                    'ip_address': row.get('ip_address'),
+                    'user_agent': row.get('user_agent'),
+                    'created_at': row.get('created_at').isoformat() if row.get('created_at') else None,
+                    'username': row.get('username'),
+                    'full_name': row.get('full_name'),
+                    'role': row.get('role')
                 })
             
             return activities
@@ -1178,6 +1185,305 @@ class UserDatabase:
             
         except Error as e:
             print(f"Error getting dashboard stats: {e}")
+            return {}
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    def get_user_activities_filtered(self, user_id: int = None, activity_type: str = None,
+                                     start_date: str = None, end_date: str = None,
+                                     search: str = None, page: int = 1, per_page: int = 50) -> List[Dict]:
+        """Get user activities with filters and pagination"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor(dictionary=True)
+            
+            # Build WHERE clause
+            where_conditions = []
+            params = []
+            
+            if user_id:
+                where_conditions.append('ua.user_id = %s')
+                params.append(user_id)
+            
+            if activity_type:
+                where_conditions.append('ua.activity_type = %s')
+                params.append(activity_type)
+            
+            if start_date:
+                where_conditions.append('DATE(ua.created_at) >= %s')
+                params.append(start_date)
+            
+            if end_date:
+                where_conditions.append('DATE(ua.created_at) <= %s')
+                params.append(end_date)
+            
+            if search:
+                where_conditions.append('(ua.description LIKE %s OR u.username LIKE %s OR u.full_name LIKE %s)')
+                search_param = f'%{search}%'
+                params.extend([search_param, search_param, search_param])
+            
+            where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+            
+            # Calculate offset
+            offset = (page - 1) * per_page
+            
+            # Execute query
+            query = f'''
+                SELECT ua.id, ua.user_id, ua.activity_type, ua.description, ua.ip_address,
+                       ua.user_agent, ua.created_at, u.username, u.full_name, u.role
+                FROM user_activities ua
+                JOIN users u ON ua.user_id = u.id
+                WHERE {where_clause}
+                ORDER BY ua.created_at DESC
+                LIMIT %s OFFSET %s
+            '''
+            params.extend([per_page, offset])
+            
+            cursor.execute(query, params)
+            
+            activities = []
+            rows = cursor.fetchall()
+            print(f"✅ Found {len(rows)} activities in database")  # Debug log
+            
+            for row in rows:
+                # Handle created_at date conversion
+                created_at = row.get('created_at')
+                if created_at:
+                    if isinstance(created_at, str):
+                        # Already a string, use as is
+                        created_at_str = created_at
+                    elif hasattr(created_at, 'isoformat'):
+                        # Convert datetime to ISO format string
+                        created_at_str = created_at.isoformat()
+                    else:
+                        # Fallback to string conversion
+                        created_at_str = str(created_at)
+                else:
+                    created_at_str = None
+                
+                activity = {
+                    'id': row.get('id'),
+                    'user_id': row.get('user_id'),
+                    'activity_type': row.get('activity_type'),
+                    'description': row.get('description'),
+                    'ip_address': row.get('ip_address'),
+                    'user_agent': row.get('user_agent'),
+                    'created_at': created_at_str,
+                    'username': row.get('username'),
+                    'full_name': row.get('full_name'),
+                    'role': row.get('role')
+                }
+                activities.append(activity)
+            
+            print(f"✅ Returning {len(activities)} activities to frontend")  # Debug log
+            return activities
+        except Error as e:
+            print(f"Error getting filtered activities: {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    def get_user_activities_count(self, user_id: int = None, activity_type: str = None,
+                                  start_date: str = None, end_date: str = None,
+                                  search: str = None) -> int:
+        """Get total count of user activities with filters"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return 0
+            
+            cursor = conn.cursor()
+            
+            # Build WHERE clause (same as get_user_activities_filtered)
+            where_conditions = []
+            params = []
+            
+            if user_id:
+                where_conditions.append('ua.user_id = %s')
+                params.append(user_id)
+            
+            if activity_type:
+                where_conditions.append('ua.activity_type = %s')
+                params.append(activity_type)
+            
+            if start_date:
+                where_conditions.append('DATE(ua.created_at) >= %s')
+                params.append(start_date)
+            
+            if end_date:
+                where_conditions.append('DATE(ua.created_at) <= %s')
+                params.append(end_date)
+            
+            if search:
+                where_conditions.append('(ua.description LIKE %s OR u.username LIKE %s OR u.full_name LIKE %s)')
+                search_param = f'%{search}%'
+                params.extend([search_param, search_param, search_param])
+            
+            where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+            
+            # Execute count query
+            query = f'''
+                SELECT COUNT(*) as total
+                FROM user_activities ua
+                JOIN users u ON ua.user_id = u.id
+                WHERE {where_clause}
+            '''
+            
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            
+            return result[0] if result else 0
+        except Error as e:
+            print(f"Error getting activities count: {e}")
+            return 0
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    def get_activity_stats(self, user_id: int = None) -> Dict:
+        """Get activity statistics per user"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return {}
+            
+            cursor = conn.cursor(dictionary=True)
+            stats = {}
+            
+            # Build WHERE clause
+            where_clause = 'WHERE ua.user_id = %s' if user_id else ''
+            params = [user_id] if user_id else []
+            
+            # Total activities
+            query = f'''
+                SELECT COUNT(*) as total
+                FROM user_activities ua
+                {where_clause}
+            '''
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            stats['total_activities'] = result.get('total', 0) if result else 0
+            
+            # Activities by type
+            query = f'''
+                SELECT activity_type, COUNT(*) as count
+                FROM user_activities ua
+                {where_clause}
+                GROUP BY activity_type
+                ORDER BY count DESC
+            '''
+            cursor.execute(query, params)
+            activity_types = cursor.fetchall()
+            stats['by_type'] = {row.get('activity_type'): row.get('count', 0) for row in activity_types}
+            
+            # Activities by day (last 7 days)
+            if user_id:
+                # If filtering by user, need to add WHERE clause properly
+                query = f'''
+                    SELECT DATE(created_at) as date, COUNT(*) as count
+                    FROM user_activities ua
+                    WHERE ua.user_id = %s
+                    AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    GROUP BY DATE(created_at)
+                    ORDER BY date DESC
+                '''
+                cursor.execute(query, [user_id])
+            else:
+                query = '''
+                    SELECT DATE(created_at) as date, COUNT(*) as count
+                    FROM user_activities ua
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    GROUP BY DATE(created_at)
+                    ORDER BY date DESC
+                '''
+                cursor.execute(query)
+            
+            daily_activities = cursor.fetchall()
+            # Convert date objects to strings for JSON serialization
+            daily_activities_list = []
+            for item in daily_activities:
+                date_val = item.get('date')
+                if date_val:
+                    if isinstance(date_val, str):
+                        date_str = date_val
+                    elif hasattr(date_val, 'isoformat'):
+                        date_str = date_val.isoformat().split('T')[0]  # Get YYYY-MM-DD format
+                    else:
+                        date_str = str(date_val)
+                else:
+                    date_str = None
+                daily_activities_list.append({
+                    'date': date_str,
+                    'count': item.get('count', 0)
+                })
+            stats['daily_activities'] = daily_activities_list
+            
+            # Top users by activity (if not filtering by user)
+            if not user_id:
+                query = '''
+                    SELECT u.id, u.username, u.full_name, u.role, COUNT(*) as activity_count
+                    FROM user_activities ua
+                    JOIN users u ON ua.user_id = u.id
+                    GROUP BY u.id, u.username, u.full_name, u.role
+                    ORDER BY activity_count DESC
+                    LIMIT 10
+                '''
+                cursor.execute(query)
+                top_users = cursor.fetchall()
+                # Convert to list of dicts for JSON serialization
+                top_users_list = []
+                for user in top_users:
+                    top_users_list.append({
+                        'id': user.get('id'),
+                        'username': user.get('username'),
+                        'full_name': user.get('full_name'),
+                        'role': user.get('role'),
+                        'activity_count': user.get('activity_count', 0)
+                    })
+                stats['top_users'] = top_users_list
+                
+                # Also add total_users count
+                stats['total_users'] = len(top_users_list)
+            
+            # Recent activity types distribution
+            if user_id:
+                query = '''
+                    SELECT activity_type, COUNT(*) as count
+                    FROM user_activities ua
+                    WHERE ua.user_id = %s
+                    AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    GROUP BY activity_type
+                    ORDER BY count DESC
+                '''
+                cursor.execute(query, [user_id])
+            else:
+                query = '''
+                    SELECT activity_type, COUNT(*) as count
+                    FROM user_activities ua
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    GROUP BY activity_type
+                    ORDER BY count DESC
+                '''
+                cursor.execute(query)
+            
+            recent_types = cursor.fetchall()
+            stats['recent_types'] = {row.get('activity_type'): row.get('count', 0) for row in recent_types}
+            
+            print(f"✅ Activity stats generated: total={stats.get('total_activities', 0)}, top_users={len(stats.get('top_users', []))}")  # Debug log
+            return stats
+        except Error as e:
+            print(f"Error getting activity stats: {e}")
             return {}
         finally:
             if cursor:
