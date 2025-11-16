@@ -4340,7 +4340,7 @@ Tugas Anda:
 
 Parameter pencarian yang didukung:
 - NIK (16 digit): "Cari NIK 1505041107830002"
-- Nama: "Cari nama Jambi" atau "Cari nama Jefri Ginanjar"
+- Nama: "Cari nama Jambi" atau "Cari nama Margutin"
 - Nomor HP: "Cari no HP 6285755349653" atau "Cari HP 081234567890"
 - Lokasi/Provinsi: "Cari lokasi Jambi" atau "Cari provinsi Sumatera Selatan"
 - Kombinasi: "Cari NIK 1505041107830002 nama Jambi" atau "Cari nama Jambi lokasi Jambi"
@@ -4650,7 +4650,7 @@ Analisis pesan user:
 
 Untuk pencarian data, user bisa menggunakan:
 - NIK (16 digit): "Cari NIK 1505041107830002"
-- Nama: "Cari nama Jambi" atau "Cari nama Jefri Ginanjar"
+- Nama: "Cari nama Jambi" atau "Cari nama Margutin"
 - Nomor HP: "Cari no HP 6285755349653"
 - Lokasi: "Cari lokasi Jambi"
 - Kombinasi: "Cari NIK 1505041107830002 nama Jambi"
