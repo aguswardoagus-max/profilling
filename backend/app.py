@@ -763,6 +763,41 @@ def handle_ngrok_request():
             allowed_origins.append(origin)
             print(f"Added ngrok domain to allowed origins: {origin}")
 
+# Helper function to get real client IP address
+def get_client_ip():
+    """Get the real client IP address, handling proxies and load balancers"""
+    # Check for forwarded IP headers (common with proxies/load balancers)
+    if request.headers.get('X-Forwarded-For'):
+        # X-Forwarded-For can contain multiple IPs, get the first one
+        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        if ip and ip != 'unknown':
+            return ip
+    
+    # Check for X-Real-IP header (nginx proxy)
+    if request.headers.get('X-Real-IP'):
+        ip = request.headers.get('X-Real-IP').strip()
+        if ip and ip != 'unknown':
+            return ip
+    
+    # Check for CF-Connecting-IP (Cloudflare)
+    if request.headers.get('CF-Connecting-IP'):
+        ip = request.headers.get('CF-Connecting-IP').strip()
+        if ip and ip != 'unknown':
+            return ip
+    
+    # Fallback to remote_addr
+    ip = request.remote_addr
+    # If it's localhost, try to get from other sources
+    if ip in ['127.0.0.1', 'localhost', '::1']:
+        # Check if there's any other IP header
+        for header in ['X-Forwarded-For', 'X-Real-IP', 'CF-Connecting-IP', 'X-Client-IP']:
+            if request.headers.get(header):
+                ip = request.headers.get(header).split(',')[0].strip()
+                if ip and ip not in ['127.0.0.1', 'localhost', '::1', 'unknown']:
+                    return ip
+    
+    return ip or 'Unknown'
+
 # Helper function to get base URL dynamically
 def get_base_url():
     """Get the base URL dynamically based on request"""
@@ -3162,6 +3197,13 @@ def get_api_keys():
 def create_api_key():
     """Create a new API key"""
     try:
+        # Get current user
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        current_user = validate_session_token(session_token)
+        
+        if not current_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
         data = request.get_json()
         api_key = data.get('api_key')
         api_type = data.get('api_type', 'GOOGLE_CSE')
@@ -3175,6 +3217,16 @@ def create_api_key():
         
         success = db.create_api_key(api_key, api_type, description, priority, daily_limit, status)
         if success:
+            # Log API key creation activity
+            client_ip = get_client_ip()
+            db.log_activity(
+                user_id=current_user['id'],
+                activity_type='api_key_created',
+                description=f'Created API key: {api_type} - {description or "No description"}',
+                ip_address=client_ip,
+                user_agent=request.headers.get('User-Agent')
+            )
+            print(f"✅ Logged API key creation for user {current_user.get('username', 'Unknown')} from IP {client_ip}")
             return jsonify({'success': True, 'message': 'API key created successfully'}), 201
         else:
             return jsonify({'error': 'Failed to create API key'}), 500
@@ -3221,6 +3273,13 @@ def get_api_key_detail(key_id):
 def update_api_key(key_id):
     """Update an API key"""
     try:
+        # Get current user
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        current_user = validate_session_token(session_token)
+        
+        if not current_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
         data = request.get_json()
         
         # Build update dict with only provided fields
@@ -3242,6 +3301,17 @@ def update_api_key(key_id):
         
         success = db.update_api_key(key_id, **update_data)
         if success:
+            # Log API key update activity
+            changes = ', '.join([f"{k}: {v}" for k, v in update_data.items() if k != 'api_key'])  # Don't log full API key
+            client_ip = get_client_ip()
+            db.log_activity(
+                user_id=current_user['id'],
+                activity_type='api_key_updated',
+                description=f'Updated API key ID {key_id}: {changes}',
+                ip_address=client_ip,
+                user_agent=request.headers.get('User-Agent')
+            )
+            print(f"✅ Logged API key update for user {current_user.get('username', 'Unknown')} from IP {client_ip}")
             return jsonify({'success': True, 'message': 'API key updated successfully'}), 200
         else:
             return jsonify({'error': 'Failed to update API key'}), 500
@@ -3255,8 +3325,30 @@ def update_api_key(key_id):
 def delete_api_key(key_id):
     """Delete an API key"""
     try:
+        # Get current user
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        current_user = validate_session_token(session_token)
+        
+        if not current_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Get API key info before deletion for logging
+        keys = db.get_all_api_keys()
+        key_info = next((k for k in keys if k['id'] == key_id), None)
+        api_type = key_info.get('api_type', 'Unknown') if key_info else 'Unknown'
+        
         success = db.delete_api_key(key_id)
         if success:
+            # Log API key deletion activity
+            client_ip = get_client_ip()
+            db.log_activity(
+                user_id=current_user['id'],
+                activity_type='api_key_deleted',
+                description=f'Deleted API key ID {key_id} (Type: {api_type})',
+                ip_address=client_ip,
+                user_agent=request.headers.get('User-Agent')
+            )
+            print(f"✅ Logged API key deletion for user {current_user.get('username', 'Unknown')} from IP {client_ip}")
             return jsonify({'success': True, 'message': 'API key deleted successfully'}), 200
         else:
             return jsonify({'error': 'Failed to delete API key'}), 500
@@ -4815,10 +4907,12 @@ def perform_phone_search(token, params, data, user_data):
                 'message': f'Tidak ada hasil untuk nomor {phone_number}'
             }
         
-        # Save profiling data to database
+        # Save profiling data to database and log activity
         try:
             # Use user_data that was passed as parameter (already authenticated)
             if user_data and user_data.get('id'):
+                client_ip = get_client_ip()
+                
                 # Prepare search parameters for saving
                 search_params = {
                     'search_type': 'phone',
@@ -4833,19 +4927,37 @@ def perform_phone_search(token, params, data, user_data):
                 }
                 
                 # Save to database
-                db.save_profiling_data(
-                    user_id=user_data['id'],
-                    search_type='phone',
-                    search_params=search_params,
-                    search_results=search_results,
-                    person_data=results[0]['person'] if results else None,
-                    phone_data={'phone_number': phone_number, 'operator': data.get('phone_operator', '')},
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent')
-                )
-                print(f"Saved phone search profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
+                try:
+                    db.save_profiling_data(
+                        user_id=user_data['id'],
+                        search_type='phone',
+                        search_params=search_params,
+                        search_results=search_results,
+                        person_data=results[0]['person'] if results else None,
+                        phone_data={'phone_number': phone_number, 'operator': data.get('phone_operator', '')},
+                        ip_address=client_ip,
+                        user_agent=request.headers.get('User-Agent')
+                    )
+                    print(f"✅ Saved phone search profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
+                except Exception as save_error:
+                    print(f"⚠️ Error saving phone search profiling data: {save_error}")
+                
+                # Log phone search activity (ALWAYS log, even if save failed or no results)
+                try:
+                    db.log_activity(
+                        user_id=user_data['id'],
+                        activity_type='profiling_search',
+                        description=f'Phone search: {phone_number} - Found {len(results)} results',
+                        ip_address=client_ip,
+                        user_agent=request.headers.get('User-Agent')
+                    )
+                    print(f"✅ Logged phone search activity for user {user_data.get('username', 'Unknown')} from IP {client_ip}")
+                except Exception as log_error:
+                    print(f"❌ Error logging phone search activity: {log_error}")
         except Exception as save_error:
-            print(f"Error saving phone search profiling data: {save_error}")
+            print(f"❌ Error in phone search save/logging: {save_error}")
+            import traceback
+            traceback.print_exc()
         
         return jsonify(result)
         
@@ -4881,6 +4993,21 @@ def perform_face_search(token, params, data, user_data):
             people = parse_people_from_response(j)
             
             if not people:
+                # Log activity even if no people found
+                if user_data and user_data.get('id'):
+                    try:
+                        client_ip = get_client_ip()
+                        db.log_activity(
+                            user_id=user_data['id'],
+                            activity_type='profiling_search',
+                            description=f'Face search: No people found from API - threshold {data.get("face_threshold", 0.50)}',
+                            ip_address=client_ip,
+                            user_agent=request.headers.get('User-Agent')
+                        )
+                        print(f"✅ Logged face search activity (no people) for user {user_data.get('username', 'Unknown')} from IP {client_ip}")
+                    except Exception as log_error:
+                        print(f"❌ Error logging face search activity: {log_error}")
+                
                 return jsonify({'results': [], 'message': 'Tidak ada person yang dikembalikan oleh API'})
             
             # Process face matching
@@ -4931,10 +5058,12 @@ def perform_face_search(token, params, data, user_data):
             # Sort by distance
             matches.sort(key=lambda x: x['distance'])
             
-            # Save profiling data to database
+            # Save profiling data to database and log activity
             try:
                 # Use user_data that was passed as parameter (already authenticated)
                 if user_data and user_data.get('id'):
+                    client_ip = get_client_ip()
+                    
                     # Prepare search parameters for saving
                     search_params = {
                         'search_type': 'face',
@@ -4950,19 +5079,37 @@ def perform_face_search(token, params, data, user_data):
                     }
                     
                     # Save to database
-                    db.save_profiling_data(
-                        user_id=user_data['id'],
-                        search_type='face',
-                        search_params=search_params,
-                        search_results=search_results,
-                        person_data=matches[0]['person'] if matches else None,
-                        face_data={'matches_count': len(matches), 'threshold': threshold},
-                        ip_address=request.remote_addr,
-                        user_agent=request.headers.get('User-Agent')
-                    )
-                    print(f"Saved face search profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
+                    try:
+                        db.save_profiling_data(
+                            user_id=user_data['id'],
+                            search_type='face',
+                            search_params=search_params,
+                            search_results=search_results,
+                            person_data=matches[0]['person'] if matches else None,
+                            face_data={'matches_count': len(matches), 'threshold': threshold},
+                            ip_address=client_ip,
+                            user_agent=request.headers.get('User-Agent')
+                        )
+                        print(f"✅ Saved face search profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
+                    except Exception as save_error:
+                        print(f"⚠️ Error saving face search profiling data: {save_error}")
+                    
+                    # Log face search activity (ALWAYS log, even if save failed or no matches)
+                    try:
+                        db.log_activity(
+                            user_id=user_data['id'],
+                            activity_type='profiling_search',
+                            description=f'Face search: threshold {threshold} - Found {len(matches)} matches',
+                            ip_address=client_ip,
+                            user_agent=request.headers.get('User-Agent')
+                        )
+                        print(f"✅ Logged face search activity for user {user_data.get('username', 'Unknown')} from IP {client_ip}")
+                    except Exception as log_error:
+                        print(f"❌ Error logging face search activity: {log_error}")
             except Exception as save_error:
-                print(f"Error saving face search profiling data: {save_error}")
+                print(f"❌ Error in face search save/logging: {save_error}")
+                import traceback
+                traceback.print_exc()
             
             return jsonify({
                 'results': matches,
@@ -4985,10 +5132,27 @@ def perform_regular_search(token, params, data, user_data):
         j = call_search(token, params)
         people = parse_people_from_response(j)
         
+        results = []
+        
         if not people:
+            # Log activity even if no results found
+            if user_data and user_data.get('id'):
+                try:
+                    client_ip = get_client_ip()
+                    search_params_str = f"name: {data.get('name', '')}, nik: {data.get('nik', '')}"
+                    db.log_activity(
+                        user_id=user_data['id'],
+                        activity_type='profiling_search',
+                        description=f'Profiling search: identity - {search_params_str} - Found 0 results',
+                        ip_address=client_ip,
+                        user_agent=request.headers.get('User-Agent')
+                    )
+                    print(f"✅ Logged profiling search activity (no results) for user {user_data.get('username', 'Unknown')} from IP {client_ip}")
+                except Exception as log_error:
+                    print(f"❌ Error logging profiling search activity: {log_error}")
+            
             return jsonify({'results': [], 'message': 'Tidak ada hasil'})
         
-        results = []
         for p in people:
             # Fix photo field name - API might use 'photo', but enrich_person_data expects 'face'
             if p.get('photo') and not p.get('face'):
@@ -5032,10 +5196,12 @@ def perform_regular_search(token, params, data, user_data):
             
             results.append(result)
         
-        # Save profiling data to database
+        # Save profiling data to database and log activity
         try:
             # Use user_data that was passed as parameter (already authenticated)
             if user_data and user_data.get('id'):
+                client_ip = get_client_ip()
+                
                 # Prepare search parameters for saving
                 search_params = {
                     'search_type': 'identity',
@@ -5051,18 +5217,37 @@ def perform_regular_search(token, params, data, user_data):
                 }
                 
                 # Save to database
-                db.save_profiling_data(
-                    user_id=user_data['id'],
-                    search_type='identity',
-                    search_params=search_params,
-                    search_results=search_results,
-                    person_data=results[0]['person'] if results else None,
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent')
-                )
-                print(f"Saved profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
+                try:
+                    db.save_profiling_data(
+                        user_id=user_data['id'],
+                        search_type='identity',
+                        search_params=search_params,
+                        search_results=search_results,
+                        person_data=results[0]['person'] if results else None,
+                        ip_address=client_ip,
+                        user_agent=request.headers.get('User-Agent')
+                    )
+                    print(f"✅ Saved profiling data for user {user_data.get('username', 'Unknown')} (ID: {user_data['id']})")
+                except Exception as save_error:
+                    print(f"⚠️ Error saving profiling data: {save_error}")
+                
+                # Log profiling search activity (ALWAYS log, even if save failed)
+                try:
+                    search_params_str = ', '.join([f"{k}: {v}" for k, v in search_params.items() if v])
+                    db.log_activity(
+                        user_id=user_data['id'],
+                        activity_type='profiling_search',
+                        description=f'Profiling search: identity - {search_params_str} - Found {len(results)} results',
+                        ip_address=client_ip,
+                        user_agent=request.headers.get('User-Agent')
+                    )
+                    print(f"✅ Logged profiling search activity for user {user_data.get('username', 'Unknown')} from IP {client_ip}")
+                except Exception as log_error:
+                    print(f"❌ Error logging profiling search activity: {log_error}")
         except Exception as save_error:
-            print(f"Error saving profiling data: {save_error}")
+            print(f"❌ Error in profiling search save/logging: {save_error}")
+            import traceback
+            traceback.print_exc()
         
         return jsonify({
             'results': results,
