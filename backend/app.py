@@ -19,6 +19,11 @@ from database import authenticate_user, validate_session_token, logout_user, db
 from functools import wraps
 from cekplat import cekplat_bp
 
+# Ensure sys.stderr is available for debugging
+if not hasattr(sys, 'stderr'):
+    import io
+    sys.stderr = io.TextIOWrapper(io.BytesIO(), encoding='utf-8')
+
 # Try to import AI endpoints (optional - may fail if sklearn/pandas have compatibility issues)
 ai_bp = None
 try:
@@ -2398,8 +2403,73 @@ def convert_family_data_format(api_response, nik, nkk, token=None):
         return None
 
 def get_family_data(nik, nkk=None, token=None, person_data=None):
-    """Get family data for a person"""
-    # Try primary API first
+    """
+    Get family data for a person - FLEKSIBEL dan CERDAS
+    - Jika server 224 hidup → gunakan server 224
+    - Jika server 224 mati → langsung gunakan server 116 (CEPAT, tanpa timeout)
+    """
+    # PENTING: Cek apakah server 224 mati (token adalah fallback_token)
+    using_server_116 = token and token.startswith("fallback_token_")
+    
+    if using_server_116:
+        print(f"[INFO] ✅ CERDAS: Server 224 mati, langsung gunakan server 116 untuk family data", file=sys.stderr)
+        # Langsung ke server 116 identity API tanpa coba server 224
+        if nkk:
+            from clearance_face_search import _login_server_116
+            session = _login_server_116()
+            if session:
+                search_params = {'family_cert_number': nkk}
+                search_url = 'http://10.1.54.116/toolkit/api/identity/search'
+                print(f"[INFO] Server 116 family search URL: {search_url}?family_cert_number={nkk}", file=sys.stderr)
+                try:
+                    search_response = session.get(search_url, params=search_params, timeout=5)
+                    print(f"[INFO] Server 116 family response status: {search_response.status_code}", file=sys.stderr)
+                    
+                    if search_response.status_code == 200:
+                        data = search_response.json()
+                        if 'person' in data and isinstance(data['person'], list) and len(data['person']) > 0:
+                            print(f"[INFO] ✅ Server 116 mengembalikan {len(data['person'])} anggota keluarga untuk NKK: {nkk}", file=sys.stderr)
+                            # Convert to expected format
+                            family_members = []
+                            kepala_keluarga = None
+                            alamat_keluarga = None
+                            
+                            for person in data['person']:
+                                if not kepala_keluarga:
+                                    kepala_keluarga = person.get('full_name', 'Unknown')
+                                if not alamat_keluarga:
+                                    alamat_keluarga = person.get('address', 'N/A')
+                                
+                                family_members.append({
+                                    'nama': person.get('full_name', 'Unknown'),
+                                    'hubungan': 'Anggota Keluarga',
+                                    'nik': person.get('ktp_number', 'N/A'),
+                                    'tanggal_lahir': person.get('date_of_birth', 'N/A'),
+                                    'tempat_lahir': person.get('birth_place', 'N/A'),
+                                    'jenis_kelamin': person.get('sex', 'N/A'),
+                                    'agama': person.get('religion', 'N/A'),
+                                    'status_perkawinan': person.get('marital_status', 'N/A'),
+                                    'pekerjaan': person.get('occupation', 'N/A')
+                                })
+                            
+                            result = {
+                                'kepala_keluarga': kepala_keluarga,
+                                'nkk': nkk,
+                                'alamat_keluarga': alamat_keluarga,
+                                'anggota_keluarga': family_members
+                            }
+                            print(f"[INFO] ✅ Family data berhasil dari server 116: {len(family_members)} anggota", file=sys.stderr)
+                            return result
+                        else:
+                            print(f"[INFO] Server 116 tidak mengembalikan family data untuk NKK: {nkk}", file=sys.stderr)
+                except Exception as e:
+                    print(f"[ERROR] Server 116 family search failed: {e}", file=sys.stderr)
+        # Return None jika tidak ada NKK atau gagal
+        print(f"[INFO] Tidak ada family data untuk NIK: {nik} (server 116 mode)", file=sys.stderr)
+        return None
+    
+    # Server 224 hidup - gunakan server 224 untuk family data
+    print(f"[INFO] ✅ CERDAS: Server 224 hidup, gunakan server 224 untuk family data", file=sys.stderr)
     try:
         params = {
             'nik': nik,
@@ -2417,7 +2487,7 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
             headers['Authorization'] = f'Bearer {token}'
             
         print(f"Fetching family data for NIK: {nik}, NKK: {nkk}")
-        response = requests.get(FAMILY_API_BASE, params=params, headers=headers, timeout=15)
+        response = requests.get(FAMILY_API_BASE, params=params, headers=headers, timeout=5)  # Reduced dari 15 ke 5
         response.raise_for_status()
         data = response.json()
         print(f"Family data response: {len(data.get('data', []))} family members found")
@@ -2447,6 +2517,51 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
                 return converted_data
         except Exception as e2:
             print(f"Alternative API also failed for NIK {nik}: {e2}")
+            
+        # Try server 116 identity API as fallback for profiling
+        try:
+            if nkk:
+                print(f"Trying server 116 identity API as fallback for family search")
+                # Import session helper from clearance_face_search
+                from clearance_face_search import _login_server_116
+                session = _login_server_116()
+                if session:
+                    search_params = {'family_cert_number': nkk}
+                    search_url = 'http://10.1.54.116/toolkit/api/identity/search'
+                    search_response = session.get(search_url, params=search_params, timeout=15)
+                    if search_response.status_code == 200:
+                        data = search_response.json()
+                        if 'person' in data and isinstance(data['person'], list) and len(data['person']) > 0:
+                            print(f"Server 116 identity API returned {len(data['person'])} family members")
+                            # Convert server 116 format to expected format
+                            # Server 116 returns person array directly
+                            family_members = []
+                            kepala_keluarga = None
+                            for person in data['person']:
+                                if person.get('family_cert_number') == nkk:
+                                    if not kepala_keluarga:
+                                        kepala_keluarga = person.get('full_name', 'Unknown')
+                                    family_members.append({
+                                        'nama': person.get('full_name', 'Unknown'),
+                                        'hubungan': 'Anggota Keluarga',
+                                        'nik': person.get('ktp_number', 'N/A'),
+                                        'tanggal_lahir': person.get('date_of_birth', 'N/A'),
+                                        'tempat_lahir': person.get('birth_place', 'N/A'),
+                                        'jenis_kelamin': 'Laki-laki' if person.get('sex') == 'L' else 'Perempuan',
+                                        'agama': person.get('religion', 'N/A'),
+                                        'status_perkawinan': person.get('marital_status', 'N/A'),
+                                        'pekerjaan': person.get('occupation', 'N/A')
+                                    })
+                            
+                            if family_members:
+                                return {
+                                    'kepala_keluarga': kepala_keluarga or 'Unknown',
+                                    'nkk': nkk,
+                                    'alamat_keluarga': family_members[0].get('address', 'N/A') if family_members else 'N/A',
+                                    'anggota_keluarga': family_members
+                                }
+        except Exception as e3:
+            print(f"Server 116 identity API also failed for NIK {nik}: {e3}")
             
     print(f"[ERROR] All family data APIs failed for NIK {nik}")
     
@@ -2541,6 +2656,12 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
 
 def get_phone_data(nik, token=None):
     """Get phone number data for a person"""
+    # PENTING: Skip phone data jika server 224 mati (untuk kecepatan)
+    # Phone data tidak tersedia di server 116, jadi langsung return None
+    if token and token.startswith("fallback_token_"):
+        print(f"[INFO] Server 224 mati, skip phone data untuk NIK: {nik}", file=sys.stderr)
+        return None
+    
     try:
         url = f"{PHONE_API_BASE}/{nik}"
         headers = {
@@ -2552,7 +2673,7 @@ def get_phone_data(nik, token=None):
             headers['Authorization'] = f'Bearer {token}'
             
         print(f"Fetching phone data for NIK: {nik}")
-        response = requests.get(url, headers=headers, timeout=5)
+        response = requests.get(url, headers=headers, timeout=2)  # Reduced timeout dari 5 ke 2
         
         if response.status_code == 200:
             data = response.json()
@@ -4066,13 +4187,27 @@ def api_search():
         user_data = auth_result
         
         # Get token with force refresh to ensure fresh token
+        # Note: If server 224 is down, ensure_token will return a fallback_token
+        # and call_search will automatically use server 116 as fallback
+        print(f"INFO: [API_SEARCH] Menerima request dengan username: {data['username']}", file=sys.stderr)
         try:
             token = ensure_token(data['username'], data['password'], force_refresh=True)
             if not token:
                 return jsonify({'error': 'Gagal mendapatkan token akses ke server eksternal'}), 500
+            # Check if we're using fallback token (server 224 is down)
+            if token.startswith("fallback_token_"):
+                print("INFO: [API_SEARCH] ✅ Server 224 MATI - Menggunakan server 116", file=sys.stderr)
+                print(f"INFO: [API_SEARCH] ✅ Server 116 akan menggunakan kredensial hardcoded: jambi/@ab526d", file=sys.stderr)
+                print(f"INFO: [API_SEARCH] ⚠️ Kredensial {data['username']} TIDAK digunakan untuk server 116 (kredensial berbeda!)", file=sys.stderr)
+            else:
+                print(f"INFO: [API_SEARCH] ✅ Server 224 HIDUP - Menggunakan server 224", file=sys.stderr)
+                print(f"INFO: [API_SEARCH] ✅ Kredensial {data['username']} digunakan untuk server 224", file=sys.stderr)
         except Exception as e:
-            print(f"Error getting token: {e}")
-            return jsonify({'error': f'Gagal mengakses server eksternal: {str(e)}'}), 500
+            print(f"ERROR: [API_SEARCH] Error getting token: {e}", file=sys.stderr)
+            # Even if token fails, try to proceed with fallback
+            token = f"fallback_token_{int(time.time())}"
+            print("INFO: [API_SEARCH] Menggunakan fallback token untuk mencoba server 116", file=sys.stderr)
+            print(f"INFO: [API_SEARCH] Kredensial dari frontend ({data.get('username', 'N/A')}) TIDAK digunakan untuk server 116", file=sys.stderr)
         
         # Prepare search parameters
         params = {
@@ -5156,8 +5291,23 @@ def perform_face_search(token, params, data, user_data):
 def perform_regular_search(token, params, data, user_data):
     """Perform regular search without face matching"""
     try:
-        j = call_search(token, params)
+        print(f"DEBUG: perform_regular_search - Token: {token[:30]}..., Params: {params}", file=sys.stderr)
+        # Pass username and password for flexible server 116 login
+        j = call_search(token, params, username=data.get('username'), password=data.get('password'))
+        print(f"DEBUG: perform_regular_search - Response dari call_search: type={type(j)}, keys={list(j.keys()) if isinstance(j, dict) else 'N/A'}", file=sys.stderr)
+        
+        # Check if server 116 was used as fallback
+        using_server_116 = j.get('_server_116_fallback', False)
+        server_224_unavailable = j.get('_server_224_unavailable', False)
+        
+        if using_server_116:
+            print(f"DEBUG: perform_regular_search - Server 116 digunakan sebagai fallback", file=sys.stderr)
+        
         people = parse_people_from_response(j)
+        print(f"DEBUG: perform_regular_search - Hasil parse: {len(people)} people ditemukan", file=sys.stderr)
+        
+        if len(people) > 0:
+            print(f"DEBUG: perform_regular_search - Contoh person pertama: NIK={people[0].get('ktp_number', 'N/A')}, Nama={people[0].get('full_name', 'N/A')}", file=sys.stderr)
         
         results = []
         
@@ -5178,7 +5328,19 @@ def perform_regular_search(token, params, data, user_data):
                 except Exception as log_error:
                     print(f"❌ Error logging profiling search activity: {log_error}")
             
-            return jsonify({'results': [], 'message': 'Tidak ada hasil'})
+            # PENTING: Selalu kirim flag fallback meskipun hasil kosong
+            response_data = {
+                'results': [], 
+                'total_results': 0,
+                'message': 'Tidak ada hasil'
+            }
+            # Tambahkan flag fallback jika server 116 digunakan
+            if using_server_116 or server_224_unavailable:
+                response_data['_server_116_fallback'] = True
+                response_data['_server_224_unavailable'] = True
+                print(f"DEBUG: perform_regular_search - Mengirim flag fallback meskipun hasil kosong", file=sys.stderr)
+            
+            return jsonify(response_data)
         
         for p in people:
             # Fix photo field name - API might use 'photo', but enrich_person_data expects 'face'
@@ -5189,24 +5351,26 @@ def perform_regular_search(token, params, data, user_data):
             # Enrich person data with basic info only (fast for initial search)
             enriched_person = enrich_person_data_basic(p.copy(), token)
             
-            # If still no real photo (missing or avatar SVG), try a direct lookup by NIK to get full record
-            ep_face = enriched_person.get('face', '')
-            if (not ep_face) or (isinstance(ep_face, str) and ep_face.startswith('data:image/svg')):
-                nik_lookup = enriched_person.get('ktp_number') or enriched_person.get('nik')
-                if nik_lookup:
-                    try:
-                        search_result = call_search(token, {'nik': nik_lookup})
-                        people_refetch = parse_people_from_response(search_result)
-                        if people_refetch:
-                            full_person = people_refetch[0]
-                            # Map alternate photo keys
-                            if full_person.get('photo') and not full_person.get('face'):
-                                full_person['face'] = full_person['photo']
-                            # Re-run enrichment on the full person data (will normalize face prefix)
-                            enriched_person = enrich_person_data(full_person.copy(), token)
-                            print(f"Refetched full person data with face for NIK {nik_lookup}")
-                    except Exception as _e:
-                        pass
+            # Skip refetch jika menggunakan server 116 (untuk kecepatan)
+            # Refetch hanya dilakukan jika server 224 hidup dan tidak ada foto
+            if not token.startswith("fallback_token_"):
+                ep_face = enriched_person.get('face', '')
+                if (not ep_face) or (isinstance(ep_face, str) and ep_face.startswith('data:image/svg')):
+                    nik_lookup = enriched_person.get('ktp_number') or enriched_person.get('nik')
+                    if nik_lookup:
+                        try:
+                            search_result = call_search(token, {'nik': nik_lookup})
+                            people_refetch = parse_people_from_response(search_result)
+                            if people_refetch:
+                                full_person = people_refetch[0]
+                                if full_person.get('photo') and not full_person.get('face'):
+                                    full_person['face'] = full_person['photo']
+                                enriched_person = enrich_person_data(full_person.copy(), token)
+                                print(f"Refetched full person data with face for NIK {nik_lookup}")
+                        except Exception as _e:
+                            pass
+            else:
+                print(f"[INFO] Skip refetch untuk NIK (server 116 mode - optimasi kecepatan)", file=sys.stderr)
             
             # Photo formatting is already handled in enrich_person_data
             
@@ -5276,11 +5440,20 @@ def perform_regular_search(token, params, data, user_data):
             import traceback
             traceback.print_exc()
         
-        return jsonify({
+        response_data = {
             'results': results,
             'total_results': len(results),
             'message': f'Ditemukan {len(results)} hasil'
-        })
+        }
+        
+        # PENTING: Selalu kirim flag fallback jika server 116 digunakan (meskipun ada hasil)
+        # Ini memastikan frontend tahu bahwa server 116 digunakan sebagai fallback
+        if using_server_116 or server_224_unavailable:
+            response_data['_server_116_fallback'] = True
+            response_data['_server_224_unavailable'] = True
+            print(f"DEBUG: perform_regular_search - Mengirim flag fallback dengan {len(results)} hasil", file=sys.stderr)
+        
+        return jsonify(response_data)
         
     except Exception as e:
         return jsonify({'error': f'Search error: {str(e)}'}), 500
