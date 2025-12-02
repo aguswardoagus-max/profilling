@@ -6222,8 +6222,34 @@
                 resultsCount.textContent = `${result.total_results || 0} results`;
                 resultsContent.innerHTML = '';
 
-                // Check if this is a fallback mode response
-                if (result.message && result.message.includes('Server eksternal tidak tersedia')) {
+                // Check if server 116 was used as fallback
+                const usingServer116 = result._server_116_fallback || false;
+                const server224Unavailable = result._server_224_unavailable || false;
+
+                console.log('Server status:', { usingServer116, server224Unavailable });
+
+                // PENTING: Tampilkan notifikasi server 116 fallback SELALU jika digunakan, bahkan jika hasil kosong
+                if (usingServer116 || server224Unavailable) {
+                    const fallbackNotice = document.createElement('div');
+                    fallbackNotice.className = 'result-card';
+                    fallbackNotice.style.cssText = 'background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 15px; margin-bottom: 20px;';
+                    fallbackNotice.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-info-circle" style="font-size: 1.5rem; color: #3b82f6;"></i>
+                            <div style="flex: 1;">
+                                <strong style="color: #1e40af;">Menggunakan Server Alternatif (116)</strong>
+                                <p style="color: #1e3a8a; margin: 5px 0 0 0; font-size: 0.9rem;">
+                                    Server utama (224) tidak tersedia. Data ditampilkan dari server alternatif (116).
+                                    ${(!result.results || result.results.length === 0) ? '<br><small style="color: #64748b;">Tidak ada hasil ditemukan di server alternatif untuk parameter pencarian ini.</small>' : ''}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    resultsContent.appendChild(fallbackNotice);
+                }
+
+                // Check if this is a fallback mode response (no results and error message)
+                if (result.message && result.message.includes('Server eksternal tidak tersedia') && (!result.results || result.results.length === 0) && !usingServer116) {
                     const fallbackDiv = document.createElement('div');
                     fallbackDiv.className = 'result-card';
                     fallbackDiv.innerHTML = `
@@ -6256,7 +6282,8 @@
                     
                     resultsContent.appendChild(gridContainer);
                     console.log('Results grid created and appended');
-                } else {
+                } else if (!usingServer116 && !server224Unavailable) {
+                    // Only show "no results" message if NOT using server 116 fallback
                     console.log('No results found, showing empty message');
                     const messageDiv = document.createElement('div');
                     messageDiv.className = 'result-card';
