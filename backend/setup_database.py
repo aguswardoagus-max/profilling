@@ -122,6 +122,42 @@ def create_tables():
         ''')
         print("✅ System settings table created successfully")
         
+        # Cek plat data table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cek_plat_data (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                no_polisi VARCHAR(20) NOT NULL,
+                nama_pemilik VARCHAR(255),
+                alamat TEXT,
+                merk_kendaraan VARCHAR(100),
+                type_kendaraan VARCHAR(100),
+                model_kendaraan VARCHAR(100),
+                tahun_pembuatan INT,
+                warna_kendaraan VARCHAR(50),
+                no_rangka VARCHAR(50),
+                no_mesin VARCHAR(50),
+                silinder VARCHAR(20),
+                bahan_bakar VARCHAR(50),
+                masa_berlaku_stnk DATE,
+                masa_berlaku_pajak DATE,
+                status_kendaraan VARCHAR(50),
+                coordinates_lat DECIMAL(10, 8),
+                coordinates_lon DECIMAL(11, 8),
+                accuracy_score DECIMAL(5, 2),
+                accuracy_details TEXT,
+                display_name VARCHAR(255),
+                search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                INDEX idx_user_id (user_id),
+                INDEX idx_no_polisi (no_polisi),
+                INDEX idx_search_timestamp (search_timestamp),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ''')
+        print("✅ Cek plat data table created successfully")
+        
         cursor.close()
         connection.close()
         return True
