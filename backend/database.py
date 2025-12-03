@@ -938,7 +938,7 @@ class UserDatabase:
     # Cek Plat Data Methods
     def save_cekplat_data(self, user_id: int, no_polisi: str, nama_pemilik: str = None, 
                          alamat: str = None, merk_kendaraan: str = None, type_kendaraan: str = None,
-                         model_kendaraan: str = None, tahun_pembuatan: str = None, 
+                         model_kendaraan: str = None, tahun_pembuatan = None, 
                          warna_kendaraan: str = None, no_rangka: str = None, no_mesin: str = None,
                          silinder: str = None, bahan_bakar: str = None, masa_berlaku_stnk: str = None,
                          masa_berlaku_pajak: str = None, status_kendaraan: str = None,
@@ -946,12 +946,18 @@ class UserDatabase:
                          accuracy_score: float = None, accuracy_details: str = None,
                          display_name: str = None, ip_address: str = None, user_agent: str = None) -> bool:
         """Save cek plat search data to database"""
+        cursor = None
+        conn = None
         try:
             conn = self.get_connection()
             if not conn:
+                print(f"[DB ERROR] Failed to get database connection for saving cek plat data")
                 return False
             
             cursor = conn.cursor()
+            
+            # Log the data being saved
+            print(f"[DB] Saving cek plat data: no_polisi={no_polisi}, user_id={user_id}, nama_pemilik={nama_pemilik}")
             
             cursor.execute('''
                 INSERT INTO cek_plat_data 
@@ -970,9 +976,12 @@ class UserDatabase:
             ))
             
             conn.commit()
+            print(f"[DB] Successfully saved cek plat data for {no_polisi}")
             return True
         except Error as e:
-            print(f"Error saving cek plat data: {e}")
+            print(f"[DB ERROR] Error saving cek plat data: {e}")
+            import traceback
+            print(f"[DB ERROR] Traceback: {traceback.format_exc()}")
             return False
         finally:
             if cursor:

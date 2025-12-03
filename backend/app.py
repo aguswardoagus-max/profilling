@@ -4025,6 +4025,43 @@ def api_cekplat():
         
         # Save to database
         try:
+            # Convert tahun_pembuatan to integer if it's a string
+            tahun_pembuatan = extracted_data.get('tahun_pembuatan')
+            if tahun_pembuatan:
+                try:
+                    # Remove any non-numeric characters and convert to int
+                    tahun_str = ''.join(filter(str.isdigit, str(tahun_pembuatan)))
+                    tahun_pembuatan = int(tahun_str) if tahun_str else None
+                except (ValueError, TypeError):
+                    tahun_pembuatan = None
+            
+            # Convert date strings to proper format (or None if invalid)
+            def parse_date(date_str):
+                if not date_str:
+                    return None
+                import re
+                from datetime import datetime
+                # Try common Indonesian date formats
+                date_formats = [
+                    '%d-%m-%Y',  # 31-12-2025
+                    '%d/%m/%Y',  # 31/12/2025
+                    '%Y-%m-%d',  # 2025-12-31
+                    '%d %B %Y',  # 31 Desember 2025
+                    '%d %b %Y',  # 31 Des 2025
+                ]
+                # Clean the string
+                date_str = str(date_str).strip()
+                for fmt in date_formats:
+                    try:
+                        return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
+                    except ValueError:
+                        continue
+                # If all formats fail, return None
+                return None
+            
+            masa_berlaku_stnk = parse_date(extracted_data.get('masa_berlaku_stnk'))
+            masa_berlaku_pajak = parse_date(extracted_data.get('masa_berlaku_pajak'))
+            
             db.save_cekplat_data(
                 user_id=user['id'],
                 no_polisi=no_polisi,
@@ -4033,14 +4070,14 @@ def api_cekplat():
                 merk_kendaraan=extracted_data.get('merk_kendaraan'),
                 type_kendaraan=extracted_data.get('type_kendaraan'),
                 model_kendaraan=extracted_data.get('model_kendaraan'),
-                tahun_pembuatan=extracted_data.get('tahun_pembuatan'),
+                tahun_pembuatan=tahun_pembuatan,
                 warna_kendaraan=extracted_data.get('warna_kendaraan'),
                 no_rangka=extracted_data.get('no_rangka'),
                 no_mesin=extracted_data.get('no_mesin'),
                 silinder=extracted_data.get('silinder'),
                 bahan_bakar=extracted_data.get('bahan_bakar'),
-                masa_berlaku_stnk=extracted_data.get('masa_berlaku_stnk'),
-                masa_berlaku_pajak=extracted_data.get('masa_berlaku_pajak'),
+                masa_berlaku_stnk=masa_berlaku_stnk,
+                masa_berlaku_pajak=masa_berlaku_pajak,
                 status_kendaraan=extracted_data.get('status_kendaraan'),
                 coordinates_lat=coordinates[0] if coordinates[0] else None,
                 coordinates_lon=coordinates[1] if coordinates[1] else None,
@@ -4050,9 +4087,11 @@ def api_cekplat():
                 ip_address=request.remote_addr,
                 user_agent=request.headers.get('User-Agent')
             )
-            print(f"Saved cek plat data for {no_polisi} by user {user['username']}")
+            print(f"[CEKPLAT] Successfully saved data for {no_polisi} by user {user['username']}")
         except Exception as e:
-            print(f"Error saving cek plat data: {e}")
+            import traceback
+            print(f"[CEKPLAT ERROR] Error saving cek plat data: {e}")
+            print(f"[CEKPLAT ERROR] Traceback: {traceback.format_exc()}")
         
         return jsonify({
             'error': None,
