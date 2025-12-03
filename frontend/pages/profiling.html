@@ -4314,6 +4314,81 @@
             font-size: 0.8rem;
         }
 
+        /* Leaked Data Styles */
+        #leakedDataSection {
+            background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
+            border: 1px solid #fecaca;
+        }
+
+        #leakedDataSection h3 {
+            color: #991b1b;
+        }
+
+        .leaked-data-summary {
+            margin-bottom: 20px;
+        }
+
+        .source-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .source-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .source-section {
+            transition: box-shadow 0.3s ease;
+        }
+
+        .leaked-item {
+            transition: background 0.2s ease;
+        }
+
+        .leaked-item:hover {
+            background: #f3f4f6;
+        }
+
+        .leaked-field {
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* Leaked Data Pagination Styles */
+        .pagination-controls {
+            user-select: none;
+        }
+
+        .pagination-controls button {
+            transition: all 0.2s ease;
+        }
+
+        .pagination-controls button:not(:disabled):hover {
+            background: #f3f4f6 !important;
+            border-color: #9ca3af !important;
+            transform: translateY(-1px);
+        }
+
+        .pagination-controls button:disabled {
+            opacity: 0.6;
+        }
+
+        .pagination-controls select {
+            transition: all 0.2s ease;
+        }
+
+        .pagination-controls select:hover {
+            border-color: #9ca3af;
+        }
+
+        .pagination-controls select:focus {
+            outline: none;
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
         .family-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -9004,6 +9079,36 @@
                 `;
             }
 
+            // Leaked Data Section (Data Kebocoran) - Auto Search - Placed after Family Members
+            html += `
+                <div class="detail-section" id="leakedDataSection">
+                    <h3 style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-shield-alt" style="color: #ef4444;"></i> 
+                        Data Kebocoran (Leaked Data)
+                        <span id="leakedDataBadge" style="background: #fef2f2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                            <i class="fas fa-spinner fa-spin"></i> Mencari...
+                        </span>
+                    </h3>
+                    <div class="leaked-data-info" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 15px 20px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #ef4444;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <i class="fas fa-search" style="color: #dc2626;"></i>
+                            <strong style="color: #991b1b;">Mencari:</strong>
+                            <span style="color: #7f1d1d;">${person.full_name || 'N/A'}</span>
+                            <span id="leakedDataStatus" style="color: #dc2626; font-size: 0.85rem; margin-left: auto;">
+                                <i class="fas fa-spinner fa-spin"></i> Memindai database kebocoran...
+                            </span>
+                        </div>
+                    </div>
+                    <div id="leakedDataResults" style="min-height: 100px;">
+                        <div style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; margin-bottom: 15px; color: #ef4444;"></i>
+                            <h4 style="color: #1f2937; margin-bottom: 8px;">Memindai Data Kebocoran...</h4>
+                            <p style="font-size: 0.85rem;">Sedang mencari dari 35+ sumber database kebocoran</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             // Add Social Media Search Section (INTEGRATED: Universal + Social Media + Multi-Query)
             html += `
                 <div class="detail-section" id="socialMediaSearchSection">
@@ -9091,7 +9196,620 @@
             // Trigger INTEGRATED SEARCH after modal is displayed
             setTimeout(() => {
                 performSocialMediaSearch(person.full_name);
+                // Also trigger leaked data search automatically
+                performLeakedDataSearch(person.full_name);
             }, 500);
+        }
+
+        // ============================================================================
+        // LEAKED DATA SEARCH SYSTEM - Auto search for data breaches with PAGINATION
+        // ============================================================================
+        
+        // Global variables for leaked data pagination
+        let leakedDataStore = {};  // Store all leaked data
+        let leakedDataPagination = {};  // Store pagination state per source
+        const LEAKED_ITEMS_PER_PAGE = 5;  // Items per page per source
+        
+        async function performLeakedDataSearch(name) {
+            if (!name || name === 'N/A') {
+                updateLeakedDataStatus('error', 'Nama tidak tersedia');
+                return;
+            }
+
+            const badgeElement = document.getElementById('leakedDataBadge');
+            const statusElement = document.getElementById('leakedDataStatus');
+            const resultsElement = document.getElementById('leakedDataResults');
+
+            // Update status - mencari data
+            if (statusElement) {
+                statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memindai 35+ database kebocoran...';
+            }
+
+            try {
+                console.log('=== LEAKED DATA SEARCH ===');
+                console.log('Searching for:', name);
+
+                const response = await fetch('/api/leaked-data-search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        name: name,
+                        limit: 20,
+                        res_type: 'similar'
+                    })
+                });
+
+                const result = await response.json();
+                console.log('Leaked data search result:', result);
+
+                if (result.success && result.data && result.data.length > 0) {
+                    // Update badge with count
+                    if (badgeElement) {
+                        badgeElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${result.total_results} Data Ditemukan`;
+                        badgeElement.style.background = '#fef2f2';
+                        badgeElement.style.color = '#dc2626';
+                    }
+                    
+                    if (statusElement) {
+                        statusElement.innerHTML = `<i class="fas fa-check-circle" style="color: #22c55e;"></i> ${result.sources_with_data?.length || 0} sumber dengan data`;
+                    }
+
+                    // Display results
+                    displayLeakedDataResults(result);
+                } else {
+                    // No data found
+                    if (badgeElement) {
+                        badgeElement.innerHTML = '<i class="fas fa-check-circle"></i> Aman';
+                        badgeElement.style.background = '#dcfce7';
+                        badgeElement.style.color = '#16a34a';
+                    }
+                    
+                    if (statusElement) {
+                        statusElement.innerHTML = '<i class="fas fa-shield-alt" style="color: #22c55e;"></i> Tidak ditemukan dalam database kebocoran';
+                    }
+
+                    if (resultsElement) {
+                        resultsElement.innerHTML = `
+                            <div style="text-align: center; padding: 40px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 12px;">
+                                <i class="fas fa-shield-alt" style="font-size: 3rem; color: #22c55e; margin-bottom: 15px;"></i>
+                                <h4 style="color: #166534; margin-bottom: 8px;">Data Aman</h4>
+                                <p style="color: #15803d; font-size: 0.9rem;">
+                                    Nama "<strong>${name}</strong>" tidak ditemukan dalam database kebocoran yang tersedia.
+                                </p>
+                                <p style="color: #16a34a; font-size: 0.8rem; margin-top: 10px;">
+                                    <i class="fas fa-info-circle"></i> Dipindai dari ${result.sources_searched?.length || 35}+ sumber
+                                </p>
+                            </div>
+                        `;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Leaked data search error:', error);
+                
+                if (badgeElement) {
+                    badgeElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+                    badgeElement.style.background = '#fef3c7';
+                    badgeElement.style.color = '#d97706';
+                }
+                
+                if (statusElement) {
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Gagal mengambil data';
+                }
+
+                if (resultsElement) {
+                    resultsElement.innerHTML = `
+                        <div style="text-align: center; padding: 40px; background: #fef3c7; border-radius: 12px;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 2.5rem; color: #d97706; margin-bottom: 15px;"></i>
+                            <h4 style="color: #92400e; margin-bottom: 8px;">Tidak Dapat Mengambil Data</h4>
+                            <p style="color: #a16207; font-size: 0.9rem;">
+                                Server internal tidak dapat diakses saat ini.<br>
+                                Silakan coba lagi nanti.
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function displayLeakedDataResults(result) {
+            const resultsElement = document.getElementById('leakedDataResults');
+            if (!resultsElement) return;
+
+            // Store data globally for pagination
+            leakedDataStore = {};
+            leakedDataPagination = {};
+            
+            // Group results by source
+            result.data.forEach(item => {
+                const source = item._source || 'Unknown';
+                if (!leakedDataStore[source]) {
+                    leakedDataStore[source] = [];
+                    leakedDataPagination[source] = { currentPage: 1 };
+                }
+                leakedDataStore[source].push(item);
+            });
+
+            // Render the results with pagination
+            renderLeakedDataWithPagination();
+        }
+
+        function renderLeakedDataWithPagination() {
+            const resultsElement = document.getElementById('leakedDataResults');
+            if (!resultsElement) return;
+
+            const sourceColors = {
+                'tokopedia': '#42b549',
+                'BSI-Bank': '#004f91',
+                'bpjs': '#00a651',
+                'Bukalapak': '#e31e52',
+                'malindoair': '#f15b22',
+                'lion-air': '#cc0000',
+                'batik-air': '#1a1f71',
+                'kredivo': '#00d4aa',
+                'bhinneka': '#0095da',
+                'lazada': '#0f146d',
+                'shopee': '#ee4d2d',
+                'gojek': '#00aa13',
+                'grab': '#00b14f',
+                'facebook': '#1877f2',
+                'instagram': '#e1306c',
+                'twitter': '#1da1f2',
+                'linkedin': '#0077b5',
+                'tiktok': '#000000'
+            };
+
+            // Calculate total items
+            let totalItems = 0;
+            Object.values(leakedDataStore).forEach(items => totalItems += items.length);
+
+            let html = `
+                <div class="leaked-data-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            `;
+
+            // Summary cards for each source with data
+            Object.keys(leakedDataStore).forEach(source => {
+                const count = leakedDataStore[source].length;
+                const color = sourceColors[source] || '#6b7280';
+                html += `
+                    <div class="source-card" style="background: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${color}; cursor: pointer;" onclick="scrollToLeakedSource('${source}')">
+                        <div style="font-weight: 600; color: ${color}; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">${source}</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-top: 5px;">${count}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">data ditemukan</div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+
+            // Detailed results by source with PAGINATION
+            html += `<div class="leaked-data-details">`;
+            
+            Object.keys(leakedDataStore).forEach(source => {
+                const allItems = leakedDataStore[source];
+                const color = sourceColors[source] || '#6b7280';
+                const currentPage = leakedDataPagination[source]?.currentPage || 1;
+                const totalPages = Math.ceil(allItems.length / LEAKED_ITEMS_PER_PAGE);
+                const startIndex = (currentPage - 1) * LEAKED_ITEMS_PER_PAGE;
+                const endIndex = Math.min(startIndex + LEAKED_ITEMS_PER_PAGE, allItems.length);
+                const pageItems = allItems.slice(startIndex, endIndex);
+                
+                html += `
+                    <div class="source-section" id="leaked-source-${source}" style="margin-bottom: 20px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <div class="source-header" style="background: linear-gradient(135deg, ${color}22 0%, ${color}11 100%); padding: 15px 20px; border-left: 4px solid ${color}; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h4 style="margin: 0; color: ${color}; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-database"></i> ${source}
+                                </h4>
+                                <p style="margin: 5px 0 0; color: #6b7280; font-size: 0.8rem;">
+                                    Menampilkan ${startIndex + 1}-${endIndex} dari ${allItems.length} data
+                                </p>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="background: ${color}; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">${allItems.length}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Pagination Controls Top -->
+                        ${totalPages > 1 ? `
+                        <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 12px 15px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                            <button onclick="changeLeakedPage('${source}', 1)" ${currentPage === 1 ? 'disabled' : ''} 
+                                style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === 1 ? '#f3f4f6' : 'white'}; color: ${currentPage === 1 ? '#9ca3af' : '#374151'}; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                <i class="fas fa-angle-double-left"></i>
+                            </button>
+                            <button onclick="changeLeakedPage('${source}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+                                style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === 1 ? '#f3f4f6' : 'white'}; color: ${currentPage === 1 ? '#9ca3af' : '#374151'}; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                <i class="fas fa-chevron-left"></i> Prev
+                            </button>
+                            
+                            <div style="display: flex; gap: 4px;">
+                                ${generateLeakedPageNumbers(source, currentPage, totalPages)}
+                            </div>
+                            
+                            <button onclick="changeLeakedPage('${source}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} 
+                                style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === totalPages ? '#f3f4f6' : 'white'}; color: ${currentPage === totalPages ? '#9ca3af' : '#374151'}; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button onclick="changeLeakedPage('${source}', ${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} 
+                                style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === totalPages ? '#f3f4f6' : 'white'}; color: ${currentPage === totalPages ? '#9ca3af' : '#374151'}; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                <i class="fas fa-angle-double-right"></i>
+                            </button>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="source-items" style="padding: 15px;">
+                `;
+
+                // Only render current page items
+                pageItems.forEach((item, index) => {
+                    html += renderLeakedItem(item, index, pageItems.length);
+                });
+
+                html += `
+                        </div>
+                        
+                        <!-- Pagination Controls Bottom -->
+                        ${totalPages > 1 ? `
+                        <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+                            <div style="font-size: 0.8rem; color: #6b7280;">
+                                Halaman ${currentPage} dari ${totalPages} (${allItems.length} total data)
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <select onchange="changeLeakedPageSize('${source}', this.value)" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.8rem; background: white; cursor: pointer;">
+                                    <option value="5" ${LEAKED_ITEMS_PER_PAGE === 5 ? 'selected' : ''}>5 per halaman</option>
+                                    <option value="10" ${LEAKED_ITEMS_PER_PAGE === 10 ? 'selected' : ''}>10 per halaman</option>
+                                    <option value="20" ${LEAKED_ITEMS_PER_PAGE === 20 ? 'selected' : ''}>20 per halaman</option>
+                                    <option value="50" ${LEAKED_ITEMS_PER_PAGE === 50 ? 'selected' : ''}>50 per halaman</option>
+                                </select>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+
+            // Warning footer
+            html += `
+                <div class="leaked-warning" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 15px 20px; border-radius: 10px; margin-top: 15px; border: 1px solid #fecaca;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <i class="fas fa-exclamation-triangle" style="color: #dc2626; font-size: 1.2rem; margin-top: 2px;"></i>
+                        <div>
+                            <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Peringatan Keamanan</strong>
+                            <p style="color: #7f1d1d; font-size: 0.85rem; margin: 0; line-height: 1.5;">
+                                Data ini berasal dari kebocoran database yang terjadi di berbagai platform. 
+                                Disarankan untuk segera mengganti password dan mengaktifkan 2FA pada akun-akun terkait.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            resultsElement.innerHTML = html;
+        }
+
+        function generateLeakedPageNumbers(source, currentPage, totalPages) {
+            let html = '';
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                html += `<span style="color: #9ca3af; padding: 0 4px;">...</span>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === currentPage;
+                html += `
+                    <button onclick="changeLeakedPage('${source}', ${i})" 
+                        style="min-width: 32px; padding: 6px 10px; border: 1px solid ${isActive ? '#ef4444' : '#d1d5db'}; border-radius: 6px; background: ${isActive ? '#ef4444' : 'white'}; color: ${isActive ? 'white' : '#374151'}; cursor: pointer; font-size: 0.8rem; font-weight: ${isActive ? '600' : '400'};">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            if (endPage < totalPages) {
+                html += `<span style="color: #9ca3af; padding: 0 4px;">...</span>`;
+            }
+
+            return html;
+        }
+
+        function renderLeakedItem(item, index, totalInPage) {
+            const excludeFields = ['_source', 'id', '_id'];
+            const fieldLabels = {
+                'name': 'Nama',
+                'nama': 'Nama',
+                'full_name': 'Nama Lengkap',
+                'email': 'Email',
+                'phone': 'Telepon',
+                'phone_number': 'No. Telepon',
+                'no_hp': 'No. HP',
+                'msisdn': 'No. HP',
+                'address': 'Alamat',
+                'alamat': 'Alamat',
+                'password': 'Password',
+                'password_hash': 'Hash Password',
+                'username': 'Username',
+                'nik': 'NIK',
+                'ktp': 'No. KTP',
+                'dob': 'Tanggal Lahir',
+                'tanggal_lahir': 'Tanggal Lahir',
+                'birth_date': 'Tanggal Lahir',
+                'gender': 'Jenis Kelamin',
+                'jenis_kelamin': 'Jenis Kelamin',
+                'ip_address': 'IP Address',
+                'last_login': 'Login Terakhir',
+                'created_at': 'Terdaftar',
+                'account_id': 'ID Akun',
+                'card_number': 'No. Kartu',
+                'bank_account': 'No. Rekening',
+                'passport': 'No. Passport',
+                'nationality': 'Kewarganegaraan',
+                'occupation': 'Pekerjaan',
+                'company': 'Perusahaan'
+            };
+
+            let html = `
+                <div class="leaked-item" style="background: #f9fafb; border-radius: 8px; padding: 15px; margin-bottom: 10px; ${index === totalInPage - 1 ? '' : 'border-bottom: 1px dashed #e5e7eb;'}">
+                    <div class="leaked-item-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+            `;
+
+            Object.keys(item).forEach(key => {
+                if (!excludeFields.includes(key) && item[key]) {
+                    const label = fieldLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const value = item[key];
+                    
+                    // Mask sensitive data partially
+                    let displayValue = value;
+                    if (key.includes('password') || key.includes('hash')) {
+                        displayValue = '••••••••';
+                    } else if (key.includes('card') || key.includes('rekening')) {
+                        displayValue = String(value).replace(/(\d{4})(\d+)(\d{4})/, '$1****$3');
+                    }
+                    
+                    html += `
+                        <div class="leaked-field" style="display: flex; flex-direction: column;">
+                            <span style="font-size: 0.7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;">${label}</span>
+                            <span style="font-size: 0.9rem; color: #1f2937; word-break: break-word;">${displayValue || 'N/A'}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function changeLeakedPage(source, page) {
+            const totalPages = Math.ceil(leakedDataStore[source].length / LEAKED_ITEMS_PER_PAGE);
+            if (page < 1 || page > totalPages) return;
+            
+            leakedDataPagination[source].currentPage = page;
+            renderLeakedDataWithPagination();
+            
+            // Scroll to the source section
+            setTimeout(() => {
+                scrollToLeakedSource(source);
+            }, 100);
+        }
+
+        function changeLeakedPageSize(source, size) {
+            // Update global page size (affects all sources)
+            window.LEAKED_ITEMS_PER_PAGE_TEMP = parseInt(size);
+            
+            // Reset all pages to 1
+            Object.keys(leakedDataPagination).forEach(s => {
+                leakedDataPagination[s].currentPage = 1;
+            });
+            
+            // Re-render with new page size
+            renderLeakedDataWithPaginationCustomSize(parseInt(size));
+        }
+
+        function renderLeakedDataWithPaginationCustomSize(customSize) {
+            const resultsElement = document.getElementById('leakedDataResults');
+            if (!resultsElement) return;
+
+            const itemsPerPage = customSize || LEAKED_ITEMS_PER_PAGE;
+
+            const sourceColors = {
+                'tokopedia': '#42b549',
+                'BSI-Bank': '#004f91',
+                'bpjs': '#00a651',
+                'Bukalapak': '#e31e52',
+                'malindoair': '#f15b22',
+                'lion-air': '#cc0000',
+                'batik-air': '#1a1f71',
+                'kredivo': '#00d4aa',
+                'bhinneka': '#0095da',
+                'lazada': '#0f146d',
+                'shopee': '#ee4d2d',
+                'gojek': '#00aa13',
+                'grab': '#00b14f',
+                'facebook': '#1877f2',
+                'instagram': '#e1306c',
+                'twitter': '#1da1f2',
+                'linkedin': '#0077b5',
+                'tiktok': '#000000'
+            };
+
+            let html = `
+                <div class="leaked-data-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            `;
+
+            Object.keys(leakedDataStore).forEach(source => {
+                const count = leakedDataStore[source].length;
+                const color = sourceColors[source] || '#6b7280';
+                html += `
+                    <div class="source-card" style="background: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${color}; cursor: pointer;" onclick="scrollToLeakedSource('${source}')">
+                        <div style="font-weight: 600; color: ${color}; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">${source}</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-top: 5px;">${count}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">data ditemukan</div>
+                    </div>
+                `;
+            });
+
+            html += `</div><div class="leaked-data-details">`;
+            
+            Object.keys(leakedDataStore).forEach(source => {
+                const allItems = leakedDataStore[source];
+                const color = sourceColors[source] || '#6b7280';
+                const currentPage = leakedDataPagination[source]?.currentPage || 1;
+                const totalPages = Math.ceil(allItems.length / itemsPerPage);
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = Math.min(startIndex + itemsPerPage, allItems.length);
+                const pageItems = allItems.slice(startIndex, endIndex);
+                
+                html += `
+                    <div class="source-section" id="leaked-source-${source}" style="margin-bottom: 20px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                        <div class="source-header" style="background: linear-gradient(135deg, ${color}22 0%, ${color}11 100%); padding: 15px 20px; border-left: 4px solid ${color}; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h4 style="margin: 0; color: ${color}; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-database"></i> ${source}
+                                </h4>
+                                <p style="margin: 5px 0 0; color: #6b7280; font-size: 0.8rem;">
+                                    Menampilkan ${startIndex + 1}-${endIndex} dari ${allItems.length} data
+                                </p>
+                            </div>
+                            <span style="background: ${color}; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">${allItems.length}</span>
+                        </div>
+                        
+                        ${totalPages > 1 ? `
+                        <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 12px 15px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                            <button onclick="changeLeakedPageCustom('${source}', 1, ${itemsPerPage})" ${currentPage === 1 ? 'disabled' : ''} 
+                                style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === 1 ? '#f3f4f6' : 'white'}; color: ${currentPage === 1 ? '#9ca3af' : '#374151'}; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                <i class="fas fa-angle-double-left"></i>
+                            </button>
+                            <button onclick="changeLeakedPageCustom('${source}', ${currentPage - 1}, ${itemsPerPage})" ${currentPage === 1 ? 'disabled' : ''} 
+                                style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === 1 ? '#f3f4f6' : 'white'}; color: ${currentPage === 1 ? '#9ca3af' : '#374151'}; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                <i class="fas fa-chevron-left"></i> Prev
+                            </button>
+                            
+                            <div style="display: flex; gap: 4px;">
+                                ${generateLeakedPageNumbersCustom(source, currentPage, totalPages, itemsPerPage)}
+                            </div>
+                            
+                            <button onclick="changeLeakedPageCustom('${source}', ${currentPage + 1}, ${itemsPerPage})" ${currentPage === totalPages ? 'disabled' : ''} 
+                                style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === totalPages ? '#f3f4f6' : 'white'}; color: ${currentPage === totalPages ? '#9ca3af' : '#374151'}; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button onclick="changeLeakedPageCustom('${source}', ${totalPages}, ${itemsPerPage})" ${currentPage === totalPages ? 'disabled' : ''} 
+                                style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: ${currentPage === totalPages ? '#f3f4f6' : 'white'}; color: ${currentPage === totalPages ? '#9ca3af' : '#374151'}; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-size: 0.8rem;">
+                                <i class="fas fa-angle-double-right"></i>
+                            </button>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="source-items" style="padding: 15px;">
+                `;
+
+                pageItems.forEach((item, index) => {
+                    html += renderLeakedItem(item, index, pageItems.length);
+                });
+
+                html += `
+                        </div>
+                        
+                        ${totalPages > 1 ? `
+                        <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+                            <div style="font-size: 0.8rem; color: #6b7280;">
+                                Halaman ${currentPage} dari ${totalPages} (${allItems.length} total data)
+                            </div>
+                            <select onchange="changeLeakedPageSize('${source}', this.value)" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.8rem; background: white; cursor: pointer;">
+                                <option value="5" ${itemsPerPage === 5 ? 'selected' : ''}>5 per halaman</option>
+                                <option value="10" ${itemsPerPage === 10 ? 'selected' : ''}>10 per halaman</option>
+                                <option value="20" ${itemsPerPage === 20 ? 'selected' : ''}>20 per halaman</option>
+                                <option value="50" ${itemsPerPage === 50 ? 'selected' : ''}>50 per halaman</option>
+                            </select>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `</div>
+                <div class="leaked-warning" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 15px 20px; border-radius: 10px; margin-top: 15px; border: 1px solid #fecaca;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <i class="fas fa-exclamation-triangle" style="color: #dc2626; font-size: 1.2rem; margin-top: 2px;"></i>
+                        <div>
+                            <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Peringatan Keamanan</strong>
+                            <p style="color: #7f1d1d; font-size: 0.85rem; margin: 0; line-height: 1.5;">
+                                Data ini berasal dari kebocoran database yang terjadi di berbagai platform. 
+                                Disarankan untuk segera mengganti password dan mengaktifkan 2FA pada akun-akun terkait.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            resultsElement.innerHTML = html;
+        }
+
+        function generateLeakedPageNumbersCustom(source, currentPage, totalPages, itemsPerPage) {
+            let html = '';
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                html += `<span style="color: #9ca3af; padding: 0 4px;">...</span>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === currentPage;
+                html += `
+                    <button onclick="changeLeakedPageCustom('${source}', ${i}, ${itemsPerPage})" 
+                        style="min-width: 32px; padding: 6px 10px; border: 1px solid ${isActive ? '#ef4444' : '#d1d5db'}; border-radius: 6px; background: ${isActive ? '#ef4444' : 'white'}; color: ${isActive ? 'white' : '#374151'}; cursor: pointer; font-size: 0.8rem; font-weight: ${isActive ? '600' : '400'};">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            if (endPage < totalPages) {
+                html += `<span style="color: #9ca3af; padding: 0 4px;">...</span>`;
+            }
+
+            return html;
+        }
+
+        function changeLeakedPageCustom(source, page, itemsPerPage) {
+            const totalPages = Math.ceil(leakedDataStore[source].length / itemsPerPage);
+            if (page < 1 || page > totalPages) return;
+            
+            leakedDataPagination[source].currentPage = page;
+            renderLeakedDataWithPaginationCustomSize(itemsPerPage);
+            
+            setTimeout(() => {
+                scrollToLeakedSource(source);
+            }, 100);
+        }
+
+        function scrollToLeakedSource(source) {
+            const element = document.getElementById(`leaked-source-${source}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Highlight effect
+                element.style.boxShadow = '0 0 0 3px #ef4444';
+                setTimeout(() => {
+                    element.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
+                }, 2000);
+            }
         }
 
         function closePersonDetails() {

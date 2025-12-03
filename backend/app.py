@@ -6325,6 +6325,191 @@ def api_universal_search():
             'data': {}
         }), 200
 
+# ============================================================================
+# LEAKED DATA SEARCH API - Search for data breaches by name
+# ============================================================================
+
+# Define available leaked data sources
+LEAKED_DATA_SOURCES = [
+    'tokopedia', 'BSI-Bank', 'bpjs', 'Bukalapak', 'malindoair',
+    'lion-air', 'batik-air', 'kredivo', 'bhinneka', 'lazada',
+    'jd-id', 'blibli', 'shopee', 'gojek', 'grab', 'ovo',
+    'dana', 'linkaja', 'traveloka', 'tiket-com', 'kai-access',
+    'agoda', 'booking-com', 'airbnb', 'grab-food', 'gofood',
+    'facebook', 'instagram', 'twitter', 'linkedin', 'tiktok',
+    'zoom', 'canva', 'adobe', 'dropbox', 'evernote'
+]
+
+@app.route('/api/leaked-data-search', methods=['POST'])
+def api_leaked_data_search():
+    """API endpoint untuk mencari data kebocoran berdasarkan nama"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        sources = data.get('sources', LEAKED_DATA_SOURCES)  # List of sources to search
+        limit = data.get('limit', 10)
+        res_type = data.get('res_type', 'similar')
+        
+        if not name:
+            return jsonify({'error': 'Nama diperlukan untuk pencarian data kebocoran'}), 400
+        
+        import requests
+        import urllib.parse
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        # Create session untuk maintain cookies
+        session = requests.Session()
+        
+        # First, get the login page to extract CSRF token
+        login_page_url = 'http://10.1.54.116/auth/login'
+        
+        try:
+            login_page_response = session.get(login_page_url, timeout=5)
+            
+            if login_page_response.status_code != 200:
+                logger.warning(f"Leaked data search login page failed: {login_page_response.status_code}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Gagal mengakses halaman login. Status: {login_page_response.status_code}',
+                    'message': 'Server internal tidak dapat diakses.',
+                    'data': [],
+                    'sources_searched': [],
+                    'total_results': 0
+                }), 200
+            
+            # Extract CSRF token from the page
+            import re
+            csrf_match = re.search(r'name="_csrf"\s+value="([^"]+)"', login_page_response.text)
+            csrf_token = csrf_match.group(1) if csrf_match else 'jbHXcAQGRIgskYpnCBIVo43cTQg='
+            
+            # Login ke external server
+            login_data = {
+                'username': 'jambi',
+                'password': '@ab526d',
+                '_csrf': csrf_token
+            }
+            
+            # Login request
+            login_response = session.post(login_page_url, 
+                                        data=login_data, 
+                                        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                        timeout=10)
+            
+            if login_response.status_code != 200:
+                logger.warning(f"Leaked data search login failed: {login_response.status_code}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Gagal login ke server. Status: {login_response.status_code}',
+                    'message': 'Autentikasi ke server internal gagal.',
+                    'data': [],
+                    'sources_searched': [],
+                    'total_results': 0
+                }), 200
+                
+        except requests.exceptions.Timeout:
+            return jsonify({
+                'success': False,
+                'error': 'Server tidak merespons (timeout)',
+                'message': 'Server internal tidak available.',
+                'data': [],
+                'sources_searched': [],
+                'total_results': 0
+            }), 200
+        except requests.exceptions.ConnectionError:
+            return jsonify({
+                'success': False,
+                'error': 'Tidak dapat terhubung ke server',
+                'message': 'Server internal (10.1.54.116) tidak dapat diakses.',
+                'data': [],
+                'sources_searched': [],
+                'total_results': 0
+            }), 200
+        
+        # Function to search a single source
+        def search_source(source):
+            try:
+                encoded_name = urllib.parse.quote(name)
+                search_url = f'http://10.1.54.116/toolkit/api/leaked-data/search?input={encoded_name}&source={source}&limit={limit}&res_type={res_type}'
+                
+                search_response = session.get(search_url, timeout=10)
+                
+                if search_response.status_code == 200:
+                    result_data = search_response.json()
+                    # Add source info to each result
+                    if isinstance(result_data, list):
+                        for item in result_data:
+                            item['_source'] = source
+                        return {'source': source, 'success': True, 'data': result_data, 'count': len(result_data)}
+                    elif isinstance(result_data, dict):
+                        items = result_data.get('data', result_data.get('results', [result_data]))
+                        if isinstance(items, list):
+                            for item in items:
+                                item['_source'] = source
+                            return {'source': source, 'success': True, 'data': items, 'count': len(items)}
+                        else:
+                            result_data['_source'] = source
+                            return {'source': source, 'success': True, 'data': [result_data], 'count': 1}
+                    return {'source': source, 'success': True, 'data': [], 'count': 0}
+                else:
+                    return {'source': source, 'success': False, 'data': [], 'count': 0, 'error': f'Status {search_response.status_code}'}
+            except Exception as e:
+                return {'source': source, 'success': False, 'data': [], 'count': 0, 'error': str(e)}
+        
+        # Search all sources in parallel
+        all_results = []
+        sources_searched = []
+        sources_with_data = []
+        
+        # Use ThreadPoolExecutor for parallel requests
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_source = {executor.submit(search_source, source): source for source in sources}
+            
+            for future in as_completed(future_to_source):
+                source = future_to_source[future]
+                try:
+                    result = future.result()
+                    sources_searched.append(source)
+                    if result['success'] and result['count'] > 0:
+                        all_results.extend(result['data'])
+                        sources_with_data.append({'source': source, 'count': result['count']})
+                        logger.info(f"Leaked data found from {source}: {result['count']} results for '{name}'")
+                except Exception as e:
+                    logger.error(f"Error searching leaked data from {source}: {e}")
+        
+        # Sort results by source for better organization
+        all_results.sort(key=lambda x: x.get('_source', ''))
+        
+        logger.info(f"Leaked data search completed for '{name}': {len(all_results)} total results from {len(sources_with_data)} sources")
+        
+        return jsonify({
+            'success': True,
+            'data': all_results,
+            'sources_searched': sources_searched,
+            'sources_with_data': sources_with_data,
+            'total_results': len(all_results),
+            'search_name': name
+        })
+        
+    except Exception as e:
+        logger.error(f"Leaked data search error for '{name}': {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Error: {str(e)}',
+            'message': 'Terjadi kesalahan saat mencari data kebocoran.',
+            'data': [],
+            'sources_searched': [],
+            'total_results': 0
+        }), 200
+
+@app.route('/api/leaked-data-sources', methods=['GET'])
+def api_leaked_data_sources():
+    """API endpoint untuk mendapatkan daftar sumber data kebocoran yang tersedia"""
+    return jsonify({
+        'success': True,
+        'sources': LEAKED_DATA_SOURCES,
+        'total': len(LEAKED_DATA_SOURCES)
+    })
+
 @app.route('/api/social-media-search', methods=['POST'])
 def api_social_media_search():
     """API endpoint untuk Google CSE social media search dengan images"""
