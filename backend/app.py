@@ -6342,16 +6342,82 @@ LEAKED_DATA_SOURCES = [
 
 @app.route('/api/leaked-data-search', methods=['POST'])
 def api_leaked_data_search():
-    """API endpoint untuk mencari data kebocoran berdasarkan nama"""
+    """API endpoint untuk mencari data kebocoran berdasarkan nama, NIK, atau phone"""
     try:
         data = request.get_json()
         name = data.get('name')
+        nik = data.get('nik')
+        phone = data.get('phone')
         sources = data.get('sources', LEAKED_DATA_SOURCES)  # List of sources to search
         limit = data.get('limit', 10)
         res_type = data.get('res_type', 'similar')
         
+        # If name is not provided, try to get it from NIK or phone
         if not name:
-            return jsonify({'error': 'Nama diperlukan untuk pencarian data kebocoran'}), 400
+            if nik:
+                # Try to get name from NIK
+                try:
+                    # Get username and password from request if available
+                    username = data.get('username')
+                    password = data.get('password')
+                    
+                    if username and password:
+                        # Get token
+                        token = ensure_token(username, password)
+                        if token:
+                            # Search for person by NIK
+                            search_params = {'nik': nik}
+                            search_result = call_search(token, search_params)
+                            people = parse_people_from_response(search_result)
+                            
+                            if people and len(people) > 0:
+                                person = people[0]
+                                # Try to get name from various fields
+                                name = person.get('full_name') or person.get('name') or person.get('nama') or person.get('nama_lengkap')
+                                if name and name != 'N/A' and name.strip():
+                                    logger.info(f"Resolved name '{name}' from NIK {nik}")
+                except Exception as e:
+                    logger.warning(f"Failed to resolve name from NIK {nik}: {e}")
+            
+            if not name and phone:
+                # Try to get name from phone number
+                try:
+                    username = data.get('username')
+                    password = data.get('password')
+                    
+                    if username and password:
+                        token = ensure_token(username, password)
+                        if token:
+                            # Get phone data
+                            phone_data = get_phone_data_by_number(phone, token, limit=1)
+                            
+                            if phone_data:
+                                for phone_item in phone_data:
+                                    if phone_item.get('person_data'):
+                                        person = phone_item['person_data']
+                                        name = person.get('full_name') or person.get('name') or person.get('nama') or person.get('nama_lengkap')
+                                        if name and name != 'N/A' and name.strip():
+                                            logger.info(f"Resolved name '{name}' from phone {phone}")
+                                            break
+                                    
+                                    # If no person_data, try to get NIK and search by NIK
+                                    nik_from_phone = phone_item.get('nik')
+                                    if nik_from_phone and nik_from_phone != 'N/A':
+                                        search_params = {'nik': nik_from_phone}
+                                        search_result = call_search(token, search_params)
+                                        people = parse_people_from_response(search_result)
+                                        
+                                        if people and len(people) > 0:
+                                            person = people[0]
+                                            name = person.get('full_name') or person.get('name') or person.get('nama') or person.get('nama_lengkap')
+                                            if name and name != 'N/A' and name.strip():
+                                                logger.info(f"Resolved name '{name}' from phone {phone} via NIK {nik_from_phone}")
+                                                break
+                except Exception as e:
+                    logger.warning(f"Failed to resolve name from phone {phone}: {e}")
+        
+        if not name:
+            return jsonify({'error': 'Nama, NIK, atau nomor telepon diperlukan untuk pencarian data kebocoran'}), 400
         
         import requests
         import urllib.parse
