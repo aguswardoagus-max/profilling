@@ -71,7 +71,7 @@ WARNING_COOLDOWN = 300  # 5 minutes
 # Session cache for server 116 (to maintain login session)
 _server_116_session = None
 _server_116_session_time = 0
-_server_116_session_timeout = 3600  # 1 hour
+_server_116_session_timeout = 1800  # 30 minutes (reduced from 1 hour for better reliability)
 
 def _clear_server_116_session():
     """Clear server 116 session cache"""
@@ -403,11 +403,35 @@ def _login_server_116(username=None, password=None):
     use_username = SERVER_116_USERNAME  # SELALU jambi
     use_password = SERVER_116_PASSWORD  # SELALU @ab526d
     
-    # Check if session is still valid
+    # Check if session is still valid (by time)
     current_time = time.time()
-    if _server_116_session and (current_time - _server_116_session_time) < _server_116_session_timeout:
-        print("INFO: [SERVER_116] Menggunakan session yang masih valid", file=sys.stderr)
-        return _server_116_session
+    session_age = current_time - _server_116_session_time if _server_116_session_time > 0 else _server_116_session_timeout + 1
+    
+    if _server_116_session and session_age < _server_116_session_timeout:
+        # Only validate session if it's been used for more than 10 minutes
+        # This prevents unnecessary validation on every request while still catching expired sessions
+        if session_age > 600:  # 10 minutes
+            # PENTING: Validasi session dengan test request kecil untuk memastikan masih valid
+            # Ini mencegah penggunaan session yang sudah expired meskipun belum mencapai timeout
+            try:
+                # Quick validation: try to access a lightweight endpoint
+                # If session expired, this will fail and we'll get fresh session
+                test_response = _server_116_session.get(SERVER_116_BASE + '/', timeout=2)
+                # If we get redirected to login or get 401/403, session expired
+                if test_response.status_code in [401, 403] or '/auth/login' in test_response.url:
+                    print("INFO: [SERVER_116] Session expired (detected via validation), akan refresh", file=sys.stderr)
+                    _clear_server_116_session()
+                else:
+                    print("INFO: [SERVER_116] Menggunakan session yang masih valid (validated)", file=sys.stderr)
+                    return _server_116_session
+            except Exception as e:
+                # If validation fails, assume session expired and get fresh one
+                print(f"INFO: [SERVER_116] Session validation failed ({e}), akan refresh", file=sys.stderr)
+                _clear_server_116_session()
+        else:
+            # Session masih baru (< 10 menit), langsung gunakan tanpa validasi
+            print("INFO: [SERVER_116] Menggunakan session yang masih valid", file=sys.stderr)
+            return _server_116_session
     
     # Create new session
     session = requests.Session()
@@ -481,8 +505,22 @@ def _login_server_116(username=None, password=None):
         _clear_server_116_session()
         return None
 
-def _search_server_116(params: dict, username=None, password=None):
-    """Search using server 116 identity API"""
+def _search_server_116(params: dict, username=None, password=None, retry_count=0):
+    """
+    Search using server 116 identity API
+    
+    Args:
+        params: Search parameters
+        username: Username (ignored, for compatibility)
+        password: Password (ignored, for compatibility)
+        retry_count: Internal retry counter (max 1 retry to avoid infinite loop)
+    """
+    # Prevent infinite retry loop
+    MAX_RETRY = 1
+    if retry_count > MAX_RETRY:
+        print(f"ERROR: [SERVER_116] Max retry ({MAX_RETRY}) tercapai, berhenti retry", file=sys.stderr)
+        return None
+    
     session = _login_server_116(username, password)
     if not session:
         print("ERROR: [SERVER_116] Tidak dapat login ke server 116", file=sys.stderr)
@@ -527,27 +565,59 @@ def _search_server_116(params: dict, username=None, password=None):
         if search_response.status_code != 200:
             print(f"ERROR: [SERVER_116] Gagal melakukan pencarian: {search_response.status_code}", file=sys.stderr)
             print(f"ERROR: [SERVER_116] Response text: {search_response.text[:500]}", file=sys.stderr)
+            
+            # If 401/403, likely session expired - clear and retry once
+            if search_response.status_code in [401, 403]:
+                print(f"INFO: [SERVER_116] Status {search_response.status_code} - kemungkinan session expired, akan retry", file=sys.stderr)
+                _clear_server_116_session()
+                # Retry once with fresh session
+                return _search_server_116(params, username, password, retry_count + 1)
+            
             return None
         
-        # Check if response is HTML (login page) instead of JSON
-        content_type = search_response.headers.get('Content-Type', '')
-        if 'text/html' in content_type:
-            print(f"ERROR: [SERVER_116] Response adalah HTML (bukan JSON) - session expired!", file=sys.stderr)
-            # Clear session dan retry dengan hardcoded
+        # Check if response is HTML (login page) instead of JSON - indicates session expired
+        content_type = search_response.headers.get('Content-Type', '').lower()
+        response_text = search_response.text[:200].lower()
+        
+        is_html_response = 'text/html' in content_type or response_text.strip().startswith('<!doctype') or response_text.strip().startswith('<html')
+        is_login_page = 'login' in response_text or 'auth/login' in response_text or 'username' in response_text or 'password' in response_text
+        
+        if is_html_response or is_login_page:
+            print(f"ERROR: [SERVER_116] Response adalah HTML/login page - session expired!", file=sys.stderr)
+            # Clear session dan retry dengan fresh login
             _clear_server_116_session()
-            print(f"INFO: [SERVER_116] ✅ Session cleared, retry dengan kredensial hardcoded", file=sys.stderr)
-            return _search_server_116(params)  # Recursive call
-            return None
+            print(f"INFO: [SERVER_116] ✅ Session cleared, retry dengan fresh login", file=sys.stderr)
+            # Retry once with fresh session (max 1 retry to avoid infinite loop)
+            return _search_server_116(params, username, password, retry_count + 1)
         
         # Parse response
         try:
             data = search_response.json()
             print(f"INFO: [SERVER_116] Response berhasil di-parse", file=sys.stderr)
             print(f"DEBUG: [SERVER_116] Response keys: {list(data.keys())}", file=sys.stderr)
+            
+            # Check if response indicates session expired (some APIs return JSON error for expired session)
+            if isinstance(data, dict):
+                # Check for common error indicators
+                error_msg = str(data.get('error', '')).lower() + str(data.get('message', '')).lower()
+                if any(keyword in error_msg for keyword in ['session', 'expired', 'unauthorized', 'login', 'auth']):
+                    print(f"WARNING: [SERVER_116] Response menunjukkan session expired: {data.get('error', data.get('message', ''))}", file=sys.stderr)
+                    _clear_server_116_session()
+                    print(f"INFO: [SERVER_116] ✅ Session cleared, retry dengan fresh login", file=sys.stderr)
+                    # Retry once with fresh session
+                    return _search_server_116(params, username, password, retry_count + 1)
+                    
         except Exception as json_error:
-            print(f"ERROR: [SERVER_116] Gagal parse JSON response: {json_error}", file=sys.stderr)
-            print(f"ERROR: [SERVER_116] Response text: {search_response.text[:500]}", file=sys.stderr)
-            return None
+            # If JSON parse fails, check if it's HTML (session expired)
+            if is_html_response or is_login_page:
+                print(f"ERROR: [SERVER_116] Gagal parse JSON dan response adalah HTML - session expired!", file=sys.stderr)
+                _clear_server_116_session()
+                print(f"INFO: [SERVER_116] ✅ Session cleared, retry dengan fresh login", file=sys.stderr)
+                return _search_server_116(params, username, password, retry_count + 1)
+            else:
+                print(f"ERROR: [SERVER_116] Gagal parse JSON response: {json_error}", file=sys.stderr)
+                print(f"ERROR: [SERVER_116] Response text: {search_response.text[:500]}", file=sys.stderr)
+                return None
         
         # Convert server 116 response format to server 224 format
         # Server 116 format: {"error":"","person":[...],"success":true}

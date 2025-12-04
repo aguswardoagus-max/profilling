@@ -8981,6 +8981,8 @@
         }
 
         function displayPersonDetails(person) {
+            console.log('📋 displayPersonDetails called for:', person.full_name || person.ktp_number || 'Unknown');
+            
             const modalTitle = document.getElementById('modalTitle');
             const modalBody = document.getElementById('modalBody');
 
@@ -8988,6 +8990,10 @@
             currentPersonData = person;
 
             modalTitle.textContent = person.full_name || 'Person Details';
+            
+            // PENTING: Reset semua state terkait search sebelum memulai search baru
+            // Ini memastikan setiap kali detail dibuka, search selalu fresh
+            console.log('🔄 Resetting all search states for new detail view');
 
             let html = `
                 <div class="detail-section">
@@ -9240,6 +9246,34 @@
 
             modalBody.innerHTML = html;
             
+            // PENTING: Reset state data kebocoran setiap kali modal dibuka
+            // Ini memastikan data kebocoran selalu fresh dan tidak menggunakan cache dari pencarian sebelumnya
+            leakedDataStore = {};
+            leakedDataPagination = {};
+            console.log('🔄 Reset leaked data store untuk pencarian baru');
+            
+            // Reset UI state untuk data kebocoran sebelum search
+            const leakedDataResultsElement = document.getElementById('leakedDataResults');
+            if (leakedDataResultsElement) {
+                leakedDataResultsElement.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; margin-bottom: 15px; color: #ef4444;"></i>
+                        <h4 style="color: #1f2937; margin-bottom: 8px;">Memindai Data Kebocoran...</h4>
+                        <p style="font-size: 0.85rem;">Sedang mencari dari 35+ sumber database kebocoran</p>
+                    </div>
+                `;
+            }
+            
+            const leakedDataStatusElement = document.getElementById('leakedDataStatus');
+            if (leakedDataStatusElement) {
+                leakedDataStatusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memindai database kebocoran...';
+            }
+            
+            const leakedDataBadgeElement = document.getElementById('leakedDataBadge');
+            if (leakedDataBadgeElement) {
+                leakedDataBadgeElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+            }
+            
             // Trigger INTEGRATED SEARCH after modal is displayed
             setTimeout(async () => {
                 // Extract name from multiple possible fields
@@ -9280,23 +9314,35 @@
                 }
                 
                 // SELALU trigger search, baik dengan nama atau dengan person object (yang akan di-resolve backend)
+                // PENTING: Search SELALU dijalankan setiap kali modal dibuka, tidak peduli apakah person sama atau berbeda
+                console.log('🚀 Starting search for leaked data...');
+                
                 if (personName && personName !== 'N/A' && personName.trim() !== '') {
                     // Ada nama, langsung search
                     console.log('🔍 Searching dengan nama:', personName);
                     performSocialMediaSearch(personName);
-                    performLeakedDataSearch(personName);
+                    // PENTING: Selalu panggil performLeakedDataSearch dengan nama
+                    performLeakedDataSearch(personName).catch(error => {
+                        console.error('❌ Error in performLeakedDataSearch:', error);
+                    });
                 } else {
                     // Tidak ada nama, tapi tetap coba search dengan person object
                     // Backend akan otomatis resolve nama dari NIK/phone
                     console.log('🔍 Searching dengan person object (backend akan resolve nama)');
-                    performLeakedDataSearch(person);
                     
                     // Update status
                     const statusElement = document.getElementById('leakedDataStatus');
                     if (statusElement) {
                         statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Backend sedang mencari nama dari NIK/Phone...';
                     }
+                    
+                    // PENTING: Selalu panggil performLeakedDataSearch dengan person object
+                    performLeakedDataSearch(person).catch(error => {
+                        console.error('❌ Error in performLeakedDataSearch:', error);
+                    });
                 }
+                
+                console.log('✅ Search triggered successfully');
             }, 500);
         }
         
@@ -9432,6 +9478,12 @@
         const LEAKED_ITEMS_PER_PAGE = 5;  // Items per page per source
         
         async function performLeakedDataSearch(nameOrPerson) {
+            // PENTING: Reset state setiap kali search baru dimulai
+            // Ini memastikan tidak ada data lama yang tertinggal
+            leakedDataStore = {};
+            leakedDataPagination = {};
+            console.log('🔄 performLeakedDataSearch: Reset state untuk search baru');
+            
             // Handle both string (name) and object (person) inputs
             let name = null;
             let nik = null;
@@ -9491,13 +9543,27 @@
                 }
             }
 
+            // PENTING: Pastikan elemen HTML selalu ada sebelum melakukan search
             const badgeElement = document.getElementById('leakedDataBadge');
             const statusElement = document.getElementById('leakedDataStatus');
             const resultsElement = document.getElementById('leakedDataResults');
+            
+            // Jika elemen tidak ditemukan, log warning tapi tetap lanjutkan search
+            if (!badgeElement || !statusElement || !resultsElement) {
+                console.warn('⚠️ Beberapa elemen leaked data tidak ditemukan:', {
+                    badge: !!badgeElement,
+                    status: !!statusElement,
+                    results: !!resultsElement
+                });
+                // Tunggu sedikit untuk memastikan DOM sudah ter-render
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
             // Update status - mencari data
             if (statusElement) {
                 statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memindai 35+ database kebocoran...';
+            } else {
+                console.warn('⚠️ leakedDataStatus element tidak ditemukan');
             }
 
             try {
@@ -9626,9 +9692,14 @@
 
         function displayLeakedDataResults(result) {
             const resultsElement = document.getElementById('leakedDataResults');
-            if (!resultsElement) return;
+            if (!resultsElement) {
+                console.warn('⚠️ leakedDataResults element tidak ditemukan');
+                return;
+            }
 
-            // Store data globally for pagination
+            // PENTING: Reset store setiap kali menerima hasil baru
+            // Ini memastikan tidak ada data lama yang tercampur
+            console.log('📊 displayLeakedDataResults: Reset store dan mulai grouping results');
             leakedDataStore = {};
             leakedDataPagination = {};
             
