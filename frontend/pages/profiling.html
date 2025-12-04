@@ -9194,11 +9194,125 @@
             modalBody.innerHTML = html;
             
             // Trigger INTEGRATED SEARCH after modal is displayed
-            setTimeout(() => {
-                performSocialMediaSearch(person.full_name);
-                // Also trigger leaked data search automatically
-                performLeakedDataSearch(person.full_name);
+            setTimeout(async () => {
+                // Extract name from multiple possible fields
+                const personName = extractPersonName(person);
+                
+                // If name is not available, try to fetch it using NIK or phone
+                let finalName = personName;
+                if (!finalName || finalName === 'N/A') {
+                    finalName = await fetchPersonNameIfMissing(person);
+                }
+                
+                if (finalName && finalName !== 'N/A') {
+                    performSocialMediaSearch(finalName);
+                    // Also trigger leaked data search automatically - pass person object for flexibility
+                    performLeakedDataSearch(person);
+                } else {
+                    // Try to search with person object anyway (backend might resolve name from NIK/phone)
+                    performLeakedDataSearch(person);
+                    
+                    // Update UI to show that name is not available
+                    const statusElement = document.getElementById('leakedDataStatus');
+                    if (statusElement) {
+                        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari nama dari NIK/Phone...';
+                    }
+                    const socialStatusElement = document.getElementById('socialMediaSearchStatus');
+                    if (socialStatusElement) {
+                        socialStatusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Nama tidak tersedia';
+                    }
+                }
             }, 500);
+        }
+        
+        // Helper function to extract person name from multiple possible fields
+        function extractPersonName(person) {
+            if (!person) return null;
+            
+            // Try multiple field names
+            const nameFields = [
+                'full_name',
+                'name',
+                'nama',
+                'nama_lengkap',
+                'person_name'
+            ];
+            
+            for (const field of nameFields) {
+                const value = person[field];
+                if (value && value !== 'N/A' && value.trim() !== '') {
+                    return value.trim();
+                }
+            }
+            
+            return null;
+        }
+        
+        // Fetch person name if missing, using NIK or phone number
+        async function fetchPersonNameIfMissing(person) {
+            try {
+                // Try to get NIK first
+                const nik = person.ktp_number || person.nik;
+                if (nik && nik !== 'N/A') {
+                    console.log('Fetching person name by NIK:', nik);
+                    const token = localStorage.getItem('session_token');
+                    const response = await fetch('/api/person-details', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            nik: nik,
+                            username: document.getElementById('username').value,
+                            password: document.getElementById('password').value
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success && result.person) {
+                        const fetchedName = extractPersonName(result.person);
+                        if (fetchedName && fetchedName !== 'N/A') {
+                            console.log('Found name by NIK:', fetchedName);
+                            // Update the displayed name in UI
+                            updatePersonNameInUI(fetchedName);
+                            return fetchedName;
+                        }
+                    }
+                }
+                
+                // Try to get phone number and search by phone
+                if (person.phone_data && person.phone_data.length > 0) {
+                    const phoneNumber = person.phone_data[0].number || person.phone_data[0].msisdn;
+                    if (phoneNumber && phoneNumber !== 'N/A') {
+                        console.log('Trying to fetch person name by phone:', phoneNumber);
+                        // Phone search might return person data with name
+                        // This is handled by the backend, so we'll rely on the person object
+                        // If phone search was used, the name should already be in the person object
+                        // So we'll just return null here and let the UI handle it
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error fetching person name:', error);
+                return null;
+            }
+        }
+        
+        // Update person name in UI elements
+        function updatePersonNameInUI(name) {
+            // Update leaked data search name
+            const leakedDataNameSpan = document.querySelector('#leakedDataSection .leaked-data-info span[style*="color: #7f1d1d"]');
+            if (leakedDataNameSpan) {
+                leakedDataNameSpan.textContent = name;
+            }
+            
+            // Update social media search name
+            const socialMediaNameSpan = document.getElementById('socialMediaSearchName');
+            if (socialMediaNameSpan) {
+                socialMediaNameSpan.textContent = name;
+            }
         }
 
         // ============================================================================
@@ -9210,7 +9324,31 @@
         let leakedDataPagination = {};  // Store pagination state per source
         const LEAKED_ITEMS_PER_PAGE = 5;  // Items per page per source
         
-        async function performLeakedDataSearch(name) {
+        async function performLeakedDataSearch(nameOrPerson) {
+            // Handle both string (name) and object (person) inputs
+            let name = null;
+            let nik = null;
+            let phone = null;
+            
+            if (typeof nameOrPerson === 'string') {
+                name = nameOrPerson;
+            } else if (typeof nameOrPerson === 'object' && nameOrPerson !== null) {
+                // Extract name from person object
+                name = extractPersonName(nameOrPerson);
+                // Also extract NIK and phone for fallback
+                nik = nameOrPerson.ktp_number || nameOrPerson.nik;
+                phone = nameOrPerson.phone_data && nameOrPerson.phone_data.length > 0 
+                    ? (nameOrPerson.phone_data[0].number || nameOrPerson.phone_data[0].msisdn)
+                    : null;
+            }
+            
+            // If name is still not available, try to fetch it
+            if (!name || name === 'N/A') {
+                if (typeof nameOrPerson === 'object' && nameOrPerson !== null) {
+                    name = await fetchPersonNameIfMissing(nameOrPerson);
+                }
+            }
+            
             if (!name || name === 'N/A') {
                 updateLeakedDataStatus('error', 'Nama tidak tersedia');
                 return;
@@ -9228,17 +9366,38 @@
             try {
                 console.log('=== LEAKED DATA SEARCH ===');
                 console.log('Searching for:', name);
+                if (nik) console.log('NIK available:', nik);
+                if (phone) console.log('Phone available:', phone);
+
+                // Prepare request body with name, and optionally NIK/phone for backend fallback
+                const requestBody = { 
+                    name: name,
+                    limit: 20,
+                    res_type: 'similar'
+                };
+                
+                // Add NIK and phone if available (backend can use them as fallback)
+                if (nik && nik !== 'N/A') {
+                    requestBody.nik = nik;
+                }
+                if (phone && phone !== 'N/A') {
+                    requestBody.phone = phone;
+                }
+                
+                // Add username and password if available (for backend to resolve name if needed)
+                const usernameInput = document.getElementById('username');
+                const passwordInput = document.getElementById('password');
+                if (usernameInput && passwordInput) {
+                    requestBody.username = usernameInput.value;
+                    requestBody.password = passwordInput.value;
+                }
 
                 const response = await fetch('/api/leaked-data-search', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ 
-                        name: name,
-                        limit: 20,
-                        res_type: 'similar'
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const result = await response.json();

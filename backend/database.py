@@ -396,6 +396,7 @@ class UserDatabase:
     
     def authenticate_user(self, username: str, password: str) -> Optional[Dict]:
         """Authenticate user and return user data if successful"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
@@ -460,6 +461,7 @@ class UserDatabase:
     
     def create_session(self, user_id: int, ip_address: str = None, user_agent: str = None) -> str:
         """Create a new session for user"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
@@ -484,6 +486,7 @@ class UserDatabase:
     
     def validate_session(self, session_token: str) -> Optional[Dict]:
         """Validate session token and return user data"""
+        cursor = None
         try:
             conn = self.get_connection()
             if not conn:
