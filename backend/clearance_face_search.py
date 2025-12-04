@@ -55,11 +55,14 @@ MAX_RETRY_ATTEMPTS = int(os.environ.get("CLEARANCE_MAX_RETRY", "3"))
 # - Server 224: menggunakan kredensial dari frontend (misalnya "rezarios"/"12345678")
 # - Server 116: menggunakan kredensial hardcoded di bawah ini ("jambi"/"@ab526d")
 # Kedua server memiliki kredensial yang berbeda dan tidak saling menggunakan!
-SERVER_116_BASE = "http://10.1.54.116"
+# 
+# KONFIGURASI NGROK: Jika aplikasi di-hosting di ngrok dan server 116 tidak bisa diakses,
+# set environment variable SERVER_116_BASE ke URL yang bisa diakses (misalnya ngrok tunnel ke server 116)
+SERVER_116_BASE = os.environ.get("SERVER_116_BASE", "http://10.1.54.116")
 SERVER_116_LOGIN_URL = f"{SERVER_116_BASE}/auth/login"
 SERVER_116_IDENTITY_SEARCH_URL = f"{SERVER_116_BASE}/toolkit/api/identity/search"
-SERVER_116_USERNAME = "jambi"  # Kredensial khusus untuk server 116
-SERVER_116_PASSWORD = "@ab526d"  # Kredensial khusus untuk server 116
+SERVER_116_USERNAME = os.environ.get("SERVER_116_USERNAME", "jambi")  # Kredensial khusus untuk server 116
+SERVER_116_PASSWORD = os.environ.get("SERVER_116_PASSWORD", "@ab526d")  # Kredensial khusus untuk server 116
 
 # Warning cache to prevent spam
 _warning_cache = {}
@@ -450,10 +453,32 @@ def _login_server_116(username=None, password=None):
         
         return session
         
+    except requests.exceptions.ConnectionError as e:
+        warning_key = "server_116_connection_error"
+        if _should_show_warning(warning_key):
+            print(f"ERROR: [SERVER_116] Tidak dapat terhubung ke server 116", file=sys.stderr)
+            print(f"ERROR: [SERVER_116] URL: {SERVER_116_BASE}", file=sys.stderr)
+            print(f"ERROR: [SERVER_116] Kemungkinan masalah:", file=sys.stderr)
+            print(f"ERROR: [SERVER_116]   1. Server 116 tidak dapat diakses dari jaringan ini", file=sys.stderr)
+            if "10.1.54.116" in SERVER_116_BASE:
+                print(f"ERROR: [SERVER_116]   2. IP {SERVER_116_BASE} adalah IP private dan tidak bisa diakses dari ngrok", file=sys.stderr)
+                print(f"ERROR: [SERVER_116]   3. Set environment variable SERVER_116_BASE ke URL yang bisa diakses", file=sys.stderr)
+                print(f"ERROR: [SERVER_116]   Contoh: export SERVER_116_BASE=http://your-ngrok-url.ngrok.io", file=sys.stderr)
+        _clear_server_116_session()
+        return None
+    except requests.exceptions.Timeout as e:
+        warning_key = "server_116_timeout"
+        if _should_show_warning(warning_key):
+            print(f"ERROR: [SERVER_116] Timeout saat mengakses server 116: {SERVER_116_BASE}", file=sys.stderr)
+        _clear_server_116_session()
+        return None
     except Exception as e:
         warning_key = "server_116_login_exception"
         if _should_show_warning(warning_key):
-            print(f"WARNING: Exception saat login ke server 116: {e}", file=sys.stderr)
+            print(f"ERROR: [SERVER_116] Exception saat login: {str(e)}", file=sys.stderr)
+            print(f"ERROR: [SERVER_116] Tipe error: {type(e).__name__}", file=sys.stderr)
+            print(f"ERROR: [SERVER_116] URL yang dicoba: {SERVER_116_BASE}", file=sys.stderr)
+        _clear_server_116_session()
         return None
 
 def _search_server_116(params: dict, username=None, password=None):

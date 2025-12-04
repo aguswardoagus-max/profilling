@@ -9196,30 +9196,58 @@
             // Trigger INTEGRATED SEARCH after modal is displayed
             setTimeout(async () => {
                 // Extract name from multiple possible fields
-                const personName = extractPersonName(person);
+                let personName = extractPersonName(person);
                 
-                // If name is not available, try to fetch it using NIK or phone
-                let finalName = personName;
-                if (!finalName || finalName === 'N/A') {
-                    finalName = await fetchPersonNameIfMissing(person);
-                }
-                
-                if (finalName && finalName !== 'N/A') {
-                    performSocialMediaSearch(finalName);
-                    // Also trigger leaked data search automatically - pass person object for flexibility
-                    performLeakedDataSearch(person);
-                } else {
-                    // Try to search with person object anyway (backend might resolve name from NIK/phone)
-                    performLeakedDataSearch(person);
+                // PENTING: Jika nama tidak tersedia, WAJIB fetch dulu sebelum search
+                // Ini memastikan data kebocoran selalu muncul meskipun pencarian pakai NIK/phone
+                if (!personName || personName === 'N/A' || personName.trim() === '') {
+                    console.log('Nama tidak ditemukan di person object, mencoba fetch dari NIK/phone...');
                     
-                    // Update UI to show that name is not available
+                    // Update UI untuk menunjukkan sedang mencari nama
                     const statusElement = document.getElementById('leakedDataStatus');
                     if (statusElement) {
                         statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari nama dari NIK/Phone...';
                     }
-                    const socialStatusElement = document.getElementById('socialMediaSearchStatus');
-                    if (socialStatusElement) {
-                        socialStatusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Nama tidak tersedia';
+                    
+                    // Fetch nama dari NIK atau phone
+                    personName = await fetchPersonNameIfMissing(person);
+                    
+                    // Jika berhasil mendapatkan nama, update person object juga
+                    if (personName && personName !== 'N/A' && personName.trim() !== '') {
+                        // Update person object dengan nama yang baru di-fetch
+                        person.full_name = personName;
+                        person.name = personName;
+                        
+                        // Update UI dengan nama yang baru
+                        updatePersonNameInUI(personName);
+                        
+                        // Update modal title juga
+                        if (modalTitle) {
+                            modalTitle.textContent = personName;
+                        }
+                        
+                        console.log('✅ Nama berhasil di-fetch:', personName);
+                    } else {
+                        console.warn('⚠️ Nama tidak berhasil di-fetch, akan coba search dengan NIK/phone');
+                    }
+                }
+                
+                // SELALU trigger search, baik dengan nama atau dengan person object (yang akan di-resolve backend)
+                if (personName && personName !== 'N/A' && personName.trim() !== '') {
+                    // Ada nama, langsung search
+                    console.log('🔍 Searching dengan nama:', personName);
+                    performSocialMediaSearch(personName);
+                    performLeakedDataSearch(personName);
+                } else {
+                    // Tidak ada nama, tapi tetap coba search dengan person object
+                    // Backend akan otomatis resolve nama dari NIK/phone
+                    console.log('🔍 Searching dengan person object (backend akan resolve nama)');
+                    performLeakedDataSearch(person);
+                    
+                    // Update status
+                    const statusElement = document.getElementById('leakedDataStatus');
+                    if (statusElement) {
+                        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Backend sedang mencari nama dari NIK/Phone...';
                     }
                 }
             }, 500);
@@ -9229,73 +9257,105 @@
         function extractPersonName(person) {
             if (!person) return null;
             
-            // Try multiple field names
+            // Try multiple field names (prioritized order)
             const nameFields = [
                 'full_name',
                 'name',
                 'nama',
                 'nama_lengkap',
-                'person_name'
+                'person_name',
+                'fullName',  // camelCase variant
+                'personName' // camelCase variant
             ];
             
             for (const field of nameFields) {
                 const value = person[field];
-                if (value && value !== 'N/A' && value.trim() !== '') {
-                    return value.trim();
+                if (value && value !== 'N/A' && value !== null && value !== undefined) {
+                    const trimmedValue = String(value).trim();
+                    if (trimmedValue !== '' && trimmedValue !== 'N/A') {
+                        console.log(`✅ Found name in field '${field}':`, trimmedValue);
+                        return trimmedValue;
+                    }
                 }
             }
             
+            // Jika tidak ditemukan di field standar, coba cek di nested objects
+            // Misalnya person.person_data.full_name (untuk phone search results)
+            if (person.person_data) {
+                const nestedName = extractPersonName(person.person_data);
+                if (nestedName) {
+                    console.log('✅ Found name in nested person_data:', nestedName);
+                    return nestedName;
+                }
+            }
+            
+            console.warn('⚠️ No name found in person object');
             return null;
         }
         
         // Fetch person name if missing, using NIK or phone number
         async function fetchPersonNameIfMissing(person) {
             try {
-                // Try to get NIK first
+                // Try to get NIK first (most reliable)
                 const nik = person.ktp_number || person.nik;
-                if (nik && nik !== 'N/A') {
-                    console.log('Fetching person name by NIK:', nik);
+                if (nik && nik !== 'N/A' && nik.trim() !== '') {
+                    console.log('🔍 Fetching person name by NIK:', nik);
                     const token = localStorage.getItem('session_token');
-                    const response = await fetch('/api/person-details', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            nik: nik,
-                            username: document.getElementById('username').value,
-                            password: document.getElementById('password').value
-                        })
-                    });
                     
-                    const result = await response.json();
-                    if (result.success && result.person) {
-                        const fetchedName = extractPersonName(result.person);
-                        if (fetchedName && fetchedName !== 'N/A') {
-                            console.log('Found name by NIK:', fetchedName);
-                            // Update the displayed name in UI
-                            updatePersonNameInUI(fetchedName);
-                            return fetchedName;
+                    try {
+                        const response = await fetch('/api/person-details', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                nik: nik,
+                                username: document.getElementById('username').value,
+                                password: document.getElementById('password').value
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        if (result.success && result.person) {
+                            const fetchedName = extractPersonName(result.person);
+                            if (fetchedName && fetchedName !== 'N/A' && fetchedName.trim() !== '') {
+                                console.log('✅ Found name by NIK:', fetchedName);
+                                return fetchedName.trim();
+                            } else {
+                                console.warn('⚠️ Nama tidak ditemukan di response person-details');
+                            }
+                        } else {
+                            console.warn('⚠️ API person-details tidak berhasil:', result.error || 'Unknown error');
                         }
+                    } catch (apiError) {
+                        console.error('❌ Error calling /api/person-details:', apiError);
                     }
                 }
                 
                 // Try to get phone number and search by phone
                 if (person.phone_data && person.phone_data.length > 0) {
                     const phoneNumber = person.phone_data[0].number || person.phone_data[0].msisdn;
-                    if (phoneNumber && phoneNumber !== 'N/A') {
-                        console.log('Trying to fetch person name by phone:', phoneNumber);
-                        // Phone search might return person data with name
-                        // This is handled by the backend, so we'll rely on the person object
-                        // If phone search was used, the name should already be in the person object
-                        // So we'll just return null here and let the UI handle it
+                    if (phoneNumber && phoneNumber !== 'N/A' && phoneNumber.trim() !== '') {
+                        console.log('🔍 Trying to fetch person name by phone:', phoneNumber);
+                        // Phone search biasanya sudah include person data dengan nama
+                        // Tapi jika belum ada, kita bisa coba search lagi dengan phone
+                        // Untuk sekarang, kita akan mengandalkan backend untuk resolve nama dari phone
+                        // karena performLeakedDataSearch sudah support phone parameter
                     }
                 }
                 
+                // Jika masih tidak ada nama, coba cek apakah ada di field lain yang mungkin terlewat
+                const alternativeName = extractPersonName(person);
+                if (alternativeName && alternativeName !== 'N/A' && alternativeName.trim() !== '') {
+                    console.log('✅ Found alternative name:', alternativeName);
+                    return alternativeName.trim();
+                }
+                
+                console.warn('⚠️ Tidak bisa mendapatkan nama dari NIK atau phone');
                 return null;
             } catch (error) {
-                console.error('Error fetching person name:', error);
+                console.error('❌ Error fetching person name:', error);
                 return null;
             }
         }
@@ -9330,28 +9390,58 @@
             let nik = null;
             let phone = null;
             
+            console.log('🔍 performLeakedDataSearch called with:', typeof nameOrPerson === 'string' ? nameOrPerson : 'person object');
+            
             if (typeof nameOrPerson === 'string') {
-                name = nameOrPerson;
+                name = nameOrPerson.trim();
             } else if (typeof nameOrPerson === 'object' && nameOrPerson !== null) {
-                // Extract name from person object
+                // Extract name from person object first
                 name = extractPersonName(nameOrPerson);
                 // Also extract NIK and phone for fallback
                 nik = nameOrPerson.ktp_number || nameOrPerson.nik;
                 phone = nameOrPerson.phone_data && nameOrPerson.phone_data.length > 0 
                     ? (nameOrPerson.phone_data[0].number || nameOrPerson.phone_data[0].msisdn)
                     : null;
+                
+                console.log('📋 Extracted from person:', { name, nik, phone });
             }
             
-            // If name is still not available, try to fetch it
-            if (!name || name === 'N/A') {
+            // PENTING: Jika nama tidak tersedia, WAJIB fetch dulu sebelum search
+            // Ini memastikan data kebocoran selalu muncul meskipun pencarian pakai NIK/phone
+            if (!name || name === 'N/A' || name.trim() === '') {
+                console.log('⚠️ Nama tidak tersedia, mencoba fetch dari NIK/phone...');
+                
                 if (typeof nameOrPerson === 'object' && nameOrPerson !== null) {
+                    // Update status untuk menunjukkan sedang mencari nama
+                    const statusElement = document.getElementById('leakedDataStatus');
+                    if (statusElement) {
+                        statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari nama dari NIK/Phone...';
+                    }
+                    
+                    // Fetch nama dari NIK atau phone
                     name = await fetchPersonNameIfMissing(nameOrPerson);
+                    
+                    if (name && name !== 'N/A' && name.trim() !== '') {
+                        console.log('✅ Nama berhasil di-fetch:', name);
+                        // Update UI dengan nama yang baru
+                        updatePersonNameInUI(name);
+                    } else {
+                        console.warn('⚠️ Nama tidak berhasil di-fetch, akan coba dengan NIK/phone di backend');
+                    }
                 }
             }
             
-            if (!name || name === 'N/A') {
-                updateLeakedDataStatus('error', 'Nama tidak tersedia');
-                return;
+            // Jika masih tidak ada nama, tapi ada NIK atau phone, tetap coba search
+            // Backend akan otomatis resolve nama dari NIK/phone
+            if (!name || name === 'N/A' || name.trim() === '') {
+                if (nik || phone) {
+                    console.log('🔍 Nama tidak tersedia, tapi akan coba search dengan NIK/phone (backend akan resolve)');
+                    // Jangan return, biarkan backend handle
+                } else {
+                    console.error('❌ Nama tidak tersedia dan tidak ada NIK/phone untuk fallback');
+                    updateLeakedDataStatus('error', 'Nama tidak tersedia');
+                    return;
+                }
             }
 
             const badgeElement = document.getElementById('leakedDataBadge');
@@ -9371,17 +9461,31 @@
 
                 // Prepare request body with name, and optionally NIK/phone for backend fallback
                 const requestBody = { 
-                    name: name,
                     limit: 20,
                     res_type: 'similar'
                 };
                 
-                // Add NIK and phone if available (backend can use them as fallback)
-                if (nik && nik !== 'N/A') {
-                    requestBody.nik = nik;
+                // PENTING: Selalu kirim name jika ada, jika tidak kirim NIK/phone untuk backend resolve
+                if (name && name !== 'N/A' && name.trim() !== '') {
+                    requestBody.name = name.trim();
+                } else {
+                    // Jika nama tidak ada, kirim NIK atau phone untuk backend resolve
+                    if (nik && nik !== 'N/A' && nik.trim() !== '') {
+                        requestBody.nik = nik.trim();
+                        console.log('📤 Mengirim request dengan NIK (backend akan resolve nama):', nik);
+                    }
+                    if (phone && phone !== 'N/A' && phone.trim() !== '') {
+                        requestBody.phone = phone.trim();
+                        console.log('📤 Mengirim request dengan Phone (backend akan resolve nama):', phone);
+                    }
                 }
-                if (phone && phone !== 'N/A') {
-                    requestBody.phone = phone;
+                
+                // Tambahkan NIK dan phone sebagai fallback tambahan (jika ada)
+                if (nik && nik !== 'N/A' && nik.trim() !== '' && !requestBody.nik) {
+                    requestBody.nik = nik.trim();
+                }
+                if (phone && phone !== 'N/A' && phone.trim() !== '' && !requestBody.phone) {
+                    requestBody.phone = phone.trim();
                 }
                 
                 // Add username and password if available (for backend to resolve name if needed)
@@ -12923,3 +13027,4 @@
     </script>
 </body>
 </html>
+

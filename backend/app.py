@@ -689,6 +689,12 @@ FAMILY_API_BASE = config.get('FAMILY_API_BASE', 'http://10.1.54.224:4646/json/cl
 FAMILY_API_ALT = config.get('FAMILY_API_ALT', 'http://10.1.54.116:27682/api/v1/ktp/internal')
 PHONE_API_BASE = config.get('PHONE_API_BASE', 'http://10.1.54.224:4646/json/clearance/phones')
 
+# Server 116 Configuration (for universal search and leaked data search)
+# PENTING: Jika aplikasi di-hosting di ngrok, set SERVER_116_BASE ke URL yang bisa diakses
+SERVER_116_BASE = os.environ.get('SERVER_116_BASE', 'http://10.1.54.116')
+SERVER_116_LOGIN_URL = f"{SERVER_116_BASE}/auth/login"
+SERVER_116_TOOLKIT_BASE = f"{SERVER_116_BASE}/toolkit/api"
+
 app = Flask(__name__, 
            static_folder=frontend_static_dir,
            template_folder=frontend_pages_dir)
@@ -2419,7 +2425,7 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
             session = _login_server_116()
             if session:
                 search_params = {'family_cert_number': nkk}
-                search_url = 'http://10.1.54.116/toolkit/api/identity/search'
+                search_url = f'{SERVER_116_TOOLKIT_BASE}/identity/search'
                 print(f"[INFO] Server 116 family search URL: {search_url}?family_cert_number={nkk}", file=sys.stderr)
                 try:
                     search_response = session.get(search_url, params=search_params, timeout=5)
@@ -2527,7 +2533,7 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
                 session = _login_server_116()
                 if session:
                     search_params = {'family_cert_number': nkk}
-                    search_url = 'http://10.1.54.116/toolkit/api/identity/search'
+                    search_url = f'{SERVER_116_TOOLKIT_BASE}/identity/search'
                     search_response = session.get(search_url, params=search_params, timeout=15)
                     if search_response.status_code == 200:
                         data = search_response.json()
@@ -6229,7 +6235,7 @@ def api_universal_search():
         session = requests.Session()
         
         # First, get the login page to extract CSRF token
-        login_page_url = 'http://10.1.54.116/auth/login'
+        login_page_url = SERVER_116_LOGIN_URL
         
         login_page_response = session.get(login_page_url, timeout=5)
         
@@ -6270,7 +6276,7 @@ def api_universal_search():
             }), 200
         
         # Perform universal search
-        search_url = f'http://10.1.54.116/toolkit/api/universal-search-engine/search?input={name}'
+            search_url = f'{SERVER_116_TOOLKIT_BASE}/universal-search-engine/search?input={name}'
         search_response = session.get(search_url, timeout=15)
         
         if search_response.status_code != 200:
@@ -6305,7 +6311,7 @@ def api_universal_search():
         return jsonify({
             'success': False,
             'error': 'Tidak dapat terhubung ke server universal search',
-            'message': 'Server internal (10.1.54.116) tidak dapat diakses. Fitur ini memerlukan koneksi ke server internal.',
+                'message': f'Server internal ({SERVER_116_BASE}) tidak dapat diakses. Fitur ini memerlukan koneksi ke server internal.',
             'data': {}
         }), 200  # Return 200 to avoid frontend error display
     except requests.exceptions.RequestException as e:
@@ -6416,8 +6422,23 @@ def api_leaked_data_search():
                 except Exception as e:
                     logger.warning(f"Failed to resolve name from phone {phone}: {e}")
         
-        if not name:
-            return jsonify({'error': 'Nama, NIK, atau nomor telepon diperlukan untuk pencarian data kebocoran'}), 400
+        if not name or name == 'N/A' or (isinstance(name, str) and name.strip() == ''):
+            error_msg = 'Nama tidak tersedia untuk pencarian data kebocoran'
+            if nik:
+                error_msg += f'. NIK yang diberikan: {nik}'
+            if phone:
+                error_msg += f'. Phone yang diberikan: {phone}'
+            error_msg += '. Pastikan NIK/phone valid dan memiliki data nama yang terkait.'
+            
+            logger.warning(f"Leaked data search failed: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg,
+                'message': 'Tidak dapat menemukan nama untuk pencarian data kebocoran',
+                'data': [],
+                'sources_searched': [],
+                'total_results': 0
+            }), 200  # Return 200 dengan success=False agar frontend bisa handle dengan baik
         
         import requests
         import urllib.parse
@@ -6427,7 +6448,7 @@ def api_leaked_data_search():
         session = requests.Session()
         
         # First, get the login page to extract CSRF token
-        login_page_url = 'http://10.1.54.116/auth/login'
+        login_page_url = SERVER_116_LOGIN_URL
         
         try:
             login_page_response = session.get(login_page_url, timeout=5)
@@ -6485,7 +6506,7 @@ def api_leaked_data_search():
             return jsonify({
                 'success': False,
                 'error': 'Tidak dapat terhubung ke server',
-                'message': 'Server internal (10.1.54.116) tidak dapat diakses.',
+                'message': f'Server internal ({SERVER_116_BASE}) tidak dapat diakses.',
                 'data': [],
                 'sources_searched': [],
                 'total_results': 0
@@ -6495,7 +6516,7 @@ def api_leaked_data_search():
         def search_source(source):
             try:
                 encoded_name = urllib.parse.quote(name)
-                search_url = f'http://10.1.54.116/toolkit/api/leaked-data/search?input={encoded_name}&source={source}&limit={limit}&res_type={res_type}'
+                search_url = f'{SERVER_116_TOOLKIT_BASE}/leaked-data/search?input={encoded_name}&source={source}&limit={limit}&res_type={res_type}'
                 
                 search_response = session.get(search_url, timeout=10)
                 
