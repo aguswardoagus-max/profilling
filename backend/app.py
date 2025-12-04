@@ -5383,6 +5383,21 @@ def perform_regular_search(token, params, data, user_data):
             if using_server_116 or server_224_unavailable:
                 response_data['_server_116_fallback'] = True
                 response_data['_server_224_unavailable'] = True
+                
+                # Check if server 116 is unavailable (connection error)
+                server_116_unavailable = j.get('_server_116_unavailable', False)
+                server_116_connection_error = j.get('_server_116_connection_error', False)
+                server_116_base = j.get('_server_116_base', 'http://10.1.54.116')
+                
+                if server_116_unavailable:
+                    response_data['_server_116_unavailable'] = True
+                    if server_116_connection_error:
+                        response_data['_server_116_connection_error'] = True
+                        response_data['_server_116_base'] = server_116_base
+                        response_data['message'] = j.get('message', 'Server 116 tidak dapat diakses. Setup ngrok tunnel untuk server 116.')
+                        response_data['error'] = 'Server 116 tidak dapat diakses dari ngrok'
+                        print(f"DEBUG: perform_regular_search - Server 116 tidak dapat diakses (connection error)", file=sys.stderr)
+                
                 print(f"DEBUG: perform_regular_search - Mengirim flag fallback meskipun hasil kosong", file=sys.stderr)
             
             return jsonify(response_data)

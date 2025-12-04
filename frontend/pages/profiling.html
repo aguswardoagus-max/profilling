@@ -6300,8 +6300,55 @@
                 // Check if server 116 was used as fallback
                 const usingServer116 = result._server_116_fallback || false;
                 const server224Unavailable = result._server_224_unavailable || false;
+                const server116Unavailable = result._server_116_unavailable || false;
+                const server116ConnectionError = result._server_116_connection_error || false;
+                const server116Base = result._server_116_base || 'http://10.1.54.116';
 
-                console.log('Server status:', { usingServer116, server224Unavailable });
+                console.log('Server status:', { usingServer116, server224Unavailable, server116Unavailable, server116ConnectionError });
+
+                // PENTING: Tampilkan error jika server 116 tidak bisa diakses (ngrok issue)
+                if (server116Unavailable && server116ConnectionError) {
+                    const errorNotice = document.createElement('div');
+                    errorNotice.className = 'result-card';
+                    errorNotice.style.cssText = 'background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 20px;';
+                    errorNotice.innerHTML = `
+                        <div style="display: flex; align-items: flex-start; gap: 15px;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #ef4444; flex-shrink: 0;"></i>
+                            <div style="flex: 1;">
+                                <strong style="color: #dc2626; font-size: 1.1rem; display: block; margin-bottom: 10px;">
+                                    Server 116 Tidak Dapat Diakses
+                                </strong>
+                                <p style="color: #991b1b; margin: 5px 0; line-height: 1.6;">
+                                    Server 116 menggunakan IP private (<code style="background: #fee2e2; padding: 2px 6px; border-radius: 4px;">${server116Base}</code>) 
+                                    yang tidak dapat diakses dari ngrok.
+                                </p>
+                                <div style="background: white; border-left: 4px solid #f59e0b; padding: 15px; margin-top: 15px; border-radius: 4px;">
+                                    <strong style="color: #d97706; display: block; margin-bottom: 10px;">
+                                        <i class="fas fa-tools"></i> Solusi:
+                                    </strong>
+                                    <ol style="color: #92400e; margin: 0; padding-left: 20px; line-height: 1.8;">
+                                        <li>Setup ngrok tunnel untuk server 116:
+                                            <code style="background: #fef3c7; padding: 2px 6px; border-radius: 4px; display: block; margin-top: 5px;">
+                                                ngrok http 10.1.54.116:80
+                                            </code>
+                                        </li>
+                                        <li>Set environment variable di server backend:
+                                            <code style="background: #fef3c7; padding: 2px 6px; border-radius: 4px; display: block; margin-top: 5px;">
+                                                export SERVER_116_BASE=https://your-ngrok-url.ngrok.io
+                                            </code>
+                                        </li>
+                                        <li>Restart aplikasi backend</li>
+                                    </ol>
+                                    <p style="color: #92400e; margin-top: 10px; margin-bottom: 0; font-size: 0.9rem;">
+                                        <i class="fas fa-info-circle"></i> Lihat file <code>NGROK_SETUP.md</code> untuk instruksi lengkap.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    resultsContent.appendChild(errorNotice);
+                    return; // Stop here, don't show other messages
+                }
 
                 // PENTING: Tampilkan notifikasi server 116 fallback SELALU jika digunakan, bahkan jika hasil kosong
                 if (usingServer116 || server224Unavailable) {

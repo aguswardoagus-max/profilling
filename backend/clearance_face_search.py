@@ -655,7 +655,26 @@ def call_search(token: str, params: dict, username=None, password=None):
         warning_key = "server_116_fallback_failed"
         if _should_show_warning(warning_key):
             print("WARNING: Server 116 mengembalikan None (gagal login atau exception)", file=sys.stderr)
-        return {"person": [], "message": "Server eksternal tidak dapat diakses. Silakan coba lagi nanti atau hubungi administrator."}
+        
+        # Check if this is a connection error (likely ngrok issue)
+        is_connection_error = False
+        if "10.1.54.116" in SERVER_116_BASE:
+            is_connection_error = True
+        
+        error_message = "Server eksternal tidak dapat diakses."
+        if is_connection_error:
+            error_message += " Kemungkinan masalah: Server 116 menggunakan IP private yang tidak bisa diakses dari ngrok. "
+            error_message += "Solusi: Setup ngrok tunnel untuk server 116 dan set environment variable SERVER_116_BASE."
+        else:
+            error_message += " Silakan coba lagi nanti atau hubungi administrator."
+        
+        return {
+            "person": [], 
+            "message": error_message,
+            "_server_116_unavailable": True,
+            "_server_116_connection_error": is_connection_error,
+            "_server_116_base": SERVER_116_BASE
+        }
     
     # Check if we have person field (even if empty)
     if isinstance(server_116_result, dict) and 'person' in server_116_result:
