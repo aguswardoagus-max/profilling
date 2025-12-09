@@ -3,6 +3,7 @@ from mysql.connector import Error
 import hashlib
 import secrets
 import json
+import re
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 import os
@@ -859,15 +860,75 @@ class UserDatabase:
             cursor.execute(query, params)
             results = cursor.fetchall()
             
-            # Parse JSON fields
+            # Parse JSON fields - ensure ALL fields are properly parsed
             for result in results:
                 for field in ['search_params', 'search_results', 'person_data', 
                              'family_data', 'phone_data', 'face_data']:
-                    if result[field]:
-                        try:
-                            result[field] = json.loads(result[field])
-                        except:
+                    # Check if field exists in result
+                    if field not in result:
+                        result[field] = None
+                        continue
+                    
+                    field_value = result[field]
+                    
+                    # If already parsed (dict/list), keep it
+                    if isinstance(field_value, (dict, list)):
+                        continue
+                    
+                    # If None or empty, set to None
+                    if field_value is None:
+                        result[field] = None
+                        continue
+                    
+                    # If it's a string, try to parse as JSON
+                    if isinstance(field_value, str):
+                        field_value = field_value.strip()
+                        if not field_value or field_value == 'NULL' or field_value.lower() == 'null':
                             result[field] = None
+                        else:
+                            try:
+                                parsed = json.loads(field_value)
+                                result[field] = parsed if parsed is not None else None
+                            except (json.JSONDecodeError, ValueError) as e:
+                                # If parsing fails, try to fix common issues
+                                error_msg = str(e)
+                                
+                                # Handle unterminated strings (common issue with large base64 data)
+                                if 'Unterminated string' in error_msg or 'char' in error_msg:
+                                    # Try to truncate and parse what we can, or set to None
+                                    # For search_results, we might want to keep partial data
+                                    if field == 'search_results':
+                                        # Try to extract what we can before the error
+                                        try:
+                                            # Find the position of error
+                                            if 'char' in error_msg:
+                                                # Extract position from error message
+                                                import re
+                                                match = re.search(r'char (\d+)', error_msg)
+                                                if match:
+                                                    error_pos = int(match.group(1))
+                                                    # Try to parse up to error position (with some buffer)
+                                                    truncated = field_value[:error_pos-100] + '"}'
+                                                    parsed = json.loads(truncated)
+                                                    result[field] = parsed
+                                                else:
+                                                    result[field] = None
+                                            else:
+                                                result[field] = None
+                                        except:
+                                            result[field] = None
+                                    else:
+                                        result[field] = None
+                                else:
+                                    # For other JSON errors, set to None
+                                    result[field] = None
+                                
+                                # Only log if it's not a common unterminated string issue
+                                if 'Unterminated string' not in error_msg:
+                                    print(f"Warning: Failed to parse {field} as JSON: {e}")
+                    else:
+                        # For other types, keep as is or set to None
+                        result[field] = field_value if field_value is not None else None
             
             return results
         except Error as e:

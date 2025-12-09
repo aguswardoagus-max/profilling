@@ -142,6 +142,7 @@ from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import io
+from io import BytesIO
 import base64
 
 # Import functions from clearance_face_search.py
@@ -3949,6 +3950,556 @@ def api_clear_all_profiling_data():
             
     except Exception as e:
         return jsonify({'error': f'Error clearing profiling data: {str(e)}'}), 500
+
+@app.route('/api/profiling-data/<int:profiling_id>/intelligence-report', methods=['POST'])
+def api_generate_intelligence_report(profiling_id):
+    """Generate comprehensive intelligence report using Gemini AI"""
+    try:
+        # Validate session
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user = validate_session_token(session_token)
+        
+        if not user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Get profiling data
+        profiling_data_list = db.get_profiling_data(user_id=None, search_type=None, limit=1000, offset=0)
+        profiling_data = next((item for item in profiling_data_list if item['id'] == profiling_id), None)
+        
+        if not profiling_data:
+            return jsonify({'error': 'Profiling data not found'}), 404
+        
+        # Parse JSON fields
+        person_data = profiling_data.get('person_data') or {}
+        family_data = profiling_data.get('family_data') or {}
+        phone_data = profiling_data.get('phone_data') or []
+        face_data = profiling_data.get('face_data') or {}
+        search_params = profiling_data.get('search_params') or {}
+        
+        # Generate comprehensive intelligence analysis using Gemini AI
+        prompt = f"""
+Sebagai analis intelijen senior dengan pengalaman 20 tahun dalam investigasi dan analisa intelijen, buatkan LAPORAN INTELIJEN LENGKAP dan PROFESIONAL untuk target berikut dengan format intelijen standar.
+
+FORMAT LAPORAN INTELIJEN:
+1. EXECUTIVE SUMMARY
+2. IDENTITAS TARGET
+3. ANALISIS INTELIJEN KOMPREHENSIF
+4. JARINGAN DAN HUBUNGAN
+5. ASSESSMENT RISIKO DAN ANCAMAN
+6. REKOMENDASI STRATEGIS
+7. KESIMPULAN
+
+DATA TARGET LENGKAP:
+- Nama: {person_data.get('full_name', 'N/A')}
+- NIK: {person_data.get('ktp_number', 'N/A')}
+- Tempat/Tanggal Lahir: {person_data.get('tempat_lahir', 'N/A')}, {person_data.get('date_of_birth', 'N/A')}
+- Alamat: {person_data.get('address', person_data.get('alamat', 'N/A'))}
+- Pekerjaan: {person_data.get('occupation', person_data.get('pekerjaan', 'N/A'))}
+- Pendidikan: {person_data.get('last_education', person_data.get('pendidikan', 'N/A'))}
+- Agama: {person_data.get('religion', person_data.get('agama', 'N/A'))}
+- Status Perkawinan: {person_data.get('marital_status', person_data.get('status_perkawinan', 'N/A'))}
+- Golongan Darah: {person_data.get('blood_type', person_data.get('golongan_darah', 'N/A'))}
+- Kewarganegaraan: {person_data.get('nationality', person_data.get('kewarganegaraan', 'N/A'))}
+- District: {person_data.get('district_name', 'N/A')}
+- Provinsi: {person_data.get('province_name', 'N/A')}
+- Kelurahan: {person_data.get('village_name', 'N/A')}
+- RT/RW: {person_data.get('rt_number', 'N/A')}/{person_data.get('rw_number', 'N/A')}
+
+DATA KELUARGA:
+- Kepala Keluarga: {family_data.get('kepala_keluarga', 'N/A') if isinstance(family_data, dict) else 'N/A'}
+- NKK: {family_data.get('nkk', 'N/A') if isinstance(family_data, dict) else 'N/A'}
+- Jumlah Anggota Keluarga: {len(family_data.get('anggota_keluarga', [])) if isinstance(family_data, dict) else 0}
+- Anggota Keluarga: {', '.join([m.get('nama', 'N/A') + ' (' + m.get('hubungan', 'N/A') + ')' for m in (family_data.get('anggota_keluarga', [])[:5] if isinstance(family_data, dict) else [])])}
+
+DATA TELEPON:
+- Jumlah Nomor HP: {len(phone_data) if isinstance(phone_data, list) else 0}
+- Nomor HP: {', '.join([p.get('number', p.get('msisdn', 'N/A')) for p in (phone_data[:5] if isinstance(phone_data, list) else [])])}
+- Operator: {', '.join(set([p.get('operator', 'N/A') for p in (phone_data if isinstance(phone_data, list) else [])]))}
+
+JENIS PENCARIAN: {profiling_data.get('search_type', 'identity')}
+TANGGAL PENCARIAN: {profiling_data.get('search_timestamp', 'N/A')}
+DILAKUKAN OLEH: {profiling_data.get('user_name', 'N/A')}
+
+BUATKAN LAPORAN INTELIJEN LENGKAP dengan struktur:
+
+1. EXECUTIVE SUMMARY (minimal 8-10 kalimat):
+   - Ringkasan eksekutif tentang target
+   - Tingkat prioritas dan ancaman
+   - Temuan utama
+   - Rekomendasi strategis utama
+
+2. IDENTITAS TARGET (detail lengkap):
+   - Data identitas lengkap
+   - Status kependudukan
+   - Lokasi dan alamat
+
+3. ANALISIS INTELIJEN KOMPREHENSIF (minimal 15-20 kalimat):
+   - Analisis mendalam tentang profil target
+   - Pola aktivitas dan perilaku
+   - Potensi ancaman dan risiko
+   - Keterkaitan dengan operasi atau kegiatan tertentu
+   - Analisis berdasarkan latar belakang pendidikan, pekerjaan, dan status sosial
+
+4. JARINGAN DAN HUBUNGAN (minimal 10-15 kalimat):
+   - Analisis jaringan keluarga
+   - Hubungan dengan anggota keluarga
+   - Pola komunikasi berdasarkan data telepon
+   - Jaringan sosial dan profesional
+   - Potensi jaringan yang lebih luas
+
+5. ASSESSMENT RISIKO DAN ANCAMAN (minimal 10-15 kalimat):
+   - Tingkat ancaman keseluruhan
+   - Vulnerabilities yang teridentifikasi
+   - Potensi dampak operasional
+   - Skala risiko terhadap keamanan dan stabilitas
+
+6. REKOMENDASI STRATEGIS (minimal 8-10 kalimat):
+   - Tindakan prioritas yang harus dilakukan
+   - Monitoring dan surveillance yang diperlukan
+   - Koordinasi dengan instansi terkait
+   - Langkah-langkah pencegahan dan penanganan
+
+7. KESIMPULAN (minimal 5-8 kalimat):
+   - Kesimpulan utama dari analisis
+   - Next steps yang direkomendasikan
+   - Timeline implementasi
+   - Catatan penting
+
+Gunakan bahasa profesional, teknis, dan formal yang sesuai untuk laporan intelijen resmi. Buat analisis yang mendalam, detail, dan komprehensif. Setiap bagian harus memiliki narasi yang panjang dan informatif.
+
+Format output dalam JSON:
+{{
+    "executive_summary": "narasi lengkap executive summary (minimal 8-10 kalimat)",
+    "identitas_target": "narasi lengkap identitas target (detail)",
+    "analisis_intelijen": "narasi lengkap analisis intelijen komprehensif (minimal 15-20 kalimat)",
+    "jaringan_dan_hubungan": "narasi lengkap jaringan dan hubungan (minimal 10-15 kalimat)",
+    "assessment_risiko": "narasi lengkap assessment risiko dan ancaman (minimal 10-15 kalimat)",
+    "rekomendasi_strategis": "narasi lengkap rekomendasi strategis (minimal 8-10 kalimat)",
+    "kesimpulan": "narasi lengkap kesimpulan (minimal 5-8 kalimat)"
+}}
+"""
+        
+        # Generate response from Gemini AI
+        response_text = None
+        
+        if USE_NEW_GEMINI and 'client' in globals() and client:
+            models_to_try = [
+                "gemini-1.5-flash",
+                "gemini-1.5-pro",
+                "gemini-pro",
+                "models/gemini-1.5-flash",
+                "models/gemini-1.5-pro",
+                "models/gemini-pro"
+            ]
+            
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    response_text = response.text
+                    print(f"✅ Intelligence Report: Successfully used model: {model_name}")
+                    break
+                except Exception as model_error:
+                    error_str = str(model_error)
+                    if "404" not in error_str and "429" not in error_str:
+                        print(f"⚠️ Intelligence Report: Model {model_name} failed: {model_error}")
+                    if "429" in error_str or "quota" in error_str.lower():
+                        break
+                    continue
+        
+        if not response_text and 'model' in globals() and model:
+            try:
+                response = model.generate_content(prompt)
+                response_text = response.text
+            except Exception as e:
+                print(f"⚠️ Intelligence Report: Old SDK failed: {e}")
+                response_text = None
+        
+        if not response_text:
+            return jsonify({
+                'success': False,
+                'error': 'AI model tidak tersedia. Silakan coba lagi nanti.'
+            }), 503
+        
+        # Parse JSON response
+        try:
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}') + 1
+            
+            if start_idx != -1 and end_idx != -1:
+                json_str = response_text[start_idx:end_idx]
+                intelligence_report = json.loads(json_str)
+                
+                return jsonify({
+                    'success': True,
+                    'report': intelligence_report,
+                    'profiling_id': profiling_id
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Format response AI tidak valid'
+                }), 500
+                
+        except json.JSONDecodeError as e:
+            print(f"Error parsing intelligence report JSON: {e}")
+            print(f"Response text: {response_text[:500]}")
+            return jsonify({
+                'success': False,
+                'error': f'Error parsing AI response: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error generating intelligence report: {str(e)}'}), 500
+
+@app.route('/api/profiling-data/<int:profiling_id>/export/pdf', methods=['POST'])
+def api_export_intelligence_pdf(profiling_id):
+    """Export intelligence report to PDF format"""
+    try:
+        # Validate session
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user = validate_session_token(session_token)
+        
+        if not user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        data = request.get_json()
+        intelligence_report = data.get('report', {})
+        
+        # Get profiling data
+        profiling_data_list = db.get_profiling_data(user_id=None, search_type=None, limit=1000, offset=0)
+        profiling_data = next((item for item in profiling_data_list if item['id'] == profiling_id), None)
+        
+        if not profiling_data:
+            return jsonify({'error': 'Profiling data not found'}), 404
+        
+        # Parse JSON fields
+        person_data = profiling_data.get('person_data') or {}
+        family_data = profiling_data.get('family_data') or {}
+        phone_data = profiling_data.get('phone_data') or []
+        
+        # Create PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'IntelligenceTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor('#1a202c'),
+            spaceAfter=30,
+            alignment=1,
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'IntelligenceHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#667eea'),
+            spaceAfter=12,
+            spaceBefore=20,
+            fontName='Helvetica-Bold'
+        )
+        
+        normal_style = ParagraphStyle(
+            'IntelligenceNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#374151'),
+            spaceAfter=12,
+            leading=16,
+            alignment=4  # Justify
+        )
+        
+        # Build PDF content
+        story = []
+        
+        # Header
+        story.append(Paragraph("LAPORAN INTELIJEN", title_style))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f"Tanggal: {datetime.now().strftime('%d %B %Y, %H:%M WIB')}", styles['Normal']))
+        story.append(Spacer(1, 30))
+        
+        # Executive Summary
+        story.append(Paragraph("1. EXECUTIVE SUMMARY", heading_style))
+        story.append(Paragraph(intelligence_report.get('executive_summary', 'Tidak tersedia'), normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Identitas Target
+        story.append(Paragraph("2. IDENTITAS TARGET", heading_style))
+        identitas_text = intelligence_report.get('identitas_target', 'Tidak tersedia')
+        
+        # Ensure identitas_text is a string, not dict or other type
+        if isinstance(identitas_text, dict):
+            # Convert dict to formatted string
+            identitas_text = f"""
+            <b>Nama:</b> {identitas_text.get('full_name', identitas_text.get('nama', 'N/A'))}<br/>
+            <b>NIK:</b> {identitas_text.get('ktp_number', identitas_text.get('nik', 'N/A'))}<br/>
+            <b>Tempat/Tanggal Lahir:</b> {identitas_text.get('tempat_lahir', 'N/A')}, {identitas_text.get('date_of_birth', identitas_text.get('tanggal_lahir', 'N/A'))}<br/>
+            <b>Alamat:</b> {identitas_text.get('address', identitas_text.get('alamat', 'N/A'))}<br/>
+            <b>Pekerjaan:</b> {identitas_text.get('occupation', identitas_text.get('pekerjaan', 'N/A'))}<br/>
+            <b>Pendidikan:</b> {identitas_text.get('last_education', identitas_text.get('pendidikan', 'N/A'))}<br/>
+            <b>Agama:</b> {identitas_text.get('religion', identitas_text.get('agama', 'N/A'))}<br/>
+            <b>Status Perkawinan:</b> {identitas_text.get('marital_status', identitas_text.get('status_perkawinan', 'N/A'))}<br/>
+            """
+        elif identitas_text == 'Tidak tersedia' or not identitas_text:
+            identitas_text = f"""
+            <b>Nama:</b> {person_data.get('full_name', 'N/A')}<br/>
+            <b>NIK:</b> {person_data.get('ktp_number', 'N/A')}<br/>
+            <b>Tempat/Tanggal Lahir:</b> {person_data.get('tempat_lahir', 'N/A')}, {person_data.get('date_of_birth', 'N/A')}<br/>
+            <b>Alamat:</b> {person_data.get('address', person_data.get('alamat', 'N/A'))}<br/>
+            <b>Pekerjaan:</b> {person_data.get('occupation', person_data.get('pekerjaan', 'N/A'))}<br/>
+            <b>Pendidikan:</b> {person_data.get('last_education', person_data.get('pendidikan', 'N/A'))}<br/>
+            <b>Agama:</b> {person_data.get('religion', person_data.get('agama', 'N/A'))}<br/>
+            <b>Status Perkawinan:</b> {person_data.get('marital_status', person_data.get('status_perkawinan', 'N/A'))}<br/>
+            """
+        else:
+            # Ensure it's a string
+            identitas_text = str(identitas_text) if not isinstance(identitas_text, str) else identitas_text
+        
+        story.append(Paragraph(identitas_text, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Analisis Intelijen
+        story.append(Paragraph("3. ANALISIS INTELIJEN KOMPREHENSIF", heading_style))
+        analisis_text = intelligence_report.get('analisis_intelijen', 'Tidak tersedia')
+        # Ensure it's a string
+        analisis_text = str(analisis_text) if not isinstance(analisis_text, str) else analisis_text
+        story.append(Paragraph(analisis_text, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Jaringan dan Hubungan
+        story.append(Paragraph("4. JARINGAN DAN HUBUNGAN", heading_style))
+        jaringan_text = intelligence_report.get('jaringan_dan_hubungan', 'Tidak tersedia')
+        # Ensure it's a string
+        if isinstance(jaringan_text, dict):
+            jaringan_text = json.dumps(jaringan_text, ensure_ascii=False, indent=2)
+        else:
+            jaringan_text = str(jaringan_text) if not isinstance(jaringan_text, str) else jaringan_text
+        
+        if isinstance(family_data, dict) and family_data.get('anggota_keluarga'):
+            anggota_text = "<b>Anggota Keluarga:</b><br/>"
+            for member in family_data['anggota_keluarga'][:10]:
+                anggota_text += f"- {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')}) - NIK: {member.get('nik', 'N/A')}<br/>"
+            jaringan_text += "<br/>" + anggota_text
+        
+        if isinstance(phone_data, list) and len(phone_data) > 0:
+            phone_text = f"<br/><b>Data Telepon ({len(phone_data)} nomor):</b><br/>"
+            for phone in phone_data[:10]:
+                phone_text += f"- {phone.get('number', phone.get('msisdn', 'N/A'))} ({phone.get('operator', 'N/A')}) - Reg: {phone.get('register_date', 'N/A')}<br/>"
+            jaringan_text += phone_text
+        
+        story.append(Paragraph(jaringan_text, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Assessment Risiko
+        story.append(Paragraph("5. ASSESSMENT RISIKO DAN ANCAMAN", heading_style))
+        assessment_text = intelligence_report.get('assessment_risiko', 'Tidak tersedia')
+        # Ensure it's a string
+        assessment_text = str(assessment_text) if not isinstance(assessment_text, str) else assessment_text
+        story.append(Paragraph(assessment_text, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Rekomendasi Strategis
+        story.append(Paragraph("6. REKOMENDASI STRATEGIS", heading_style))
+        rekomendasi_text = intelligence_report.get('rekomendasi_strategis', 'Tidak tersedia')
+        # Ensure it's a string
+        rekomendasi_text = str(rekomendasi_text) if not isinstance(rekomendasi_text, str) else rekomendasi_text
+        story.append(Paragraph(rekomendasi_text, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Kesimpulan
+        story.append(Paragraph("7. KESIMPULAN", heading_style))
+        kesimpulan_text = intelligence_report.get('kesimpulan', 'Tidak tersedia')
+        # Ensure it's a string
+        kesimpulan_text = str(kesimpulan_text) if not isinstance(kesimpulan_text, str) else kesimpulan_text
+        story.append(Paragraph(kesimpulan_text, normal_style))
+        story.append(Spacer(1, 30))
+        
+        # Footer
+        story.append(Spacer(1, 20))
+        story.append(Paragraph(f"<i>Dibuat oleh: {user.get('full_name', user.get('username', 'System'))}</i>", styles['Normal']))
+        story.append(Paragraph(f"<i>Tanggal: {datetime.now().strftime('%d %B %Y, %H:%M WIB')}</i>", styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        
+        # Get PDF content
+        buffer.seek(0)
+        pdf_content = buffer.getvalue()
+        buffer.close()
+        
+        # Convert to base64
+        pdf_base64 = base64.b64encode(pdf_content).decode()
+        
+        # Generate filename
+        nama = person_data.get('full_name', 'Unknown').replace(' ', '_')
+        filename = f"INTELIJEN_{nama}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
+        return jsonify({
+            'success': True,
+            'pdf_content': f"data:application/pdf;base64,{pdf_base64}",
+            'filename': filename
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error exporting PDF: {str(e)}'}), 500
+
+@app.route('/api/profiling-data/<int:profiling_id>/export/word', methods=['POST'])
+def api_export_intelligence_word(profiling_id):
+    """Export intelligence report to Word format"""
+    try:
+        # Validate session
+        session_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user = validate_session_token(session_token)
+        
+        if not user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        data = request.get_json()
+        intelligence_report = data.get('report', {})
+        
+        # Get profiling data
+        profiling_data_list = db.get_profiling_data(user_id=None, search_type=None, limit=1000, offset=0)
+        profiling_data = next((item for item in profiling_data_list if item['id'] == profiling_id), None)
+        
+        if not profiling_data:
+            return jsonify({'error': 'Profiling data not found'}), 404
+        
+        # Parse JSON fields
+        person_data = profiling_data.get('person_data') or {}
+        family_data = profiling_data.get('family_data') or {}
+        phone_data = profiling_data.get('phone_data') or []
+        
+        # Create Word document
+        doc = Document()
+        
+        # Set document margins
+        sections = doc.sections
+        for section in sections:
+            section.top_margin = Inches(1)
+            section.bottom_margin = Inches(1)
+            section.left_margin = Inches(1)
+            section.right_margin = Inches(1)
+        
+        # Add title
+        title = doc.add_heading('LAPORAN INTELIJEN', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Add date
+        date_para = doc.add_paragraph(f"Tanggal: {datetime.now().strftime('%d %B %Y, %H:%M WIB')}")
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph("")
+        
+        # Executive Summary
+        doc.add_heading('1. EXECUTIVE SUMMARY', level=1)
+        doc.add_paragraph(intelligence_report.get('executive_summary', 'Tidak tersedia'))
+        doc.add_paragraph("")
+        
+        # Identitas Target
+        doc.add_heading('2. IDENTITAS TARGET', level=1)
+        identitas_text = intelligence_report.get('identitas_target', 'Tidak tersedia')
+        if identitas_text == 'Tidak tersedia':
+            p = doc.add_paragraph()
+            p.add_run('Nama: ').bold = True
+            p.add_run(f"{person_data.get('full_name', 'N/A')}\n")
+            p.add_run('NIK: ').bold = True
+            p.add_run(f"{person_data.get('ktp_number', 'N/A')}\n")
+            p.add_run('Tempat/Tanggal Lahir: ').bold = True
+            p.add_run(f"{person_data.get('tempat_lahir', 'N/A')}, {person_data.get('date_of_birth', 'N/A')}\n")
+            p.add_run('Alamat: ').bold = True
+            p.add_run(f"{person_data.get('address', person_data.get('alamat', 'N/A'))}\n")
+            p.add_run('Pekerjaan: ').bold = True
+            p.add_run(f"{person_data.get('occupation', person_data.get('pekerjaan', 'N/A'))}\n")
+            p.add_run('Pendidikan: ').bold = True
+            p.add_run(f"{person_data.get('last_education', person_data.get('pendidikan', 'N/A'))}\n")
+            p.add_run('Agama: ').bold = True
+            p.add_run(f"{person_data.get('religion', person_data.get('agama', 'N/A'))}\n")
+            p.add_run('Status Perkawinan: ').bold = True
+            p.add_run(f"{person_data.get('marital_status', person_data.get('status_perkawinan', 'N/A'))}")
+        else:
+            doc.add_paragraph(identitas_text)
+        doc.add_paragraph("")
+        
+        # Analisis Intelijen
+        doc.add_heading('3. ANALISIS INTELIJEN KOMPREHENSIF', level=1)
+        doc.add_paragraph(intelligence_report.get('analisis_intelijen', 'Tidak tersedia'))
+        doc.add_paragraph("")
+        
+        # Jaringan dan Hubungan
+        doc.add_heading('4. JARINGAN DAN HUBUNGAN', level=1)
+        jaringan_text = intelligence_report.get('jaringan_dan_hubungan', 'Tidak tersedia')
+        doc.add_paragraph(jaringan_text)
+        
+        if isinstance(family_data, dict) and family_data.get('anggota_keluarga'):
+            doc.add_paragraph("")
+            p = doc.add_paragraph()
+            p.add_run('Anggota Keluarga:\n').bold = True
+            for member in family_data['anggota_keluarga'][:10]:
+                p.add_run(f"- {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')}) - NIK: {member.get('nik', 'N/A')}\n")
+        
+        if isinstance(phone_data, list) and len(phone_data) > 0:
+            doc.add_paragraph("")
+            p = doc.add_paragraph()
+            p.add_run(f'Data Telepon ({len(phone_data)} nomor):\n').bold = True
+            for phone in phone_data[:10]:
+                p.add_run(f"- {phone.get('number', phone.get('msisdn', 'N/A'))} ({phone.get('operator', 'N/A')}) - Reg: {phone.get('register_date', 'N/A')}\n")
+        
+        doc.add_paragraph("")
+        
+        # Assessment Risiko
+        doc.add_heading('5. ASSESSMENT RISIKO DAN ANCAMAN', level=1)
+        doc.add_paragraph(intelligence_report.get('assessment_risiko', 'Tidak tersedia'))
+        doc.add_paragraph("")
+        
+        # Rekomendasi Strategis
+        doc.add_heading('6. REKOMENDASI STRATEGIS', level=1)
+        doc.add_paragraph(intelligence_report.get('rekomendasi_strategis', 'Tidak tersedia'))
+        doc.add_paragraph("")
+        
+        # Kesimpulan
+        doc.add_heading('7. KESIMPULAN', level=1)
+        doc.add_paragraph(intelligence_report.get('kesimpulan', 'Tidak tersedia'))
+        doc.add_paragraph("")
+        
+        # Footer
+        doc.add_paragraph("")
+        doc.add_paragraph(f"Dibuat oleh: {user.get('full_name', user.get('username', 'System'))}")
+        doc.add_paragraph(f"Tanggal: {datetime.now().strftime('%d %B %Y, %H:%M WIB')}")
+        
+        # Save to buffer
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        # Convert to base64
+        word_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        # Generate filename
+        nama = person_data.get('full_name', 'Unknown').replace(' ', '_')
+        filename = f"INTELIJEN_{nama}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+        
+        return jsonify({
+            'success': True,
+            'word_content': f"data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{word_base64}",
+            'filename': filename
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error exporting Word: {str(e)}'}), 500
 
 # Cek Plat API Endpoints
 @app.route('/api/cekplat', methods=['POST'])

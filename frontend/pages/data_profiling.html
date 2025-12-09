@@ -991,7 +991,7 @@
             }
 
             .modal-content {
-                width: 95%;
+                 width: 95vw;
                 margin: 2% auto;
                 max-height: 95vh;
                 overflow-y: auto;
@@ -1150,13 +1150,15 @@
 
         .modal-content {
             background: white;
-            border-radius: 15px;
-            max-width: 90vw;
-            max-height: 90vh;
-            width: 800px;
+             border-radius: 20px;
+             max-width: 95vw;
+             max-height: 95vh;
+             width: 1200px;
             overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+             box-shadow: 0 25px 50px rgba(0,0,0,0.4);
             animation: slideInUp 0.3s ease;
+             display: flex;
+             flex-direction: column;
         }
 
         @keyframes slideInUp {
@@ -1171,12 +1173,13 @@
         }
 
         .modal-header {
-            padding: 25px;
+             padding: 25px 30px;
             border-bottom: 1px solid #f1f3f4;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #f8f9fa;
+             background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+             flex-shrink: 0;
         }
 
         .modal-header h3 {
@@ -1203,18 +1206,38 @@
         }
 
         .modal-body {
-            padding: 25px;
-            max-height: 60vh;
+             padding: 30px;
+             max-height: calc(95vh - 180px);
             overflow-y: auto;
+             overflow-x: hidden;
+         }
+
+         .modal-body::-webkit-scrollbar {
+             width: 10px;
+         }
+
+         .modal-body::-webkit-scrollbar-track {
+             background: #f1f1f1;
+             border-radius: 10px;
+         }
+
+         .modal-body::-webkit-scrollbar-thumb {
+             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+             border-radius: 10px;
+         }
+
+         .modal-body::-webkit-scrollbar-thumb:hover {
+             background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
         }
 
         .modal-footer {
-            padding: 25px;
+             padding: 25px 30px;
             border-top: 1px solid #f1f3f4;
             display: flex;
             justify-content: flex-end;
             gap: 15px;
-            background: #f8f9fa;
+             background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+             flex-shrink: 0;
         }
 
         /* Data Display Styles */
@@ -1588,9 +1611,21 @@
                     <i class="fas fa-times"></i>
                     Close
                 </button>
-                <button class="btn btn-primary" onclick="exportData()">
+                <button class="btn btn-secondary" onclick="generateIntelligenceReport()" id="generateReportBtn">
+                    <i class="fas fa-brain"></i>
+                    Generate Intelligence Report
+                </button>
+                <button class="btn btn-primary" onclick="exportData()" id="exportJsonBtn">
                     <i class="fas fa-download"></i>
-                    Export
+                    Export JSON
+                </button>
+                <button class="btn btn-primary" onclick="exportIntelligencePDF()" id="exportPdfBtn" style="display: none;">
+                    <i class="fas fa-file-pdf"></i>
+                    Export PDF
+                </button>
+                <button class="btn btn-primary" onclick="exportIntelligenceWord()" id="exportWordBtn" style="display: none;">
+                    <i class="fas fa-file-word"></i>
+                    Export Word
                 </button>
             </div>
         </div>
@@ -2175,231 +2210,1241 @@
                 const searchType = data.search_type.charAt(0).toUpperCase() + data.search_type.slice(1);
                 modalTitle.textContent = `${searchType} Search - ${personName}`;
 
+                // Reset intelligence report
+                currentIntelligenceReport = null;
+                currentProfilingId = data.id;
+                document.getElementById('exportPdfBtn').style.display = 'none';
+                document.getElementById('exportWordBtn').style.display = 'none';
+
                 // Render data
                 modalBody.innerHTML = this.generateDataHTML(data);
             }
 
             generateDataHTML(data) {
-                const personData = data.person_data || {};
-                const familyData = data.family_data || {};
-                const phoneData = data.phone_data || [];
+                // Helper function to recursively extract all fields from an object
+                const extractAllFields = (obj, prefix = '', depth = 0, maxDepth = 5) => {
+                    if (depth > maxDepth) return [];
+                    if (obj === null || obj === undefined) return [];
+                    
+                    // Handle primitives (if we have a prefix, it means this is a nested value)
+                    if (typeof obj !== 'object') {
+                        if (prefix && obj !== null && obj !== undefined && obj !== '' && obj !== 'N/A') {
+                            const key = prefix.split('.').pop() || prefix.split('[')[0];
+                            return [{
+                                key: prefix,
+                                label: this.formatFieldLabel(key),
+                                value: obj,
+                                icon: this.getFieldIcon(key),
+                                type: typeof obj
+                            }];
+                        }
+                        return [];
+                    }
+                    
+                    // Handle arrays
+                    if (Array.isArray(obj)) {
+                        if (obj.length === 0) return [];
+                        
+                        const fields = [];
+                        if (typeof obj[0] === 'object' && obj[0] !== null) {
+                            // Array of objects - extract fields from first item
+                            fields.push(...extractAllFields(obj[0], `${prefix}[0]`, depth + 1, maxDepth));
+                            // Add array length info
+                            const key = prefix.split('.').pop() || prefix.split('[')[0] || 'items';
+                            fields.push({
+                                key: `${prefix}.length`,
+                                label: `${this.formatFieldLabel(key)} (Total Items)`,
+                                value: `${obj.length} item(s)`,
+                                icon: this.getFieldIcon(key),
+                                type: 'array'
+                            });
+                        } else {
+                            // Array of primitives
+                            const key = prefix.split('.').pop() || prefix.split('[')[0] || 'items';
+                            const displayValue = obj.length <= 10 
+                                ? obj.join(', ') 
+                                : `${obj.slice(0, 10).join(', ')}... (${obj.length} total)`;
+                            fields.push({
+                                key: prefix,
+                                label: this.formatFieldLabel(key),
+                                value: displayValue,
+                                icon: this.getFieldIcon(key),
+                                type: 'array'
+                            });
+                        }
+                        return fields;
+                    }
+                    
+                    // Handle objects
+                    const fields = [];
+                    for (const key in obj) {
+                        if (!obj.hasOwnProperty(key)) continue;
+                        
+                        const value = obj[key];
+                        const fullKey = prefix ? `${prefix}.${key}` : key;
+                        const displayKey = key;
+                        
+                        // Skip base64 images (will be handled separately as images)
+                        if (typeof value === 'string' && (
+                            value.startsWith('data:image/') ||
+                            value.startsWith('/9j/') ||
+                            value.startsWith('iVBORw0KGgo') ||
+                            (value.length > 500 && /^[A-Za-z0-9+/=\s]+$/.test(value.replace(/\s/g, '')))
+                        )) {
+                            continue; // Skip base64 images - they're displayed as images, not text
+                        }
+                        
+                        // Skip null/undefined/empty
+                        if (value === null || value === undefined || value === '' || value === 'N/A') {
+                            continue;
+                        }
+                        
+                        // Handle nested objects
+                        if (typeof value === 'object' && !Array.isArray(value)) {
+                            const nestedKeys = Object.keys(value);
+                            if (nestedKeys.length > 0) {
+                                // Recursively extract nested fields
+                                fields.push(...extractAllFields(value, fullKey, depth + 1, maxDepth));
+                            }
+                        }
+                        // Handle arrays (already handled above, but keep for safety)
+                        else if (Array.isArray(value)) {
+                            fields.push(...extractAllFields(value, fullKey, depth + 1, maxDepth));
+                        }
+                        // Handle primitives
+                        else {
+                            fields.push({
+                                key: fullKey,
+                                label: this.formatFieldLabel(displayKey),
+                                value: value,
+                                icon: this.getFieldIcon(displayKey),
+                                type: typeof value
+                            });
+                        }
+                    }
+                    
+                    return fields;
+                };
+
+                // Helper function to format field label
+                this.formatFieldLabel = (key) => {
+                    return key
+                        .replace(/_/g, ' ')
+                        .replace(/([A-Z])/g, ' $1')
+                        .replace(/\b\w/g, l => l.toUpperCase())
+                        .trim();
+                };
+
+                // Helper function to get icon for field
+                this.getFieldIcon = (key) => {
+                    const keyLower = key.toLowerCase();
+                    if (keyLower.includes('name') || keyLower.includes('nama')) return 'user';
+                    if (keyLower.includes('nik') || keyLower.includes('ktp') || keyLower.includes('id')) return 'id-card';
+                    if (keyLower.includes('date') || keyLower.includes('tanggal') || keyLower.includes('birth')) return 'calendar';
+                    if (keyLower.includes('address') || keyLower.includes('alamat') || keyLower.includes('location')) return 'map-marker-alt';
+                    if (keyLower.includes('phone') || keyLower.includes('telp') || keyLower.includes('hp')) return 'phone';
+                    if (keyLower.includes('email')) return 'envelope';
+                    if (keyLower.includes('photo') || keyLower.includes('foto') || keyLower.includes('image')) return 'image';
+                    if (keyLower.includes('cert') || keyLower.includes('certificate')) return 'certificate';
+                    if (keyLower.includes('number') || keyLower.includes('nomor')) return 'hashtag';
+                    if (keyLower.includes('status')) return 'info-circle';
+                    if (keyLower.includes('url') || keyLower.includes('link')) return 'link';
+                    if (keyLower.includes('occupation') || keyLower.includes('pekerjaan')) return 'briefcase';
+                    if (keyLower.includes('education') || keyLower.includes('pendidikan')) return 'graduation-cap';
+                    if (keyLower.includes('religion') || keyLower.includes('agama')) return 'pray';
+                    if (keyLower.includes('gender') || keyLower.includes('jenis_kelamin') || keyLower.includes('sex')) return 'venus-mars';
+                    if (keyLower.includes('blood') || keyLower.includes('darah')) return 'tint';
+                    if (keyLower.includes('marital') || keyLower.includes('perkawinan')) return 'heart';
+                    if (keyLower.includes('family') || keyLower.includes('keluarga')) return 'users';
+                    if (keyLower.includes('operator')) return 'sim-card';
+                    if (keyLower.includes('score') || keyLower.includes('threshold')) return 'chart-line';
+                    if (keyLower.includes('ip')) return 'network-wired';
+                    if (keyLower.includes('agent')) return 'desktop';
+                    if (keyLower.includes('timestamp') || keyLower.includes('time')) return 'clock';
+                    return 'info-circle';
+                };
+
+                // ============================================
+                // SMART DATA EXTRACTION FROM DATABASE COLUMNS
+                // ============================================
+                // Extract data directly from database columns (person_data, family_data, phone_data)
+                // This ensures we get ALL data exactly as stored in database
+                
+                // Helper function to safely parse JSON string
+                const safeParseJSON = (value) => {
+                    if (!value) return null;
+                    if (typeof value === 'string') {
+                        try {
+                            return JSON.parse(value);
+                        } catch (e) {
+                            return value; // Return as-is if not valid JSON
+                        }
+                    }
+                    return value;
+                };
+                
+                // Helper function to check if object has meaningful data (simplified)
+                const hasMeaningfulData = (obj) => {
+                    if (!obj) return false;
+                    
+                    // Parse if it's a JSON string
+                    let parsed = safeParseJSON(obj);
+                    if (!parsed) return false;
+                    
+                    // If it's an array, check if it has items
+                    if (Array.isArray(parsed)) {
+                        return parsed.length > 0;
+                    }
+                    
+                    // If it's an object, check if it has keys
+                    if (typeof parsed !== 'object' || parsed === null) return false;
+                    
+                    const keys = Object.keys(parsed);
+                    if (keys.length === 0) return false;
+                    
+                    // If it has anggota_keluarga array with items, it's valid
+                    if (parsed.anggota_keluarga && Array.isArray(parsed.anggota_keluarga) && parsed.anggota_keluarga.length > 0) {
+                        return true;
+                    }
+                    
+                    // If it has any non-empty, non-null values, it's valid
+                    return keys.some(key => {
+                        const value = parsed[key];
+                        if (value === null || value === undefined) return false;
+                        if (value === '' || value === 'N/A') return false;
+                        if (Array.isArray(value)) return value.length > 0;
+                        if (typeof value === 'object') return Object.keys(value).length > 0;
+                        return true;
+                    });
+                };
+                
+                // Helper function to check if phone object/array has meaningful data (simplified)
+                const hasPhoneData = (phone) => {
+                    if (!phone) return false;
+                    
+                    // Parse if it's a JSON string
+                    let parsed = safeParseJSON(phone);
+                    if (!parsed) return false;
+                    
+                    // If it's an array, check if it has items with phone numbers
+                    if (Array.isArray(parsed)) {
+                        if (parsed.length === 0) return false;
+                        // Check if at least one item has a phone number field
+                        return parsed.some(p => {
+                            if (!p) return false;
+                            const pParsed = typeof p === 'string' ? safeParseJSON(p) : p;
+                            return pParsed && (pParsed.number || pParsed.msisdn || pParsed.phone_number);
+                        });
+                    }
+                    
+                    // If it's an object, check if it has phone number fields
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        return !!(parsed.number || parsed.msisdn || parsed.phone_number);
+                    }
+                    
+                    return false;
+                };
+                
+                // SECTION 1: PERSON DATA (from person_data column)
+                let personData = safeParseJSON(data.person_data) || {};
+                if (typeof personData !== 'object' || personData === null) {
+                    personData = {};
+                }
+                
+                // SECTION 2: FAMILY DATA (from family_data column)
+                // ULTRA-AGGRESSIVE extraction: Check ALL possible locations and structures
+                // This will find family data no matter where it's stored
+                let familyData = null;
+                const familyDataCandidates = []; // Track all candidates for debugging
+                
+                // Helper to try extract family data from any value
+                // MUST have anggota_keluarga array or clear family structure indicators
+                const tryExtractFamilyData = (value) => {
+                    if (value === null || value === undefined) return null;
+                    
+                    const parsed = safeParseJSON(value);
+                    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+                    
+                    const keys = Object.keys(parsed);
+                    if (keys.length === 0) return null;
+                    
+                    // CRITICAL: Must have anggota_keluarga array with items to be valid family data
+                    if (parsed.anggota_keluarga && Array.isArray(parsed.anggota_keluarga) && parsed.anggota_keluarga.length > 0) {
+                        return parsed;
+                    }
+                    
+                    // Also accept if it has clear family structure indicators (but not search_results structure)
+                    const hasFamilyIndicators = keys.some(k => 
+                        k.toLowerCase().includes('keluarga') || 
+                        k.toLowerCase().includes('kepala') ||
+                        k === 'nkk' ||
+                        k === 'alamat_keluarga'
+                    );
+                    
+                    // REJECT if it looks like search_results (has message/total_results but no anggota_keluarga)
+                    const isSearchResults = (parsed.message && parsed.total_results !== undefined && !parsed.anggota_keluarga);
+                    
+                    if (hasFamilyIndicators && !isSearchResults) {
+                        // Check if it has meaningful family data (not just empty values)
+                        const hasMeaningfulFamilyData = keys.some(k => {
+                            const v = parsed[k];
+                            if (v === null || v === undefined || v === '' || v === 'N/A') return false;
+                            if (Array.isArray(v)) return v.length > 0;
+                            if (typeof v === 'object') return Object.keys(v).length > 0;
+                            return true;
+                        });
+                        if (hasMeaningfulFamilyData) {
+                            return parsed;
+                        }
+                    }
+                    
+                    return null;
+                };
+                
+                // 1. PRIORITY: Check column-level family_data (direct from database column)
+                if (data.family_data !== null && data.family_data !== undefined) {
+                    const candidate = tryExtractFamilyData(data.family_data);
+                    if (candidate) {
+                        familyDataCandidates.push({ source: 'data.family_data', data: candidate });
+                        if (!familyData) familyData = candidate;
+                    }
+                }
+                
+                // 2. Check nested in person_data
+                if (personData && personData.family_data !== null && personData.family_data !== undefined) {
+                    const candidate = tryExtractFamilyData(personData.family_data);
+                    if (candidate) {
+                        familyDataCandidates.push({ source: 'personData.family_data', data: candidate });
+                        if (!familyData) familyData = candidate;
+                    }
+                }
+                
+                // 3. Check search_results.results[].person.family_data (nested structure)
+                if (data.search_results) {
+                    const searchResults = safeParseJSON(data.search_results);
+                    if (searchResults && searchResults.results && Array.isArray(searchResults.results)) {
+                        for (let i = 0; i < searchResults.results.length; i++) {
+                            const result = searchResults.results[i];
+                            if (!result) continue;
+                            
+                            // Check result.person.family_data (most common structure)
+                            if (result.person && result.person.family_data) {
+                                const candidate = tryExtractFamilyData(result.person.family_data);
+                                if (candidate) {
+                                    familyDataCandidates.push({ source: `search_results.results[${i}].person.family_data`, data: candidate });
+                                    if (!familyData) familyData = candidate;
+                                }
+                            }
+                            
+                            // Check result.person itself for family structure
+                            if (result.person && typeof result.person === 'object') {
+                                const candidate = tryExtractFamilyData(result.person);
+                                if (candidate && candidate.anggota_keluarga) {
+                                    familyDataCandidates.push({ source: `search_results.results[${i}].person`, data: candidate });
+                                    if (!familyData) familyData = candidate;
+                                }
+                            }
+                            
+                            // Check result.family_data
+                            if (result.family_data) {
+                                const candidate = tryExtractFamilyData(result.family_data);
+                                if (candidate) {
+                                    familyDataCandidates.push({ source: `search_results.results[${i}].family_data`, data: candidate });
+                                    if (!familyData) familyData = candidate;
+                                }
+                            }
+                            
+                            // Check if result itself is family data structure (but not search_results structure)
+                            if (result.anggota_keluarga && !result.message) {
+                                const candidate = tryExtractFamilyData(result);
+                                if (candidate) {
+                                    familyDataCandidates.push({ source: `search_results.results[${i}]`, data: candidate });
+                                    if (!familyData) familyData = candidate;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Check if search_results has family_data key (but not as main structure)
+                    if (searchResults && searchResults.family_data && !searchResults.message) {
+                        const candidate = tryExtractFamilyData(searchResults.family_data);
+                        if (candidate) {
+                            familyDataCandidates.push({ source: 'search_results.family_data', data: candidate });
+                            if (!familyData) familyData = candidate;
+                        }
+                    }
+                }
+                
+                // 4. Check if person_data itself contains family structure (deep recursive check)
+                if (!familyData && personData && typeof personData === 'object') {
+                    // First check direct keys in person_data
+                    const personKeys = Object.keys(personData);
+                    for (const key of personKeys) {
+                        if (key.toLowerCase().includes('family') || key.toLowerCase().includes('keluarga')) {
+                            const extracted = tryExtractFamilyData(personData[key]);
+                            if (extracted) {
+                                familyData = extracted;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If still not found, do recursive search
+                    if (!familyData) {
+                        const findFamilyDataRecursive = (obj, depth = 0, path = '') => {
+                            if (depth > 5 || !obj || typeof obj !== 'object') return null;
+                            
+                            // Skip if this looks like search_results structure
+                            if (obj.message && obj.total_results !== undefined && !obj.anggota_keluarga) {
+                                return null;
+                            }
+                            
+                            // Check if this object itself is family data
+                            const extracted = tryExtractFamilyData(obj);
+                            if (extracted) {
+                                familyDataCandidates.push({ source: `personData${path}`, data: extracted });
+                                return extracted;
+                            }
+                            
+                            // Check all keys
+                            for (const key in obj) {
+                                const value = obj[key];
+                                
+                                // Skip if value is null/undefined
+                                if (value === null || value === undefined) continue;
+                                
+                                // Check if key suggests family data
+                                if (key.toLowerCase().includes('family') || key.toLowerCase().includes('keluarga')) {
+                                    const extracted = tryExtractFamilyData(value);
+                                    if (extracted) {
+                                        familyDataCandidates.push({ source: `personData${path}.${key}`, data: extracted });
+                                        return extracted;
+                                    }
+                                }
+                                
+                                // Recursively check nested objects (but skip search_results structure)
+                                if (typeof value === 'object' && !Array.isArray(value)) {
+                                    if (!(value.message && value.total_results !== undefined && !value.anggota_keluarga)) {
+                                        const found = findFamilyDataRecursive(value, depth + 1, path + '.' + key);
+                                        if (found) return found;
+                                    }
+                                }
+                                
+                                // Check arrays
+                                if (Array.isArray(value) && value.length > 0) {
+                                    for (let idx = 0; idx < value.length; idx++) {
+                                        const item = value[idx];
+                                        if (item && typeof item === 'object') {
+                                            const found = findFamilyDataRecursive(item, depth + 1, path + `[${idx}]`);
+                                            if (found) return found;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            return null;
+                        };
+                        
+                        const found = findFamilyDataRecursive(personData);
+                        if (found && !familyData) {
+                            familyData = found;
+                        }
+                    }
+                }
+                
+                // Final validation: Ensure familyData is actually family data, not search_results
+                // Choose the best candidate (one with anggota_keluarga)
+                if (familyDataCandidates.length > 0) {
+                    // Prioritize candidates with anggota_keluarga
+                    const bestCandidate = familyDataCandidates.find(c => 
+                        c.data && c.data.anggota_keluarga && Array.isArray(c.data.anggota_keluarga) && c.data.anggota_keluarga.length > 0
+                    );
+                    if (bestCandidate) {
+                        familyData = bestCandidate.data;
+                        console.log('Selected best familyData candidate from:', bestCandidate.source);
+                    } else {
+                        // Use first candidate if no one has anggota_keluarga
+                        familyData = familyDataCandidates[0].data;
+                        console.log('Using first familyData candidate from:', familyDataCandidates[0].source);
+                    }
+                }
+                
+                if (familyData && typeof familyData === 'object' && !Array.isArray(familyData)) {
+                    // Reject if it looks like search_results structure
+                    if (familyData.message && familyData.total_results !== undefined && !familyData.anggota_keluarga) {
+                        console.log('WARNING: Rejecting search_results structure as familyData');
+                        familyData = null;
+                    }
+                    
+                    // Must have anggota_keluarga or clear family indicators
+                    if (familyData && !familyData.anggota_keluarga) {
+                        const hasFamilyIndicators = Object.keys(familyData).some(k => 
+                            k.toLowerCase().includes('keluarga') || 
+                            k.toLowerCase().includes('kepala') ||
+                            k === 'nkk' ||
+                            k === 'alamat_keluarga'
+                        );
+                        if (!hasFamilyIndicators) {
+                            console.log('WARNING: familyData does not have clear family structure indicators');
+                            familyData = null;
+                        }
+                    }
+                }
+                
+                // Log all candidates found
+                console.log('Family data candidates found:', familyDataCandidates.length);
+                familyDataCandidates.forEach((c, idx) => {
+                    console.log(`  Candidate ${idx + 1} from ${c.source}:`, c.data);
+                });
+                
+                // Default to empty object if still not found
+                if (!familyData || typeof familyData !== 'object' || Array.isArray(familyData)) {
+                    familyData = {};
+                }
+                
+                // SECTION 3: PHONE DATA (from phone_data column)
+                // ULTRA-AGGRESSIVE extraction: Check ALL possible locations and structures
+                // This will find phone data no matter where it's stored
+                let phoneData = null;
+                const phoneDataCandidates = []; // Track all candidates for debugging
+                
+                // Helper to try extract phone data from any value
+                const tryExtractPhoneData = (value) => {
+                    if (value === null || value === undefined) return null;
+                    
+                    const parsed = safeParseJSON(value);
+                    if (!parsed) return null;
+                    
+                    // Handle array of phones
+                    if (Array.isArray(parsed)) {
+                        if (parsed.length === 0) return null;
+                        // Filter valid phone entries
+                        const validPhones = parsed.filter(p => {
+                            if (!p) return false;
+                            const pParsed = typeof p === 'string' ? safeParseJSON(p) : p;
+                            return pParsed && (pParsed.number || pParsed.msisdn || pParsed.phone_number);
+                        });
+                        return validPhones.length > 0 ? validPhones : null;
+                    }
+                    
+                    // Handle single phone object
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        if (parsed.number || parsed.msisdn || parsed.phone_number) {
+                            return [parsed];
+                        }
+                    }
+                    
+                    return null;
+                };
+                
+                // 1. PRIORITY: Check column-level phone_data (direct from database column)
+                if (data.phone_data !== null && data.phone_data !== undefined) {
+                    const candidate = tryExtractPhoneData(data.phone_data);
+                    if (candidate) {
+                        phoneDataCandidates.push({ source: 'data.phone_data', data: candidate });
+                        if (!phoneData) phoneData = candidate;
+                    }
+                }
+                
+                // 2. Check nested in person_data
+                if (personData && personData.phone_data !== null && personData.phone_data !== undefined) {
+                    const candidate = tryExtractPhoneData(personData.phone_data);
+                    if (candidate) {
+                        phoneDataCandidates.push({ source: 'personData.phone_data', data: candidate });
+                        if (!phoneData) phoneData = candidate;
+                    }
+                }
+                
+                // 3. Check search_results.results[].person.phone_data (nested structure)
+                if (data.search_results) {
+                    const searchResults = safeParseJSON(data.search_results);
+                    if (searchResults && searchResults.results && Array.isArray(searchResults.results)) {
+                        for (let i = 0; i < searchResults.results.length; i++) {
+                            const result = searchResults.results[i];
+                            if (!result) continue;
+                            
+                            // Check result.person.phone_data
+                            if (result.person && result.person.phone_data) {
+                                const candidate = tryExtractPhoneData(result.person.phone_data);
+                                if (candidate) {
+                                    phoneDataCandidates.push({ source: `search_results.results[${i}].person.phone_data`, data: candidate });
+                                    if (!phoneData) phoneData = candidate;
+                                }
+                            }
+                            
+                            // Check result.phone_data
+                            if (result.phone_data) {
+                                const candidate = tryExtractPhoneData(result.phone_data);
+                                if (candidate) {
+                                    phoneDataCandidates.push({ source: `search_results.results[${i}].phone_data`, data: candidate });
+                                    if (!phoneData) phoneData = candidate;
+                                }
+                            }
+                            
+                            // Check if result.person itself has phone structure
+                            if (result.person && (result.person.number || result.person.msisdn || result.person.phone_number)) {
+                                const candidate = tryExtractPhoneData(result.person);
+                                if (candidate) {
+                                    phoneDataCandidates.push({ source: `search_results.results[${i}].person`, data: candidate });
+                                    if (!phoneData) phoneData = candidate;
+                                }
+                            }
+                            
+                            // Check if result itself is phone data
+                            if (result && (result.number || result.msisdn || result.phone_number)) {
+                                const candidate = tryExtractPhoneData(result);
+                                if (candidate) {
+                                    phoneDataCandidates.push({ source: `search_results.results[${i}]`, data: candidate });
+                                    if (!phoneData) phoneData = candidate;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Check if search_results itself is phone data array
+                    if (searchResults && Array.isArray(searchResults)) {
+                        const phones = searchResults.filter(item => {
+                            const itemParsed = typeof item === 'string' ? safeParseJSON(item) : item;
+                            return itemParsed && (itemParsed.number || itemParsed.msisdn || itemParsed.phone_number);
+                        });
+                        if (phones.length > 0) {
+                            phoneDataCandidates.push({ source: 'search_results (as array)', data: phones });
+                            if (!phoneData) phoneData = phones;
+                        }
+                    } else if (searchResults && typeof searchResults === 'object' && searchResults.phone_data) {
+                        const candidate = tryExtractPhoneData(searchResults.phone_data);
+                        if (candidate) {
+                            phoneDataCandidates.push({ source: 'search_results.phone_data', data: candidate });
+                            if (!phoneData) phoneData = candidate;
+                        }
+                    }
+                }
+                
+                // 4. Check if person_data itself contains phone structure (deep recursive check)
+                if (personData && typeof personData === 'object') {
+                    // First check direct keys in person_data
+                    const personKeys = Object.keys(personData);
+                    for (const key of personKeys) {
+                        if (key.toLowerCase().includes('phone') || 
+                            key.toLowerCase().includes('telp') || 
+                            key.toLowerCase().includes('hp') ||
+                            key === 'phone_data') {
+                            const candidate = tryExtractPhoneData(personData[key]);
+                            if (candidate) {
+                                phoneDataCandidates.push({ source: `personData.${key}`, data: candidate });
+                                if (!phoneData) phoneData = candidate;
+                            }
+                        }
+                    }
+                    
+                    // If still not found, do recursive search
+                    if (!phoneData) {
+                        const findPhoneDataRecursive = (obj, depth = 0, path = '') => {
+                            if (depth > 5 || !obj || typeof obj !== 'object') return null;
+                            
+                            // Check if this object itself is phone data
+                            const extracted = tryExtractPhoneData(obj);
+                            if (extracted) {
+                                phoneDataCandidates.push({ source: `personData${path}`, data: extracted });
+                                return extracted;
+                            }
+                            
+                            // Check all keys
+                            for (const key in obj) {
+                                const value = obj[key];
+                                
+                                // Skip if value is null/undefined
+                                if (value === null || value === undefined) continue;
+                                
+                                // Check if key suggests phone data
+                                if (key.toLowerCase().includes('phone') || 
+                                    key.toLowerCase().includes('telp') || 
+                                    key.toLowerCase().includes('hp') ||
+                                    key === 'phone_data') {
+                                    const extracted = tryExtractPhoneData(value);
+                                    if (extracted) {
+                                        phoneDataCandidates.push({ source: `personData${path}.${key}`, data: extracted });
+                                        return extracted;
+                                    }
+                                }
+                                
+                                // Recursively check nested objects
+                                if (typeof value === 'object' && !Array.isArray(value)) {
+                                    const found = findPhoneDataRecursive(value, depth + 1, path + '.' + key);
+                                    if (found) return found;
+                                }
+                                
+                                // Check arrays
+                                if (Array.isArray(value) && value.length > 0) {
+                                    for (let idx = 0; idx < value.length; idx++) {
+                                        const item = value[idx];
+                                        if (item && typeof item === 'object') {
+                                            const found = findPhoneDataRecursive(item, depth + 1, path + `[${idx}]`);
+                                            if (found) return found;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            return null;
+                        };
+                        
+                        const found = findPhoneDataRecursive(personData);
+                        if (found && !phoneData) {
+                            phoneData = found;
+                        }
+                    }
+                }
+                
+                // Log all candidates found
+                console.log('Phone data candidates found:', phoneDataCandidates.length);
+                phoneDataCandidates.forEach((c, idx) => {
+                    console.log(`  Candidate ${idx + 1} from ${c.source}:`, c.data);
+                });
+                
+                // Normalize phone_data to array format
+                if (!phoneData || !Array.isArray(phoneData)) {
+                    phoneData = [];
+                }
+                
+                // Debug logging (can be removed in production)
+                console.log('=== DATA EXTRACTION DEBUG ===');
+                console.log('Full data object keys:', Object.keys(data));
+                console.log('--- PERSON DATA STRUCTURE ---');
+                console.log('person_data keys:', Object.keys(personData));
+                console.log('--- FAMILY DATA EXTRACTION ---');
+                console.log('1. Column family_data (raw):', data.family_data);
+                console.log('   Type:', typeof data.family_data);
+                console.log('   Is null:', data.family_data === null);
+                console.log('   Is undefined:', data.family_data === undefined);
+                const colFamilyParsed = safeParseJSON(data.family_data);
+                console.log('   Parsed:', colFamilyParsed);
+                if (colFamilyParsed && typeof colFamilyParsed === 'object') {
+                    console.log('   Parsed keys:', Object.keys(colFamilyParsed));
+                    console.log('   Has anggota_keluarga:', !!colFamilyParsed.anggota_keluarga);
+                }
+                console.log('2. person_data.family_data (raw):', personData.family_data);
+                console.log('   Type:', typeof personData.family_data);
+                const personFamilyParsed = safeParseJSON(personData.family_data);
+                console.log('   Parsed:', personFamilyParsed);
+                if (personFamilyParsed && typeof personFamilyParsed === 'object') {
+                    console.log('   Parsed keys:', Object.keys(personFamilyParsed));
+                    console.log('   Has anggota_keluarga:', !!personFamilyParsed.anggota_keluarga);
+                }
+                console.log('3. Checking person_data for family-related keys...');
+                const familyKeys = Object.keys(personData).filter(k => 
+                    k.toLowerCase().includes('family') || k.toLowerCase().includes('keluarga')
+                );
+                console.log('   Family-related keys found:', familyKeys);
+                familyKeys.forEach(key => {
+                    const val = personData[key];
+                    console.log(`   ${key}:`, val);
+                    if (val && typeof val === 'object' && !Array.isArray(val)) {
+                        console.log(`     ${key} keys:`, Object.keys(val));
+                        console.log(`     ${key} has anggota_keluarga:`, !!val.anggota_keluarga);
+                    }
+                });
+                console.log('4. search_results structure:');
+                if (data.search_results) {
+                    const srParsed = safeParseJSON(data.search_results);
+                    console.log('   Type:', typeof srParsed);
+                    console.log('   Keys:', srParsed ? Object.keys(srParsed) : 'null');
+                    if (srParsed && srParsed.results && Array.isArray(srParsed.results)) {
+                        console.log('   search_results.results length:', srParsed.results.length);
+                        srParsed.results.forEach((result, idx) => {
+                            if (result) {
+                                console.log(`   Result[${idx}] keys:`, Object.keys(result));
+                                if (result.person) {
+                                    console.log(`   Result[${idx}].person keys:`, Object.keys(result.person));
+                                    console.log(`   Result[${idx}].person.family_data:`, result.person.family_data);
+                                }
+                                if (result.family_data) {
+                                    console.log(`   Result[${idx}].family_data:`, result.family_data);
+                                }
+                            }
+                        });
+                    }
+                }
+                console.log('5. Final familyData:', familyData);
+                console.log('   Keys:', familyData ? Object.keys(familyData) : 'null');
+                console.log('   anggota_keluarga:', familyData ? familyData.anggota_keluarga : 'null');
+                console.log('   anggota_keluarga type:', familyData && familyData.anggota_keluarga ? typeof familyData.anggota_keluarga : 'N/A');
+                console.log('   anggota_keluarga is array:', familyData && familyData.anggota_keluarga ? Array.isArray(familyData.anggota_keluarga) : 'N/A');
+                console.log('   anggota_keluarga length:', familyData && familyData.anggota_keluarga && Array.isArray(familyData.anggota_keluarga) ? familyData.anggota_keluarga.length : 'N/A');
+                console.log('--- PHONE DATA EXTRACTION ---');
+                console.log('1. Column phone_data (raw):', data.phone_data);
+                console.log('   Type:', typeof data.phone_data);
+                console.log('   Is null:', data.phone_data === null);
+                console.log('   Is undefined:', data.phone_data === undefined);
+                console.log('   Parsed:', safeParseJSON(data.phone_data));
+                console.log('2. person_data.phone_data (raw):', personData.phone_data);
+                console.log('   Type:', typeof personData.phone_data);
+                console.log('   Parsed:', safeParseJSON(personData.phone_data));
+                console.log('3. Checking person_data for phone-related keys...');
+                const phoneKeys = Object.keys(personData).filter(k => 
+                    k.toLowerCase().includes('phone') || 
+                    k.toLowerCase().includes('telp') || 
+                    k.toLowerCase().includes('hp')
+                );
+                console.log('   Phone-related keys found:', phoneKeys);
+                phoneKeys.forEach(key => {
+                    console.log(`   ${key}:`, personData[key]);
+                });
+                console.log('4. Final phoneData:', phoneData);
+                console.log('   Length:', phoneData.length);
+                console.log('   First item:', phoneData.length > 0 ? phoneData[0] : 'N/A');
+                console.log('=== END DEBUG ===');
+                
+                // Additional data (for reference, not main sections)
                 const faceData = data.face_data || {};
                 const searchParams = data.search_params || {};
+                const searchResults = data.search_results || {};
+
+                // Helper function to check if string is base64 image
+                const isBase64Image = (str) => {
+                    if (typeof str !== 'string' || str.length < 50) return false;
+                    return str.startsWith('data:image/') || 
+                           str.startsWith('/9j/') || 
+                           str.startsWith('iVBORw0KGgo') ||
+                           (str.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(str.replace(/\s/g, '')));
+                };
+
+                // Helper function to shorten base64 strings
+                const shortenBase64String = (str) => {
+                    if (!isBase64Image(str)) return str;
+                    
+                    const prefix = str.startsWith('data:image/') ? str.substring(0, str.indexOf(',') + 1) : '';
+                    const base64Part = str.startsWith('data:image/') ? str.substring(str.indexOf(',') + 1) : str;
+                    const shortened = base64Part.length > 100 
+                        ? base64Part.substring(0, 30) + '...[' + (base64Part.length - 60) + ' chars]...' + base64Part.substring(base64Part.length - 30)
+                        : base64Part;
+                    return prefix + shortened + ` (${str.length} chars)`;
+                };
+
+                // Helper function to shorten base64 strings in objects/arrays
+                const shortenBase64InObject = (obj) => {
+                    if (typeof obj !== 'object' || obj === null) {
+                        return shortenBase64String(obj);
+                    }
+                    
+                    if (Array.isArray(obj)) {
+                        return obj.map(item => shortenBase64InObject(item));
+                    }
+                    
+                    const shortened = {};
+                    for (const key in obj) {
+                        if (obj.hasOwnProperty(key)) {
+                            shortened[key] = shortenBase64InObject(obj[key]);
+                        }
+                    }
+                    return shortened;
+                };
+
+                // Handle phone_data if it's an object instead of array
+                if (phoneData && !Array.isArray(phoneData)) {
+                    if (phoneData.phone_number || phoneData.number || phoneData.msisdn) {
+                        phoneData = [phoneData];
+                    } else if (typeof phoneData === 'object') {
+                        const phoneKeys = Object.keys(phoneData);
+                        if (phoneKeys.length > 0 && (phoneData.phone_number || phoneData.number || phoneData.msisdn)) {
+                            phoneData = [phoneData];
+                        } else {
+                            phoneData = [];
+                        }
+                    } else {
+                        phoneData = [];
+                    }
+                }
+
+                // Also check search_results for phone data
+                if (phoneData.length === 0 && searchResults) {
+                    if (Array.isArray(searchResults)) {
+                        phoneData = searchResults.filter(item => item.phone_number || item.number || item.msisdn);
+                    } else if (searchResults.phone_data) {
+                        phoneData = Array.isArray(searchResults.phone_data) ? searchResults.phone_data : [searchResults.phone_data];
+                    } else if (searchResults.phone_number || searchResults.number || searchResults.msisdn) {
+                        phoneData = [searchResults];
+                    }
+                }
+
+                // Helper function to format display value (shorten base64 if needed)
+                const formatDisplayValue = (value) => {
+                    if (typeof value === 'string') {
+                        return shortenBase64String(value);
+                    }
+                    return value;
+                };
+
+                // Helper function to format photo source
+                const formatPhotoSource = (photo) => {
+                    if (!photo) return '';
+                    if (photo.startsWith('data:image/')) return photo;
+                    if (photo.startsWith('/9j/')) return 'data:image/jpeg;base64,' + photo;
+                    if (photo.startsWith('iVBORw0KGgo')) return 'data:image/png;base64,' + photo;
+                    if (photo.length > 50 && /^[A-Za-z0-9+/=\s]+$/.test(photo.replace(/\s/g, ''))) {
+                        return 'data:image/jpeg;base64,' + photo;
+                    }
+                    return '';
+                };
 
                 const fullName = personData.full_name || personData.name || 'Unknown';
                 const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+                const personPhoto = formatPhotoSource(personData.face || personData.foto || personData.photo || '');
 
                 let html = `
-                    <!-- Search Info -->
-                    <div class="data-section">
-                        <h4><i class="fas fa-search"></i> Search Information</h4>
-                        <div class="data-grid">
-                            <div class="data-item">
-                                <span class="data-label">Search Type</span>
-                                <span class="data-value">${data.search_type.charAt(0).toUpperCase() + data.search_type.slice(1)}</span>
-                            </div>
-                            <div class="data-item">
-                                <span class="data-label">Search Date</span>
-                                <span class="data-value">${new Date(data.search_timestamp).toLocaleString()}</span>
-                            </div>
-                            <div class="data-item">
-                                <span class="data-label">Searched By</span>
-                                <span class="data-value">${data.user_name || data.username}</span>
-                            </div>
-                            <div class="data-item">
-                                <span class="data-label">IP Address</span>
-                                <span class="data-value">${data.ip_address || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Intelligence Report Section (will be populated after generation) -->
+                    <div id="intelligenceReportSection" style="display: none;"></div>
 
-                    <!-- Person Information -->
-                    <div class="data-section">
-                        <h4><i class="fas fa-user"></i> Person Information</h4>
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <div class="person-avatar-large">
-                                ${personData.face ? (() => {
-                                    let faceSrc = personData.face;
-                                    if (!faceSrc.startsWith('data:image/')) {
-                                        if (faceSrc.startsWith('/9j/')) {
-                                            faceSrc = 'data:image/jpeg;base64,' + faceSrc;
-                                        } else if (faceSrc.startsWith('iVBORw0KGgo')) {
-                                            faceSrc = 'data:image/png;base64,' + faceSrc;
-                                        } else {
-                                            faceSrc = 'data:image/jpeg;base64,' + faceSrc;
-                                        }
-                                    }
-                                    return `<img src="${faceSrc}" alt="Photo" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-                                })() : initials}
+                    <!-- ============================================ -->
+                    <!-- SECTION 1: DATA PRIBADI + FOTO -->
+                    <!-- ============================================ -->
+                    <div class="data-section" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border-left: 4px solid #ef4444; margin-bottom: 25px;">
+                        <h4 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                            <i class="fas fa-user" style="color: #ef4444; font-size: 1.5rem;"></i>
+                            <span>Section 1: Data Pribadi</span>
+                        </h4>
+                        
+                        <!-- Photo Display -->
+                        <div style="display: flex; align-items: flex-start; gap: 30px; margin-bottom: 30px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                            <div style="flex-shrink: 0;">
+                                ${personPhoto ? `
+                                    <div style="width: 200px; height: 250px; border-radius: 15px; overflow: hidden; border: 4px solid #ef4444; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);">
+                                        <img src="${personPhoto}" alt="${fullName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'250\\'%3E%3Crect fill=\\'%23ef4444\\' width=\\'200\\' height=\\'250\\'/%3E%3Ctext fill=\\'white\\' font-size=\\'60\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dominant-baseline=\\'middle\\'%3E${initials}%3C/text%3E%3C/svg%3E'">
                             </div>
-                        </div>
-                        <div class="data-grid">
+                                ` : `
+                                    <div style="width: 200px; height: 250px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 15px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 4rem; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);">
+                                        ${initials}
+                            </div>
+                                `}
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="color: #1a202c; margin: 0 0 15px 0; font-size: 2rem; font-weight: 700;">${fullName}</h3>
+                                <div class="data-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                 `;
 
-                // Add person data fields
-                const personFields = [
-                    { key: 'full_name', label: 'Full Name' },
-                    { key: 'ktp_number', label: 'NIK' },
-                    { key: 'tanggal_lahir', label: 'Date of Birth' },
-                    { key: 'tempat_lahir', label: 'Place of Birth' },
-                    { key: 'jenis_kelamin', label: 'Gender' },
-                    { key: 'alamat', label: 'Address' },
-                    { key: 'agama', label: 'Religion' },
-                    { key: 'status_perkawinan', label: 'Marital Status' },
-                    { key: 'pekerjaan', label: 'Occupation' }
-                ];
-
-                personFields.forEach(field => {
-                    if (personData[field.key]) {
-                        html += `
-                            <div class="data-item">
-                                <span class="data-label">${field.label}</span>
-                                <span class="data-value">${personData[field.key]}</span>
-                            </div>
-                        `;
+                // Extract ALL fields from person_data dynamically - exclude nested objects and photos
+                const personFieldsExtracted = extractAllFields(personData, 'person_data');
+                const displayedPersonKeys = new Set();
+                
+                // Display all extracted person fields dynamically
+                personFieldsExtracted.forEach(field => {
+                    // Skip nested objects and photos (already displayed)
+                    if (displayedPersonKeys.has(field.key) || 
+                        field.key.includes('phone_data') || 
+                        field.key.includes('family_data') ||
+                        field.key.includes('face') ||
+                        field.key.includes('face_partials') ||
+                        field.key.includes('foto') ||
+                        field.key.includes('photo')) {
+                        return;
                     }
+                    
+                    displayedPersonKeys.add(field.key);
+                    const displayValue = formatDisplayValue(field.value);
+                    html += `
+                        <div class="data-item" style="background: #fff5f5; padding: 15px; border-radius: 10px; border: 1px solid #fecaca;">
+                            <span class="data-label"><i class="fas fa-${field.icon}"></i> ${field.label}</span>
+                            <span class="data-value" style="font-weight: 600; color: #1a202c; margin-top: 5px; display: block; word-break: break-all; font-size: ${typeof displayValue === 'string' && displayValue.length > 100 ? '0.85rem' : '1rem'};">${displayValue}</span>
+                            </div>
+                    `;
                 });
 
                 html += `
                         </div>
                     </div>
+                            </div>
+                        </div>
+
+                    <!-- ============================================ -->
+                    <!-- SECTION 2: DATA KELUARGA + FOTO -->
+                    <!-- ============================================ -->
                 `;
 
-                // Family Data
-                if (familyData.anggota_keluarga && familyData.anggota_keluarga.length > 0) {
+                // Section 2: Family Data with Photos
+                // More lenient check: show section if familyData exists and has any content
+                const hasFamilyData = familyData && 
+                    typeof familyData === 'object' && 
+                    !Array.isArray(familyData) &&
+                    Object.keys(familyData).length > 0 &&
+                    (
+                        (familyData.anggota_keluarga && Array.isArray(familyData.anggota_keluarga) && familyData.anggota_keluarga.length > 0) ||
+                        Object.keys(familyData).some(key => {
+                            const value = familyData[key];
+                            return value !== null && value !== undefined && value !== '' && value !== 'N/A' &&
+                                   !(Array.isArray(value) && value.length === 0);
+                        })
+                    );
+                
+                console.log('=== FAMILY DATA CHECK ===');
+                console.log('hasFamilyData:', hasFamilyData);
+                console.log('familyData:', familyData);
+                console.log('familyData keys:', familyData ? Object.keys(familyData) : 'null');
+                console.log('familyData.anggota_keluarga:', familyData.anggota_keluarga);
+                console.log('familyData.anggota_keluarga type:', typeof familyData.anggota_keluarga);
+                console.log('familyData.anggota_keluarga is array:', Array.isArray(familyData.anggota_keluarga));
+                if (familyData.anggota_keluarga && Array.isArray(familyData.anggota_keluarga)) {
+                    console.log('familyData.anggota_keluarga length:', familyData.anggota_keluarga.length);
+                    console.log('familyData.anggota_keluarga[0]:', familyData.anggota_keluarga[0]);
+                }
+                console.log('=== END FAMILY CHECK ===');
+                
+                if (hasFamilyData) {
+                    // Extract anggota_keluarga - handle both array and single object
+                    let anggotaKeluarga = [];
+                    if (familyData.anggota_keluarga) {
+                        if (Array.isArray(familyData.anggota_keluarga)) {
+                            anggotaKeluarga = familyData.anggota_keluarga.filter(member => 
+                                member && typeof member === 'object' && Object.keys(member).length > 0
+                            );
+                        } else if (typeof familyData.anggota_keluarga === 'object') {
+                            anggotaKeluarga = [familyData.anggota_keluarga];
+                        }
+                    }
+                    
+                    const familyFieldsExtracted = extractAllFields(familyData, 'family_data');
+                    const otherFamilyFields = familyFieldsExtracted.filter(f => !f.key.includes('anggota_keluarga'));
+                    
+                        html += `
+                        <div class="data-section" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-left: 4px solid #f59e0b; margin-bottom: 25px;">
+                            <h4 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                                <i class="fas fa-users" style="color: #f59e0b; font-size: 1.5rem;"></i>
+                                <span>Section 2: Data Keluarga</span>
+                                ${anggotaKeluarga.length > 0 ? `<span style="font-size: 0.9rem; font-weight: normal; color: #6b7280;">(${anggotaKeluarga.length} anggota)</span>` : ''}
+                            </h4>
+                    `;
+                    
+                    // Display family info fields
+                    if (otherFamilyFields.length > 0) {
+                        html += `<div class="data-grid" style="margin-bottom: 25px;">`;
+                        otherFamilyFields.forEach(field => {
+                            const displayValue = formatDisplayValue(field.value);
+                            html += `
+                                <div class="data-item" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #fde68a;">
+                                    <span class="data-label"><i class="fas fa-${field.icon}"></i> ${field.label}</span>
+                                    <span class="data-value" style="font-weight: 600; color: #1a202c; margin-top: 5px; display: block; word-break: break-all;">${displayValue}</span>
+                            </div>
+                        `;
+                        });
+                        html += `</div>`;
+                    }
+
+                    // Display family members with photos
+                    if (anggotaKeluarga && anggotaKeluarga.length > 0) {
+                        anggotaKeluarga.forEach((member, index) => {
+                            const memberFieldsExtracted = extractAllFields(member, `family_data.anggota_keluarga[${index}]`);
+                            const memberInitials = (member.nama || member.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase();
+                            const memberFoto = formatPhotoSource(member.foto || member.photo || '');
+                            const memberNama = member.nama || member.name || 'N/A';
+                            const memberHubungan = member.hubungan || member.relationship || 'Anggota Keluarga';
+
+                html += `
+                                <div style="background: white; border-left: 4px solid #f59e0b; margin-bottom: 20px; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);">
+                                    <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
+                                        ${memberFoto ? `
+                                            <div style="width: 120px; height: 150px; border-radius: 12px; overflow: hidden; flex-shrink: 0; border: 3px solid #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                                                <img src="${memberFoto}" alt="${memberNama}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'120\\' height=\\'150\\'%3E%3Crect fill=\\'%23f59e0b\\' width=\\'120\\' height=\\'150\\'/%3E%3Ctext fill=\\'white\\' font-size=\\'40\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dominant-baseline=\\'middle\\'%3E${memberInitials}%3C/text%3E%3C/svg%3E'">
+                        </div>
+                                        ` : `
+                                            <div style="width: 120px; height: 150px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 2.5rem; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                                                ${memberInitials}
+                    </div>
+                                        `}
+                                        <div style="flex: 1;">
+                                            <h5 style="color: #1a202c; margin: 0 0 10px 0; font-size: 1.5rem; font-weight: 700;">${memberNama}</h5>
+                                            <div style="color: #6b7280; font-size: 1rem; margin-bottom: 15px;">
+                                                <i class="fas fa-user-tag"></i> ${memberHubungan}
+                                            </div>
+                                            <div class="data-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                            `;
+                            
+                            memberFieldsExtracted.forEach(field => {
+                                if (field.key.includes('foto') || field.key.includes('photo')) return;
+                                const displayValue = formatDisplayValue(field.value);
                     html += `
-                        <div class="data-section">
-                            <h4><i class="fas fa-users"></i> Family Information</h4>
-                            <div class="data-grid">
-                                <div class="data-item">
-                                    <span class="data-label">Head of Family</span>
-                                    <span class="data-value">${familyData.kepala_keluarga || 'N/A'}</span>
+                                    <div class="data-item" style="background: #fffbeb; padding: 12px; border-radius: 8px; border: 1px solid #fde68a;">
+                                        <span class="data-label"><i class="fas fa-${field.icon}"></i> ${field.label}</span>
+                                        <span class="data-value" style="font-weight: 600; color: #1a202c; margin-top: 5px; display: block; font-size: 0.9rem; word-break: break-all;">${displayValue}</span>
                                 </div>
-                                <div class="data-item">
-                                    <span class="data-label">Family Card Number</span>
-                                    <span class="data-value">${familyData.nkk || 'N/A'}</span>
-                                </div>
-                                <div class="data-item">
-                                    <span class="data-label">Family Address</span>
-                                    <span class="data-value">${familyData.alamat_keluarga || 'N/A'}</span>
+                                `;
+                            });
+                            
+                        html += `
+                                    </div>
+                                    </div>
+                                    </div>
+                                    </div>
+                            `;
+                        });
+                    } else {
+                        html += `
+                            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                <p style="font-size: 1rem; margin: 0;">Tidak ada data anggota keluarga</p>
+                                    </div>
+                        `;
+                    }
+                    
+                    html += `</div>`;
+                } else {
+                    html += `
+                        <div class="data-section" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-left: 4px solid #9ca3af; margin-bottom: 25px;">
+                            <h4 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                                <i class="fas fa-users" style="color: #9ca3af; font-size: 1.5rem;"></i>
+                                <span>Section 2: Data Keluarga</span>
+                            </h4>
+                            <div style="text-align: center; padding: 40px; color: #6b7280;">
+                                <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                                <p style="font-size: 1rem; margin: 0;">Tidak ada data keluarga</p>
                                 </div>
                             </div>
-                            <h5 style="margin: 20px 0 15px 0; color: #374151;">Family Members</h5>
-                    `;
+                        `;
+                }
 
-                    familyData.anggota_keluarga.forEach(member => {
+                // ============================================
+                // SECTION 3: DATA NO HP
+                // ============================================
+                console.log('=== PHONE DATA CHECK ===');
+                console.log('phoneData:', phoneData);
+                console.log('phoneData type:', typeof phoneData);
+                console.log('phoneData is array:', Array.isArray(phoneData));
+                console.log('phoneData length:', phoneData ? phoneData.length : 'null');
+                if (phoneData && Array.isArray(phoneData) && phoneData.length > 0) {
+                    console.log('phoneData[0]:', phoneData[0]);
+                    console.log('phoneData[0] keys:', Object.keys(phoneData[0]));
+                }
+                console.log('=== END PHONE CHECK ===');
+                
+                    html += `
+                    <div class="data-section" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981; margin-bottom: 25px;">
+                        <h4 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                            <i class="fas fa-phone" style="color: #10b981; font-size: 1.5rem;"></i>
+                            <span>Section 3: Data Nomor HP</span>
+                            ${phoneData && Array.isArray(phoneData) && phoneData.length > 0 ? `<span style="font-size: 0.9rem; font-weight: normal; color: #6b7280;">(${phoneData.length} nomor)</span>` : ''}
+                        </h4>
+                `;
+
+                if (phoneData && Array.isArray(phoneData) && phoneData.length > 0) {
+                    phoneData.forEach((phone, index) => {
+                        const phoneFieldsExtracted = extractAllFields(phone, `phone_data[${index}]`);
+                        const phoneNumber = phone.number || phone.msisdn || phone.phone_number || 'N/A';
+                        
                         html += `
-                            <div class="family-member">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="data-label">Name</span>
-                                        <span class="data-value">${member.nama || 'N/A'}</span>
+                            <div style="background: white; border-left: 4px solid #10b981; margin-bottom: 20px; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);">
+                                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                                    <div style="width: 70px; height: 70px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                                        <i class="fas fa-phone-alt"></i>
                                     </div>
-                                    <div class="data-item">
-                                        <span class="data-label">Relationship</span>
-                                        <span class="data-value">${member.hubungan || 'N/A'}</span>
+                                    <div style="flex: 1;">
+                                        <h5 style="color: #1a202c; margin: 0 0 5px 0; font-size: 1.8rem; font-weight: 700;">${phoneNumber}</h5>
+                                        <div style="color: #6b7280; font-size: 0.9rem;">
+                                            Nomor HP #${index + 1}
                                     </div>
-                                    <div class="data-item">
-                                        <span class="data-label">NIK</span>
-                                        <span class="data-value">${member.nik || 'N/A'}</span>
                                     </div>
-                                    <div class="data-item">
-                                        <span class="data-label">Date of Birth</span>
-                                        <span class="data-value">${member.tanggal_lahir || 'N/A'}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="data-label">Place of Birth</span>
-                                        <span class="data-value">${member.tempat_lahir || 'N/A'}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="data-label">Gender</span>
-                                        <span class="data-value">${member.jenis_kelamin || 'N/A'}</span>
-                                    </div>
+                                </div>
+                                <div class="data-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+                        `;
+                        
+                        phoneFieldsExtracted.forEach(field => {
+                            const displayValue = formatDisplayValue(field.value);
+                    html += `
+                                <div class="data-item" style="background: #f0fdf4; padding: 15px; border-radius: 10px; border: 1px solid #bbf7d0;">
+                                    <span class="data-label"><i class="fas fa-${field.icon}"></i> ${field.label}</span>
+                                    <span class="data-value" style="font-weight: 600; color: #1a202c; margin-top: 5px; display: block; word-break: break-all;">${displayValue}</span>
+                                </div>
+                            `;
+                        });
+                        
+                        html += `
                                 </div>
                             </div>
                         `;
                     });
-
-                    html += `</div>`;
-                }
-
-                // Phone Data
-                if (phoneData && phoneData.length > 0) {
-                    html += `
-                        <div class="data-section">
-                            <h4><i class="fas fa-phone"></i> Phone Information</h4>
-                    `;
-
-                    phoneData.forEach(phone => {
+                } else {
                         html += `
-                            <div class="phone-item">
-                                <div class="data-grid">
-                                    <div class="data-item">
-                                        <span class="data-label">Phone Number</span>
-                                        <span class="data-value">${phone.number || phone.msisdn || 'N/A'}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="data-label">Operator</span>
-                                        <span class="data-value">${phone.operator || 'N/A'}</span>
-                                    </div>
-                                    <div class="data-item">
-                                        <span class="data-label">Registration Date</span>
-                                        <span class="data-value">${phone.register_date || 'N/A'}</span>
-                                    </div>
-                                </div>
+                        <div style="text-align: center; padding: 40px; color: #6b7280;">
+                            <i class="fas fa-phone-slash" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+                            <p style="font-size: 1rem; margin: 0;">Tidak ada data nomor HP</p>
                             </div>
                         `;
-                    });
+                    }
 
-                    html += `</div>`;
-                }
+                html += `</div>`;
 
-                // Face Data
-                if (faceData && Object.keys(faceData).length > 0) {
+                // Extract all remaining fields from the entire data object that haven't been displayed yet
+                // This ensures ALL fields from raw data are displayed dynamically
+                const allRemainingFields = extractAllFields(data);
+                
+                // Filter out fields that have already been displayed in specific sections
+                const displayedKeys = new Set();
+                displayedKeys.add('person_data');
+                displayedKeys.add('family_data');
+                displayedKeys.add('phone_data');
+                displayedKeys.add('face_data');
+                displayedKeys.add('search_params');
+                displayedKeys.add('search_results');
+                
+                // Group remaining fields by category
+                const categorizedFields = {
+                    metadata: [],
+                    other: []
+                };
+
+                allRemainingFields.forEach(field => {
+                    // Skip if already displayed in specific sections
+                    if (field.key.startsWith('person_data.') || 
+                        field.key.startsWith('family_data.') || 
+                        field.key.startsWith('phone_data.') || 
+                        field.key.startsWith('face_data.') ||
+                        field.key.startsWith('search_params.') ||
+                        field.key.startsWith('search_results.')) {
+                        return;
+                    }
+                    
+                    const keyLower = field.key.toLowerCase();
+                    if (keyLower.includes('id') || keyLower.includes('timestamp') || keyLower.includes('ip') || keyLower.includes('agent') || keyLower.includes('user') || keyLower.includes('search_type') || keyLower.includes('search_date')) {
+                        categorizedFields.metadata.push(field);
+                    } else {
+                        categorizedFields.other.push(field);
+                    }
+                });
+
+                // Display metadata fields dynamically
+                if (categorizedFields.metadata.length > 0) {
                     html += `
-                        <div class="data-section">
-                            <h4><i class="fas fa-camera"></i> Face Detection Information</h4>
+                        <div class="data-section" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-left: 4px solid #6b7280;">
+                            <h4><i class="fas fa-database" style="color: #6b7280;"></i> Metadata Information</h4>
                             <div class="data-grid">
                     `;
-
-                    if (faceData.threshold) {
+                    categorizedFields.metadata.forEach(field => {
+                        const displayValue = formatDisplayValue(field.value);
                         html += `
-                            <div class="data-item">
-                                <span class="data-label">Threshold</span>
-                                <span class="data-value">${faceData.threshold}</span>
-                            </div>
-                        `;
-                    }
-
-                    if (faceData.match_score) {
-                        html += `
-                            <div class="data-item">
-                                <span class="data-label">Match Score</span>
-                                <span class="data-value">${faceData.match_score}</span>
-                            </div>
-                        `;
-                    }
-
+                            <div class="data-item" style="background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+                                <span class="data-label"><i class="fas fa-${field.icon}"></i> ${field.label}</span>
+                                <span class="data-value" style="font-weight: 600; color: #1a202c; margin-top: 5px; display: block; word-break: break-all; font-size: ${typeof displayValue === 'string' && displayValue.length > 100 ? '0.85rem' : '1rem'};">${displayValue}</span>
+                        </div>
+                    `;
+                    });
                     html += `</div></div>`;
                 }
 
-                // Search Parameters
-                if (searchParams && Object.keys(searchParams).length > 0) {
-                    html += `
-                        <div class="data-section">
-                            <h4><i class="fas fa-cog"></i> Search Parameters</h4>
-                            <div class="json-display">${JSON.stringify(searchParams, null, 2)}</div>
-                        </div>
-                    `;
-                }
-
-                // Raw Data (for debugging)
+                // Display other remaining fields dynamically
+                if (categorizedFields.other.length > 0) {
                 html += `
-                    <div class="data-section">
-                        <h4><i class="fas fa-code"></i> Raw Data</h4>
-                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                        <div class="data-section" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b;">
+                            <h4><i class="fas fa-list" style="color: #f59e0b;"></i> Additional Information</h4>
+                            <div class="data-grid">
+                    `;
+                    categorizedFields.other.forEach(field => {
+                        const displayValue = formatDisplayValue(field.value);
+                        html += `
+                            <div class="data-item" style="background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+                                <span class="data-label"><i class="fas fa-${field.icon}"></i> ${field.label}</span>
+                                <span class="data-value" style="font-weight: 600; color: #1a202c; margin-top: 5px; display: block; word-break: break-all; font-size: ${typeof displayValue === 'string' && displayValue.length > 100 ? '0.85rem' : '1rem'};">${displayValue}</span>
                     </div>
                 `;
+                    });
+                    html += `</div></div>`;
+                }
 
                 return html;
             }
@@ -2505,6 +3550,248 @@
                 if (app) {
                     app.deleteProfilingData(id);
                 }
+            }
+        }
+
+        // Store intelligence report data
+        let currentIntelligenceReport = null;
+        let currentProfilingId = null;
+
+        async function generateIntelligenceReport() {
+            const app = window.dataProfilingApp;
+            if (!app || !app.currentViewData) {
+                app.showMessage('No data available', 'error');
+                return;
+            }
+
+            const profilingId = app.currentViewData.id;
+            currentProfilingId = profilingId;
+
+            const generateBtn = document.getElementById('generateReportBtn');
+            const originalText = generateBtn.innerHTML;
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const response = await fetch(`/api/profiling-data/${profilingId}/intelligence-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        currentIntelligenceReport = result.report;
+                        
+                        // Display intelligence report in modal
+                        displayIntelligenceReport(result.report);
+                        
+                        // Show export buttons
+                        document.getElementById('exportPdfBtn').style.display = 'inline-flex';
+                        document.getElementById('exportWordBtn').style.display = 'inline-flex';
+                        
+                        app.showMessage('Intelligence report generated successfully!', 'success');
+                    } else {
+                        throw new Error(result.error || 'Failed to generate report');
+                    }
+                } else if (response.status === 401) {
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                    return;
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error generating intelligence report:', error);
+                app.showMessage('Error generating intelligence report: ' + error.message, 'error');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = originalText;
+            }
+        }
+
+        function displayIntelligenceReport(report) {
+            const section = document.getElementById('intelligenceReportSection');
+            if (!section) return;
+
+            section.style.display = 'block';
+            section.innerHTML = `
+                <div class="data-section" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; margin-bottom: 25px;">
+                    <h4 style="color: #92400e; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <i class="fas fa-brain" style="color: #f59e0b;"></i> Intelligence Report
+                    </h4>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-file-alt"></i> 1. Executive Summary</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.executive_summary || 'Tidak tersedia'}</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-user-secret"></i> 2. Identitas Target</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.identitas_target || 'Tidak tersedia'}</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-search"></i> 3. Analisis Intelijen Komprehensif</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.analisis_intelijen || 'Tidak tersedia'}</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-project-diagram"></i> 4. Jaringan dan Hubungan</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.jaringan_dan_hubungan || 'Tidak tersedia'}</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-exclamation-triangle"></i> 5. Assessment Risiko dan Ancaman</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.assessment_risiko || 'Tidak tersedia'}</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-lightbulb"></i> 6. Rekomendasi Strategis</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.rekomendasi_strategis || 'Tidak tersedia'}</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px;">
+                        <h5 style="color: #92400e; margin-bottom: 12px; font-size: 1.1rem;"><i class="fas fa-check-circle"></i> 7. Kesimpulan</h5>
+                        <p style="color: #374151; line-height: 1.8; text-align: justify;">${report.kesimpulan || 'Tidak tersedia'}</p>
+                    </div>
+                </div>
+            `;
+
+            // Scroll to intelligence report section
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function exportIntelligencePDF() {
+            if (!currentIntelligenceReport || !currentProfilingId) {
+                const app = window.dataProfilingApp;
+                app.showMessage('Please generate intelligence report first', 'error');
+                return;
+            }
+
+            const app = window.dataProfilingApp;
+            const exportBtn = document.getElementById('exportPdfBtn');
+            const originalText = exportBtn.innerHTML;
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const response = await fetch(`/api/profiling-data/${currentProfilingId}/export/pdf`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        report: currentIntelligenceReport
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        // Download PDF
+                        const link = document.createElement('a');
+                        link.href = result.pdf_content;
+                        link.download = result.filename;
+                        link.click();
+                        app.showMessage('PDF exported successfully!', 'success');
+                    } else {
+                        throw new Error(result.error || 'Failed to export PDF');
+                    }
+                } else if (response.status === 401) {
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                    return;
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                app.showMessage('Error exporting PDF: ' + error.message, 'error');
+            } finally {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalText;
+            }
+        }
+
+        async function exportIntelligenceWord() {
+            if (!currentIntelligenceReport || !currentProfilingId) {
+                const app = window.dataProfilingApp;
+                app.showMessage('Please generate intelligence report first', 'error');
+                return;
+            }
+
+            const app = window.dataProfilingApp;
+            const exportBtn = document.getElementById('exportWordBtn');
+            const originalText = exportBtn.innerHTML;
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+            try {
+                const sessionToken = localStorage.getItem('session_token');
+                if (!sessionToken) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const response = await fetch(`/api/profiling-data/${currentProfilingId}/export/word`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        report: currentIntelligenceReport
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        // Download Word
+                        const link = document.createElement('a');
+                        link.href = result.word_content;
+                        link.download = result.filename;
+                        link.click();
+                        app.showMessage('Word document exported successfully!', 'success');
+                    } else {
+                        throw new Error(result.error || 'Failed to export Word');
+                    }
+                } else if (response.status === 401) {
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('user_data');
+                    window.location.href = '/login';
+                    return;
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error exporting Word:', error);
+                app.showMessage('Error exporting Word: ' + error.message, 'error');
+            } finally {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalText;
             }
         }
 
