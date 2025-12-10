@@ -19,6 +19,7 @@ import json
 import time
 import base64
 import argparse
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -64,6 +65,16 @@ SERVER_116_IDENTITY_SEARCH_URL = f"{SERVER_116_BASE}/toolkit/api/identity/search
 SERVER_116_USERNAME = os.environ.get("SERVER_116_USERNAME", "jambi")  # Kredensial khusus untuk server 116
 SERVER_116_PASSWORD = os.environ.get("SERVER_116_PASSWORD", "@ab526d")  # Kredensial khusus untuk server 116
 
+# Server Alternatif Configuration (http://154.26.138.135/000byte/)
+# Server alternatif sebagai fallback jika server 116 dan 224 tidak tersedia
+ALTERNATIVE_SERVER_BASE = os.environ.get("ALTERNATIVE_SERVER_BASE", "http://154.26.138.135/000byte")
+ALTERNATIVE_SERVER_LOGIN_URL = f"{ALTERNATIVE_SERVER_BASE}/login.php"
+ALTERNATIVE_SERVER_SEARCH_NAME_URL = f"{ALTERNATIVE_SERVER_BASE}/cari_nama.php"
+ALTERNATIVE_SERVER_SEARCH_NIK_URL = f"{ALTERNATIVE_SERVER_BASE}/cari_nik.php"
+ALTERNATIVE_SERVER_SEARCH_MASS_NAME_URL = f"{ALTERNATIVE_SERVER_BASE}/cari_mass_nama.php"
+ALTERNATIVE_SERVER_USERNAME = os.environ.get("ALTERNATIVE_SERVER_USERNAME", "ferdi")
+ALTERNATIVE_SERVER_PASSWORD = os.environ.get("ALTERNATIVE_SERVER_PASSWORD", "pafer123")
+
 # Warning cache to prevent spam
 _warning_cache = {}
 WARNING_COOLDOWN = 300  # 5 minutes
@@ -73,11 +84,22 @@ _server_116_session = None
 _server_116_session_time = 0
 _server_116_session_timeout = 1800  # 30 minutes (reduced from 1 hour for better reliability)
 
+# Session cache for alternative server (to maintain login session)
+_alternative_server_session = None
+_alternative_server_session_time = 0
+_alternative_server_session_timeout = 1800  # 30 minutes
+
 def _clear_server_116_session():
     """Clear server 116 session cache"""
     global _server_116_session, _server_116_session_time
     _server_116_session = None
     _server_116_session_time = 0
+
+def _clear_alternative_server_session():
+    """Clear alternative server session cache"""
+    global _alternative_server_session, _alternative_server_session_time
+    _alternative_server_session = None
+    _alternative_server_session_time = 0
 
 # Server 224 availability cache (smart detection)
 # PENTING: Initial state True tapi akan langsung check saat pertama kali dipanggil
@@ -721,55 +743,832 @@ def call_search(token: str, params: dict, username=None, password=None):
     
     server_116_result = _search_server_116(params, username, password)
     
-    if server_116_result is None:
+    # Always try alternative server for comparison (even if server 116 has results)
+    alternative_result = _search_alternative_server(params, username, password)
+    
+    # Get alternative server results
+    alt_person_list = []
+    alt_person_count = 0
+    
+    if alternative_result is not None:
+        print(f"DEBUG: [CALL_SEARCH] Alternative server result type: {type(alternative_result)}", file=sys.stderr)
+        print(f"DEBUG: [CALL_SEARCH] Alternative server result keys: {list(alternative_result.keys()) if isinstance(alternative_result, dict) else 'N/A'}", file=sys.stderr)
+        
+        if isinstance(alternative_result, dict):
+            alt_person_list = alternative_result.get('person', [])
+            if not isinstance(alt_person_list, list):
+                alt_person_list = []
+            alt_person_count = len(alt_person_list)
+            print(f"DEBUG: [CALL_SEARCH] Alternative server found {alt_person_count} results", file=sys.stderr)
+        else:
+            print(f"DEBUG: [CALL_SEARCH] Alternative server result is not a dict: {type(alternative_result)}", file=sys.stderr)
+    else:
+        print(f"DEBUG: [CALL_SEARCH] Alternative server result is None", file=sys.stderr)
+    
+    # Check if server 116 returned results
+    if server_116_result is not None:
+        person_list = server_116_result.get('person', []) if isinstance(server_116_result, dict) else []
+        person_count = len(person_list) if isinstance(person_list, list) else 0
+        
+        if person_count > 0:
+            # Server 116 has results - combine with alternative server results
+            warning_key = "server_116_fallback_success"
+            if _should_show_warning(warning_key):
+                print(f"INFO: [OK] Berhasil menggunakan server 116 sebagai fallback - ditemukan {person_count} hasil", file=sys.stderr)
+                if alt_person_count > 0:
+                    print(f"INFO: [ALTERNATIVE_SERVER] ✅ Juga menemukan {alt_person_count} hasil di server alternatif", file=sys.stderr)
+            
+            # Mark server 116 results with source
+            for person in person_list:
+                if isinstance(person, dict):
+                    person['_source'] = 'server_116'
+                    person['_server'] = '116'
+            
+            # Mark alternative server results with source
+            for person in alt_person_list:
+                if isinstance(person, dict):
+                    person['_source'] = 'alternative_server'
+                    person['_server'] = '154.26.138.135'
+            
+            # Combine results from both servers
+            combined_person_list = person_list.copy()
+            
+            # Add alternative server results (avoid duplicates based on NIK)
+            existing_niks = {p.get('ktp_number') or p.get('nik') for p in combined_person_list if isinstance(p, dict)}
+            for alt_person in alt_person_list:
+                if isinstance(alt_person, dict):
+                    alt_nik = alt_person.get('ktp_number') or alt_person.get('nik')
+                    if alt_nik and alt_nik not in existing_niks:
+                        combined_person_list.append(alt_person)
+                        existing_niks.add(alt_nik)
+                    elif not alt_nik:
+                        # If no NIK, add anyway (might be different person with same name)
+                        combined_person_list.append(alt_person)
+            
+            total_combined = len(combined_person_list)
+            
+            server_116_result['_server_116_fallback'] = True
+            server_116_result['_server_224_unavailable'] = True
+            server_116_result['person'] = combined_person_list  # Replace with combined results
+            
+            # Keep alternative server info for reference
+            server_116_result['_alternative_server_results'] = alt_person_list
+            server_116_result['_alternative_server_count'] = alt_person_count
+            server_116_result['_server_116_count'] = person_count
+            server_116_result['_total_combined_count'] = total_combined
+            
+            if alt_person_count > 0:
+                server_116_result['_alternative_server_fallback'] = True
+                server_116_result['_has_comparison_data'] = True
+                print(f"INFO: [CALL_SEARCH] ✅ Server 116: {person_count} hasil, Server Alternatif: {alt_person_count} hasil, Total Gabungan: {total_combined} hasil", file=sys.stderr)
+            else:
+                print(f"INFO: [CALL_SEARCH] Server 116: {person_count} hasil, Server Alternatif: 0 hasil, Total: {person_count} hasil", file=sys.stderr)
+            
+            return server_116_result
+        elif isinstance(server_116_result, dict) and 'person' in server_116_result:
+            # Server 116 returned empty results but was accessible
+            warning_key = "server_116_fallback_empty"
+            if _should_show_warning(warning_key):
+                print(f"INFO: Server 116 berhasil diakses tapi tidak mengembalikan hasil (array person kosong)", file=sys.stderr)
+            
+            # If alternative server has results, use it as primary
+            if alt_person_count > 0:
+                print(f"INFO: [ALTERNATIVE_SERVER] ✅ Berhasil menemukan {alt_person_count} hasil di server alternatif", file=sys.stderr)
+                
+                # Mark alternative server results with source
+                for person in alt_person_list:
+                    if isinstance(person, dict):
+                        person['_source'] = 'alternative_server'
+                        person['_server'] = '154.26.138.135'
+                
+                alternative_result['_alternative_server_fallback'] = True
+                alternative_result['_server_116_fallback'] = True
+                alternative_result['_server_116_empty'] = True
+                alternative_result['_server_224_unavailable'] = True
+                alternative_result['_server_116_count'] = 0
+                alternative_result['_alternative_server_count'] = alt_person_count
+                alternative_result['_total_combined_count'] = alt_person_count
+                return alternative_result
+            
+            # Return server 116 empty result (but still include alternative if it was tried)
+            server_116_result['_server_116_fallback'] = True
+            server_116_result['_server_224_unavailable'] = True
+            server_116_result['_alternative_server_results'] = alt_person_list
+            server_116_result['_alternative_server_count'] = alt_person_count
+            server_116_result['_server_116_count'] = 0
+            server_116_result['_total_combined_count'] = 0
+            if alt_person_count > 0:
+                server_116_result['_alternative_server_fallback'] = True
+            return server_116_result
+    
+    # Server 116 failed or returned None - try alternative server
         warning_key = "server_116_fallback_failed"
         if _should_show_warning(warning_key):
             print("WARNING: Server 116 mengembalikan None (gagal login atau exception)", file=sys.stderr)
-        
-        # Check if this is a connection error (likely ngrok issue)
-        is_connection_error = False
-        if "10.1.54.116" in SERVER_116_BASE:
-            is_connection_error = True
-        
-        error_message = "Server eksternal tidak dapat diakses."
-        if is_connection_error:
-            error_message += " Kemungkinan masalah: Server 116 menggunakan IP private yang tidak bisa diakses dari ngrok. "
-            error_message += "Solusi: Setup ngrok tunnel untuk server 116 dan set environment variable SERVER_116_BASE."
-        else:
-            error_message += " Silakan coba lagi nanti atau hubungi administrator."
-        
-        return {
-            "person": [], 
-            "message": error_message,
-            "_server_116_unavailable": True,
-            "_server_116_connection_error": is_connection_error,
-            "_server_116_base": SERVER_116_BASE
-        }
+    print("INFO: Mencoba server alternatif sebagai fallback...", file=sys.stderr)
     
-    # Check if we have person field (even if empty)
-    if isinstance(server_116_result, dict) and 'person' in server_116_result:
-        person_list = server_116_result.get('person', [])
-        person_count = len(person_list) if isinstance(person_list, list) else 0
+    if alternative_result is not None:
+        alt_person_list = alternative_result.get('person', []) if isinstance(alternative_result, dict) else []
+        alt_person_count = len(alt_person_list) if isinstance(alt_person_list, list) else 0
         
-        # Always return server 116 result (even if empty) to indicate server 116 was used
-        warning_key = "server_116_fallback_success" if person_count > 0 else "server_116_fallback_empty"
-        if _should_show_warning(warning_key):
-            if person_count > 0:
-                print(f"INFO: [OK] Berhasil menggunakan server 116 sebagai fallback - ditemukan {person_count} hasil", file=sys.stderr)
+        if alt_person_count > 0:
+            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Berhasil menemukan {alt_person_count} hasil di server alternatif", file=sys.stderr)
+            
+            # Mark alternative server results with source
+            for person in alt_person_list:
+                if isinstance(person, dict):
+                    person['_source'] = 'alternative_server'
+                    person['_server'] = '154.26.138.135'
+            
+            alternative_result['_alternative_server_fallback'] = True
+            alternative_result['_server_116_unavailable'] = True
+            alternative_result['_server_224_unavailable'] = True
+            alternative_result['_server_116_count'] = 0
+            alternative_result['_alternative_server_count'] = alt_person_count
+            alternative_result['_total_combined_count'] = alt_person_count
+            return alternative_result
+        elif isinstance(alternative_result, dict) and 'person' in alternative_result:
+            # Alternative server returned empty results but was accessible
+            print(f"INFO: [ALTERNATIVE_SERVER] Server alternatif berhasil diakses tapi tidak mengembalikan hasil", file=sys.stderr)
+            alternative_result['_alternative_server_fallback'] = True
+            alternative_result['_server_116_unavailable'] = True
+            alternative_result['_server_224_unavailable'] = True
+            alternative_result['_server_116_count'] = 0
+            alternative_result['_alternative_server_count'] = 0
+            alternative_result['_total_combined_count'] = 0
+            return alternative_result
+    
+    # Both servers failed
+    print("ERROR: [FALLBACK] Baik server 116 maupun server alternatif gagal", file=sys.stderr)
+    
+    # Check if this is a connection error (likely ngrok issue)
+    is_connection_error = False
+    if "10.1.54.116" in SERVER_116_BASE:
+        is_connection_error = True
+    
+    error_message = "Server eksternal tidak dapat diakses."
+    if is_connection_error:
+        error_message += " Kemungkinan masalah: Server 116 menggunakan IP private yang tidak bisa diakses dari ngrok. "
+        error_message += "Solusi: Setup ngrok tunnel untuk server 116 dan set environment variable SERVER_116_BASE."
+    else:
+        error_message += " Silakan coba lagi nanti atau hubungi administrator."
+    
+    return {
+        "person": [], 
+        "message": error_message,
+        "_server_116_unavailable": True,
+        "_alternative_server_unavailable": True,
+        "_server_116_connection_error": is_connection_error,
+        "_server_116_base": SERVER_116_BASE
+    }
+    
+def _login_alternative_server(username=None, password=None):
+    """
+    Login ke server alternatif (http://154.26.138.135/000byte/)
+    
+    Args:
+        username: Username (default: ALTERNATIVE_SERVER_USERNAME)
+        password: Password (default: ALTERNATIVE_SERVER_PASSWORD)
+    
+    Returns:
+        requests.Session object jika berhasil, None jika gagal
+    """
+    global _alternative_server_session, _alternative_server_session_time
+    
+    # Use cached session if still valid
+    current_time = time.time()
+    if (_alternative_server_session is not None and 
+        current_time - _alternative_server_session_time < _alternative_server_session_timeout):
+        print(f"INFO: [ALTERNATIVE_SERVER] Menggunakan session cache", file=sys.stderr)
+        return _alternative_server_session
+    
+    # ALWAYS use hardcoded credentials for alternative server (ignore provided username/password)
+    # Server alternatif memiliki kredensial sendiri yang berbeda dari server lain
+    use_username = ALTERNATIVE_SERVER_USERNAME  # Always use 'ferdi'
+    use_password = ALTERNATIVE_SERVER_PASSWORD  # Always use 'pafer123'
+    
+    print(f"INFO: [ALTERNATIVE_SERVER] ⚠️ PENTING: Menggunakan kredensial hardcoded untuk server alternatif: {use_username}/***", file=sys.stderr)
+    print(f"INFO: [ALTERNATIVE_SERVER] ⚠️ Kredensial dari parameter (username={username}) TIDAK digunakan untuk server alternatif", file=sys.stderr)
+    
+    try:
+        session = requests.Session()
+        
+        # Get login page first to get any CSRF token or session cookie
+        login_page = session.get(ALTERNATIVE_SERVER_LOGIN_URL, timeout=10)
+        if login_page.status_code != 200:
+            print(f"ERROR: [ALTERNATIVE_SERVER] Gagal mengakses halaman login: {login_page.status_code}", file=sys.stderr)
+            return None
+        
+        # Try to extract form fields from HTML (in case there are hidden fields)
+        login_html = login_page.text
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Login page HTML preview: {login_html[:1000]}", file=sys.stderr)
+        
+        # Look for form action URL
+        form_action_match = re.search(r'<form[^>]*action=["\']([^"\']+)["\']', login_html, re.IGNORECASE)
+        form_action = form_action_match.group(1) if form_action_match else ALTERNATIVE_SERVER_LOGIN_URL
+        if not form_action.startswith('http'):
+            # Relative URL - make it absolute
+            if form_action.startswith('/'):
+                form_action = ALTERNATIVE_SERVER_BASE.rstrip('/') + form_action
             else:
-                print(f"INFO: Server 116 berhasil diakses tapi tidak mengembalikan hasil (array person kosong)", file=sys.stderr)
+                form_action = ALTERNATIVE_SERVER_LOGIN_URL.rsplit('/', 1)[0] + '/' + form_action
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Form action: {form_action}", file=sys.stderr)
         
-        # Add flag to indicate server 116 was used (even if empty)
-        server_116_result['_server_116_fallback'] = True
-        server_116_result['_server_224_unavailable'] = True
-        return server_116_result
+        # Look for form field names in HTML
+        username_fields = []
+        password_fields = []
+        
+        # Find all input fields
+        input_pattern = r'<input[^>]*name=["\']([^"\']+)["\'][^>]*>'
+        inputs = re.findall(input_pattern, login_html, re.IGNORECASE)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Found input fields: {inputs}", file=sys.stderr)
+        
+        for field in inputs:
+            field_lower = field.lower()
+            if 'user' in field_lower or 'login' in field_lower:
+                username_fields.append(field)
+            elif 'pass' in field_lower:
+                password_fields.append(field)
+        
+        # Use found fields or defaults
+        username_field = username_fields[0] if username_fields else 'username'
+        password_field = password_fields[0] if password_fields else 'password'
+        
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Using username field: {username_field}, password field: {password_field}", file=sys.stderr)
+        
+        # Prepare login data - use the found field names
+        login_data = {
+            username_field: use_username,
+            password_field: use_password
+        }
+        
+        # Also add common variations as backup
+        if username_field != 'username':
+            login_data['username'] = use_username
+        if password_field != 'password':
+            login_data['password'] = use_password
+        
+        print(f"INFO: [ALTERNATIVE_SERVER] Mengirim request login dengan username: {use_username}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Login data fields: {list(login_data.keys())}", file=sys.stderr)
+        
+        # Perform login - use form action if found, otherwise use login URL
+        login_post_url = form_action if form_action_match else ALTERNATIVE_SERVER_LOGIN_URL
+        print(f"DEBUG: [ALTERNATIVE_SERVER] POST URL: {login_post_url}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Login data: {list(login_data.keys())}", file=sys.stderr)
+        
+        # Perform login
+        login_response = session.post(login_post_url,
+                                     data=login_data,
+                                     headers={
+                                         'Content-Type': 'application/x-www-form-urlencoded',
+                                         'Referer': ALTERNATIVE_SERVER_LOGIN_URL,
+                                         'Origin': ALTERNATIVE_SERVER_BASE.rstrip('/'),
+                                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                                     },
+                                     timeout=10,
+                                     allow_redirects=True)
+        
+        if login_response.status_code != 200:
+            print(f"ERROR: [ALTERNATIVE_SERVER] Gagal login: {login_response.status_code}", file=sys.stderr)
+            return None
+        
+        # Check if login was successful
+        # Check redirect location or response content
+        final_url = login_response.url
+        response_text = login_response.text.lower()
+        response_status = login_response.status_code
+        
+        # Check cookies - if session cookie is set, login likely succeeded
+        cookies = session.cookies.get_dict()
+        has_session_cookie = len(cookies) > 0
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Login response status: {response_status}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Login response URL: {final_url}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Cookies after login: {list(cookies.keys()) if cookies else 'None'}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Login response preview: {response_text[:500]}", file=sys.stderr)
+        
+        # Check if still on login page with form visible - indicates failure
+        is_still_on_login = (
+            'login.php' in final_url.lower() and 
+            ('username' in response_text or 'password' in response_text or 'login' in response_text)
+        )
+        
+        if is_still_on_login:
+            # Still on login page - login failed
+            print(f"ERROR: [ALTERNATIVE_SERVER] ❌ Login gagal - masih di halaman login", file=sys.stderr)
+            print(f"DEBUG: [ALTERNATIVE_SERVER] Response URL: {final_url}", file=sys.stderr)
+            print(f"DEBUG: [ALTERNATIVE_SERVER] Full response text (first 1000 chars): {login_response.text[:1000]}", file=sys.stderr)
+            
+            # Try to find error message in response
+            error_patterns = [
+                r'error["\']?\s*:?\s*([^<]+)',
+                r'gagal["\']?\s*:?\s*([^<]+)',
+                r'invalid["\']?\s*:?\s*([^<]+)',
+                r'wrong["\']?\s*:?\s*([^<]+)',
+            ]
+            for pattern in error_patterns:
+                error_match = re.search(pattern, response_text, re.IGNORECASE)
+                if error_match:
+                    print(f"DEBUG: [ALTERNATIVE_SERVER] Error message found: {error_match.group(1)}", file=sys.stderr)
+                    break
+            
+            return None
+        
+        # Check if redirected away from login page (success indicator)
+        if 'login.php' not in final_url.lower():
+            # Redirected away from login - likely successful
+            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Login berhasil - redirected ke: {final_url}", file=sys.stderr)
+        elif 'index.php' in final_url.lower() or 'dashboard' in final_url.lower() or 'home' in final_url.lower():
+            # Redirected to main page - definitely successful
+            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Login berhasil - redirected ke halaman utama: {final_url}", file=sys.stderr)
+        elif has_session_cookie:
+            # Has session cookie even if still on login.php - might be successful
+            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Login mungkin berhasil - session cookie ditemukan", file=sys.stderr)
+        else:
+            # Not sure - check for error messages
+            if 'error' in response_text or 'gagal' in response_text or 'invalid' in response_text or 'wrong' in response_text:
+                print(f"ERROR: [ALTERNATIVE_SERVER] ❌ Login gagal - error message ditemukan dalam response", file=sys.stderr)
+                print(f"DEBUG: [ALTERNATIVE_SERVER] Response preview: {response_text[:500]}", file=sys.stderr)
+                return None
+        
+        # Verify session by trying to access a protected page (search page)
+        # This ensures the session is actually valid
+        print(f"INFO: [ALTERNATIVE_SERVER] Memverifikasi session dengan mengakses halaman pencarian...", file=sys.stderr)
+        try:
+            # Try accessing search page with empty query to verify session
+            verify_url = ALTERNATIVE_SERVER_SEARCH_NAME_URL
+            verify_response = session.get(verify_url, params={'nama_lengkap': ''}, timeout=10, allow_redirects=True)
+            verify_url_final = verify_response.url
+            verify_text = verify_response.text.lower()[:200]
+            
+            # If redirected to login, session is invalid
+            if 'login.php' in verify_url_final.lower() or ('login' in verify_text and 'username' in verify_text):
+                print(f"ERROR: [ALTERNATIVE_SERVER] ❌ Session tidak valid - di-redirect ke login", file=sys.stderr)
+                return None
+            
+            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Session verified - dapat mengakses halaman pencarian", file=sys.stderr)
+        except Exception as verify_e:
+            print(f"WARNING: [ALTERNATIVE_SERVER] ⚠️ Gagal verifikasi session: {verify_e}, tapi akan lanjutkan", file=sys.stderr)
+        
+        # Save session for future use
+        _alternative_server_session = session
+        _alternative_server_session_time = current_time
+        
+        print(f"INFO: [ALTERNATIVE_SERVER] ✅ Login berhasil dan session disimpan untuk username: {use_username}", file=sys.stderr)
+        return session
+        
+    except requests.exceptions.ConnectionError as e:
+        print(f"ERROR: [ALTERNATIVE_SERVER] Tidak dapat terhubung ke server alternatif", file=sys.stderr)
+        _clear_alternative_server_session()
+        return None
+    except requests.exceptions.Timeout as e:
+        print(f"ERROR: [ALTERNATIVE_SERVER] Timeout saat mengakses server alternatif", file=sys.stderr)
+        _clear_alternative_server_session()
+        return None
+    except Exception as e:
+        print(f"ERROR: [ALTERNATIVE_SERVER] Exception saat login: {e}", file=sys.stderr)
+        _clear_alternative_server_session()
+        return None
+
+def _normalize_person_data(person_data: dict) -> dict:
+    """
+    Normalize person data from alternative server to match server 116 format
     
-    # If server 116 result doesn't have person field
-    warning_key = "server_116_fallback_no_person_field"
-    if _should_show_warning(warning_key):
-        print("WARNING: Server 116 result tidak memiliki field 'person'", file=sys.stderr)
+    Args:
+        person_data: Raw person data from alternative server
+        
+    Returns:
+        Normalized person data with consistent field names
+    """
+    normalized = {}
     
-    return {"person": [], "message": "Tidak ada hasil ditemukan di server alternatif."}
+    # Map common field variations to standard field names
+    field_mapping = {
+        # Identity fields
+        'ktp_number': ['ktp_number', 'nik', 'nomor_nik', 'no_nik'],
+        'nik': ['ktp_number', 'nik', 'nomor_nik', 'no_nik'],
+        'full_name': ['full_name', 'name', 'nama', 'nama_lengkap'],
+        'name': ['full_name', 'name', 'nama', 'nama_lengkap'],
+        'address': ['address', 'alamat', 'alamat_lengkap'],
+        'birth_place': ['birth_place', 'tempat_lahir', 'tempat_lahir'],
+        'date_of_birth': ['date_of_birth', 'tanggal_lahir', 'tgl_lahir'],
+        'occupation': ['occupation', 'pekerjaan', 'jenis_pekerjaan'],
+        'marital_status': ['marital_status', 'status_kawin', 'status_perkawinan'],
+        'family_status': ['family_status', 'status_hubungan_keluarga'],
+        'family_cert_number': ['family_cert_number', 'nomor_kk', 'no_kk', 'nkk'],
+        'father_name': ['father_name', 'nama_ayah', 'nama_lengkap_ayah'],
+        'father_nik_number': ['father_nik_number', 'nik_ayah'],
+        'mother_name': ['mother_name', 'nama_ibu', 'nama_lengkap_ibu'],
+        'mother_nik_number': ['mother_nik_number', 'nik_ibu'],
+    }
+    
+    # Extract values using field mapping
+    for standard_field, variations in field_mapping.items():
+        for variation in variations:
+            if variation in person_data and person_data[variation]:
+                normalized[standard_field] = person_data[variation]
+                break
+    
+    # Ensure required fields exist (use N/A as default)
+    if 'ktp_number' not in normalized:
+        normalized['ktp_number'] = normalized.get('nik', 'N/A')
+    if 'nik' not in normalized:
+        normalized['nik'] = normalized.get('ktp_number', 'N/A')
+    if 'full_name' not in normalized:
+        normalized['full_name'] = normalized.get('name', 'N/A')
+    if 'name' not in normalized:
+        normalized['name'] = normalized.get('full_name', 'N/A')
+    
+    # Copy any additional fields that don't need normalization
+    for key, value in person_data.items():
+        if key not in normalized and value:
+            normalized[key] = value
+    
+    return normalized
+
+def _search_alternative_server(params: dict, username=None, password=None, retry_count=0):
+    """
+    Search menggunakan server alternatif (http://154.26.138.135/000byte/)
+    
+    Args:
+        params: Search parameters (name, nik, etc.)
+        username: Username (ignored, for compatibility)
+        password: Password (ignored, for compatibility)
+        retry_count: Internal retry counter (max 1 retry)
+    
+    Returns:
+        dict dengan format {"person": [...]} atau None jika gagal
+    """
+    # Prevent infinite retry loop
+    MAX_RETRY = 1
+    if retry_count > MAX_RETRY:
+        print(f"ERROR: [ALTERNATIVE_SERVER] Max retry ({MAX_RETRY}) tercapai", file=sys.stderr)
+        return None
+    
+    session = _login_alternative_server(username, password)
+    if not session:
+        print("ERROR: [ALTERNATIVE_SERVER] Tidak dapat login ke server alternatif", file=sys.stderr)
+        return None
+    
+    try:
+        from urllib.parse import urlencode
+        
+        search_url = None
+        search_params = {}
+        
+        # Determine which endpoint to use based on params
+        if params.get('name'):
+            search_url = ALTERNATIVE_SERVER_SEARCH_NAME_URL
+            search_params['nama_lengkap'] = params['name']
+            print(f"INFO: [ALTERNATIVE_SERVER] Mencari dengan nama: {params['name']}", file=sys.stderr)
+        elif params.get('nik'):
+            search_url = ALTERNATIVE_SERVER_SEARCH_NIK_URL
+            search_params['nomor_nik'] = params['nik']
+            print(f"INFO: [ALTERNATIVE_SERVER] Mencari dengan NIK: {params['nik']}", file=sys.stderr)
+        else:
+            print("ERROR: [ALTERNATIVE_SERVER] Tidak ada parameter pencarian yang valid (name atau nik)", file=sys.stderr)
+            return None
+        
+        if not search_url:
+            print("ERROR: [ALTERNATIVE_SERVER] URL pencarian tidak ditentukan", file=sys.stderr)
+            return None
+        
+        full_url = f"{search_url}?{urlencode(search_params)}" if search_params else search_url
+        print(f"INFO: [ALTERNATIVE_SERVER] URL pencarian lengkap: {full_url}", file=sys.stderr)
+        print(f"INFO: [ALTERNATIVE_SERVER] Parameter: {search_params}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Session cookies sebelum pencarian: {list(session.cookies.get_dict().keys())}", file=sys.stderr)
+        
+        # Perform search with proper headers to maintain session
+        search_response = session.get(
+            search_url, 
+            params=search_params, 
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': ALTERNATIVE_SERVER_BASE.rstrip('/'),
+                'Accept': 'application/json, text/html, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            timeout=15, 
+            allow_redirects=True
+        )
+        
+        print(f"INFO: [ALTERNATIVE_SERVER] Response status: {search_response.status_code}", file=sys.stderr)
+        print(f"INFO: [ALTERNATIVE_SERVER] Response URL: {search_response.url}", file=sys.stderr)
+        print(f"INFO: [ALTERNATIVE_SERVER] Response Content-Type: {search_response.headers.get('Content-Type', 'N/A')}", file=sys.stderr)
+        print(f"INFO: [ALTERNATIVE_SERVER] Response length: {len(search_response.text)} chars", file=sys.stderr)
+        
+        if search_response.status_code != 200:
+            print(f"ERROR: [ALTERNATIVE_SERVER] Gagal melakukan pencarian: {search_response.status_code}", file=sys.stderr)
+            print(f"ERROR: [ALTERNATIVE_SERVER] Response text: {search_response.text[:500]}", file=sys.stderr)
+            
+            # If 401/403, likely session expired - clear and retry once
+            if search_response.status_code in [401, 403]:
+                print(f"INFO: [ALTERNATIVE_SERVER] Status {search_response.status_code} - kemungkinan session expired, akan retry", file=sys.stderr)
+                _clear_alternative_server_session()
+                return _search_alternative_server(params, username, password, retry_count + 1)
+            
+            return None
+        
+        # Check if response is actually a login page (not just HTML)
+        # Server alternatif SELALU mengembalikan HTML, jadi kita perlu cek lebih spesifik
+        content_type = search_response.headers.get('Content-Type', '').lower()
+        response_url = search_response.url.lower()
+        response_text = search_response.text.lower()
+        
+        # Check if redirected to login page
+        is_redirected_to_login = 'login.php' in response_url
+        
+        # Check if response contains login form (more specific check)
+        has_login_form = (
+            'login' in response_text[:500] and 
+            'username' in response_text[:500] and 
+            'password' in response_text[:500] and
+            'form' in response_text[:500]
+        )
+        
+        # Check if response contains search results (indicates valid session)
+        has_result_item = 'result-item' in response_text or 'cari' in response_url or 'search' in response_text[:500]
+        has_cari_nama = 'cari_nama' in response_url or 'cari_nik' in response_url
+        
+        # Debug logging
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Session check - URL: {response_url}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Is redirected to login: {is_redirected_to_login}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Has login form: {has_login_form}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Has result-item: {has_result_item}", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Has cari_nama/nik in URL: {has_cari_nama}", file=sys.stderr)
+        
+        # Only treat as login page if:
+        # 1. Redirected to login.php, OR
+        # 2. Contains login form AND does NOT contain search results AND not on search page
+        is_actually_login_page = is_redirected_to_login or (has_login_form and not has_result_item and not has_cari_nama)
+        
+        if is_actually_login_page:
+            print(f"ERROR: [ALTERNATIVE_SERVER] Response adalah login page - session expired!", file=sys.stderr)
+            print(f"DEBUG: [ALTERNATIVE_SERVER] Response URL: {response_url}", file=sys.stderr)
+            print(f"DEBUG: [ALTERNATIVE_SERVER] Has login form: {has_login_form}, Has result item: {has_result_item}, Has cari: {has_cari_nama}", file=sys.stderr)
+            _clear_alternative_server_session()
+            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Session cleared, retry dengan fresh login", file=sys.stderr)
+            return _search_alternative_server(params, username, password, retry_count + 1)
+        
+        # If response is HTML but not login page, it's normal (server alternatif always returns HTML)
+        if 'text/html' in content_type:
+            print(f"INFO: [ALTERNATIVE_SERVER] Response adalah HTML (normal untuk server alternatif), akan parse HTML", file=sys.stderr)
+        
+        # Try to parse as JSON first
+        try:
+            data = search_response.json()
+            print(f"INFO: [ALTERNATIVE_SERVER] Response berhasil di-parse sebagai JSON", file=sys.stderr)
+            
+            # Convert to standard format
+            if isinstance(data, dict):
+                # Check if it has person field
+                if 'person' in data:
+                    person_list = data['person']
+                    if isinstance(person_list, list):
+                        print(f"INFO: [ALTERNATIVE_SERVER] Ditemukan {len(person_list)} hasil", file=sys.stderr)
+                        return {"person": person_list}
+                
+                # Check if it has results field (alternative format)
+                if 'results' in data:
+                    results = data['results']
+                    if isinstance(results, list):
+                        print(f"INFO: [ALTERNATIVE_SERVER] Ditemukan {len(results)} hasil (format results)", file=sys.stderr)
+                        return {"person": results}
+                
+                # If data itself is a list, treat as person list
+                if isinstance(data, list):
+                    print(f"INFO: [ALTERNATIVE_SERVER] Response adalah list, ditemukan {len(data)} hasil", file=sys.stderr)
+                    return {"person": data}
+            
+            # If we get here, try to extract person data from HTML response
+            print(f"WARNING: [ALTERNATIVE_SERVER] Format response tidak dikenali, mencoba parse HTML", file=sys.stderr)
+            
+        except ValueError:
+            # Not JSON, try to parse HTML
+            print(f"INFO: [ALTERNATIVE_SERVER] Response bukan JSON, mencoba parse HTML", file=sys.stderr)
+        
+        # Try to parse HTML response (server alternatif mungkin mengembalikan HTML)
+        # This is a basic parser - you may need to adjust based on actual HTML structure
+        html_content = search_response.text
+        person_list = []
+        
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Response length: {len(html_content)} chars", file=sys.stderr)
+        print(f"DEBUG: [ALTERNATIVE_SERVER] Response preview (first 1000 chars): {html_content[:1000]}", file=sys.stderr)
+        
+        # Simple HTML parsing - look for table rows or JSON data in script tags
+        # Try to find JSON in script tags (more comprehensive pattern)
+        json_patterns = [
+            r'<script[^>]*>.*?(\{.*?\}).*?</script>',  # Basic JSON in script
+            r'var\s+data\s*=\s*(\{.*?\});',  # var data = {...};
+            r'const\s+data\s*=\s*(\{.*?\});',  # const data = {...};
+            r'let\s+data\s*=\s*(\{.*?\});',  # let data = {...};
+            r'data\s*:\s*(\{.*?\})',  # data: {...}
+            r'(\[.*?\])',  # Array JSON
+        ]
+        
+        for pattern in json_patterns:
+            json_match = re.search(pattern, html_content, re.DOTALL | re.IGNORECASE)
+            if json_match:
+                try:
+                    json_str = json_match.group(1)
+                    json_data = json.loads(json_str)
+                    print(f"DEBUG: [ALTERNATIVE_SERVER] Found JSON in script tag with pattern: {pattern[:30]}...", file=sys.stderr)
+                    if isinstance(json_data, list):
+                        person_list = json_data
+                        print(f"INFO: [ALTERNATIVE_SERVER] ✅ Extracted {len(person_list)} results from JSON array", file=sys.stderr)
+                        break
+                    elif isinstance(json_data, dict):
+                        if 'person' in json_data:
+                            person_list = json_data['person']
+                            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Extracted {len(person_list)} results from JSON.person", file=sys.stderr)
+                            break
+                        elif 'data' in json_data:
+                            person_list = json_data['data']
+                            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Extracted {len(person_list)} results from JSON.data", file=sys.stderr)
+                            break
+                        elif 'results' in json_data:
+                            person_list = json_data['results']
+                            print(f"INFO: [ALTERNATIVE_SERVER] ✅ Extracted {len(person_list)} results from JSON.results", file=sys.stderr)
+                            break
+                except Exception as e:
+                    print(f"DEBUG: [ALTERNATIVE_SERVER] Failed to parse JSON from script: {e}", file=sys.stderr)
+                    continue
+        
+        # If no JSON found, try to extract from HTML result-item divs (format server alternatif)
+        if not person_list:
+            print(f"INFO: [ALTERNATIVE_SERVER] Mencoba parse HTML result-item divs...", file=sys.stderr)
+            
+            # Look for result-item divs (format: <div class="result-item">...)
+            result_item_pattern = r'<div[^>]*class=["\']result-item["\'][^>]*>(.*?)</div>'
+            result_items = re.findall(result_item_pattern, html_content, re.DOTALL | re.IGNORECASE)
+            
+            if result_items:
+                print(f"INFO: [ALTERNATIVE_SERVER] Ditemukan {len(result_items)} result-item divs", file=sys.stderr)
+                
+                for item_html in result_items:
+                    person_data = {}
+                    
+                    # Extract data using pattern: <strong>LABEL:</strong> VALUE<br>
+                    # Map labels to person_data fields
+                    label_mapping = {
+                        'nama lengkap': 'full_name',
+                        'nomor nik': 'ktp_number',
+                        'nomor kk': 'family_cert_number',
+                        'alamat lengkap': 'address',
+                        'tempat lahir': 'birth_place',
+                        'tanggal lahir': 'date_of_birth',
+                        'jenis pekerjaan': 'occupation',
+                        'status kawin': 'marital_status',
+                        'status hubungan keluarga': 'family_status',
+                        'nama lengkap ayah': 'father_name',
+                        'nik ayah': 'father_nik_number',
+                        'nama lengkap ibu': 'mother_name',
+                        'nik ibu': 'mother_nik_number',
+                    }
+                    
+                    # Pattern: <strong>LABEL:</strong> VALUE<br> or <strong>LABEL:</strong> VALUE
+                    # Improved pattern to handle values that may contain HTML tags
+                    field_pattern = r'<strong[^>]*>([^<]+?):</strong>\s*(.*?)(?:<br\s*/?>|</strong>|</div>|$)'
+                    fields = re.findall(field_pattern, item_html, re.IGNORECASE | re.DOTALL)
+                    
+                    for label, value in fields:
+                        label_clean = label.strip().lower()
+                        value_clean = re.sub(r'<[^>]+>', '', value).strip()  # Remove any remaining HTML tags
+                        
+                        # Map label to field name
+                        field_name = label_mapping.get(label_clean)
+                        if field_name:
+                            person_data[field_name] = value_clean
+                        else:
+                            # Store with original label as key (lowercase, spaces to underscores)
+                            alt_field = label_clean.replace(' ', '_')
+                            person_data[alt_field] = value_clean
+                    
+                    # Ensure required fields exist
+                    if 'ktp_number' in person_data:
+                        person_data['nik'] = person_data['ktp_number']
+                    if 'full_name' in person_data:
+                        person_data['name'] = person_data['full_name']
+                    
+                    # Only add if we have at least NIK or name
+                    if person_data.get('ktp_number') or person_data.get('full_name'):
+                        # Normalize data format to match server 116 format
+                        normalized_data = _normalize_person_data(person_data)
+                        person_list.append(normalized_data)
+                        print(f"INFO: [ALTERNATIVE_SERVER] ✅ Extracted from result-item: {normalized_data.get('full_name', 'N/A')} - NIK: {normalized_data.get('ktp_number', 'N/A')}", file=sys.stderr)
+            
+            # If still no data, try to extract from HTML table
+            if not person_list:
+                print(f"INFO: [ALTERNATIVE_SERVER] Mencoba parse HTML table...", file=sys.stderr)
+                
+                # Try to find table with data
+                # Look for table rows (tr) that contain data
+                table_pattern = r'<table[^>]*>(.*?)</table>'
+                table_match = re.search(table_pattern, html_content, re.DOTALL | re.IGNORECASE)
+                
+                if table_match:
+                    table_content = table_match.group(1)
+                    # Find all table rows
+                    row_pattern = r'<tr[^>]*>(.*?)</tr>'
+                    rows = re.findall(row_pattern, table_content, re.DOTALL | re.IGNORECASE)
+                    
+                    print(f"INFO: [ALTERNATIVE_SERVER] Ditemukan {len(rows)} baris dalam tabel", file=sys.stderr)
+                    
+                    # Skip header row (first row usually contains headers)
+                    for i, row in enumerate(rows[1:] if len(rows) > 1 else rows):
+                        # Extract table cells (td)
+                        cell_pattern = r'<td[^>]*>(.*?)</td>'
+                        cells = re.findall(cell_pattern, row, re.DOTALL | re.IGNORECASE)
+                        
+                        if len(cells) >= 2:  # At least 2 cells (name and NIK)
+                            # Clean HTML tags from cells
+                            def clean_html(text):
+                                # Remove HTML tags
+                                text = re.sub(r'<[^>]+>', '', text)
+                                # Clean whitespace
+                                text = ' '.join(text.split())
+                                return text.strip()
+                            
+                            # Try to extract person data from cells
+                            # Common structure: [NIK, Name, Address, etc.]
+                            person_data = {}
+                            
+                            # Try to identify NIK (usually 16 digits or first cell)
+                            for cell in cells:
+                                cell_text = clean_html(cell)
+                                # Check if it looks like NIK (16 digits)
+                                if re.match(r'^\d{16}$', cell_text):
+                                    person_data['ktp_number'] = cell_text
+                                    person_data['nik'] = cell_text
+                                # Check if it looks like a name (has letters and spaces)
+                                elif re.match(r'^[A-Za-z\s]+$', cell_text) and len(cell_text) > 3:
+                                    if 'full_name' not in person_data and 'name' not in person_data:
+                                        person_data['full_name'] = cell_text
+                                        person_data['name'] = cell_text
+                                # Check if it looks like address
+                                elif 'alamat' in cell_text.lower() or 'address' in cell_text.lower() or len(cell_text) > 20:
+                                    person_data['address'] = cell_text
+                                    person_data['alamat'] = cell_text
+                            
+                            # If we found at least NIK or name, add to list
+                            if person_data.get('ktp_number') or person_data.get('full_name'):
+                                # Normalize data format to match server 116 format
+                                normalized_data = _normalize_person_data(person_data)
+                                person_list.append(normalized_data)
+                                print(f"INFO: [ALTERNATIVE_SERVER] ✅ Extracted person: {normalized_data.get('full_name', 'N/A')} - NIK: {normalized_data.get('ktp_number', 'N/A')}", file=sys.stderr)
+            
+            # If still no data, try to find any data in divs or other structures
+            if not person_list:
+                # Look for common data patterns in HTML
+                # Try to find NIK pattern (16 digits)
+                nik_pattern = r'\b\d{16}\b'
+                niks = re.findall(nik_pattern, html_content)
+                
+                # Try to find names (capitalized words)
+                name_pattern = r'<[^>]*>([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)</[^>]*>'
+                names = re.findall(name_pattern, html_content)
+                
+                if niks and names:
+                    # Match NIKs with names (simple pairing)
+                    for i, nik in enumerate(niks[:len(names)]):
+                        if i < len(names):
+                            person_data = {
+                                'ktp_number': nik,
+                                'nik': nik,
+                                'full_name': names[i],
+                                'name': names[i]
+                            }
+                            # Normalize data format to match server 116 format
+                            normalized_data = _normalize_person_data(person_data)
+                            person_list.append(normalized_data)
+                            print(f"INFO: [ALTERNATIVE_SERVER] Extracted from patterns: {normalized_data.get('full_name', 'N/A')} - NIK: {normalized_data.get('ktp_number', 'N/A')}", file=sys.stderr)
+        
+        # If still no data found, log the response for debugging
+        if not person_list:
+            print(f"WARNING: [ALTERNATIVE_SERVER] Tidak dapat parse HTML response, mengembalikan empty result", file=sys.stderr)
+            print(f"DEBUG: [ALTERNATIVE_SERVER] Response preview (first 1000 chars): {html_content[:1000]}", file=sys.stderr)
+            print(f"DEBUG: [ALTERNATIVE_SERVER] Response length: {len(html_content)} chars", file=sys.stderr)
+            # Save full response to file for debugging (optional)
+            try:
+                import os
+                debug_dir = os.path.join(os.path.dirname(__file__), 'debug')
+                os.makedirs(debug_dir, exist_ok=True)
+                debug_file = os.path.join(debug_dir, f'alternative_server_response_{int(time.time())}.html')
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                print(f"DEBUG: [ALTERNATIVE_SERVER] Full response saved to: {debug_file}", file=sys.stderr)
+            except Exception as e:
+                print(f"DEBUG: [ALTERNATIVE_SERVER] Could not save debug file: {e}", file=sys.stderr)
+            
+            return {"person": []}
+        
+        print(f"INFO: [ALTERNATIVE_SERVER] ✅ Berhasil extract {len(person_list)} hasil dari HTML", file=sys.stderr)
+        return {"person": person_list}
+        
+    except Exception as e:
+        print(f"WARNING: [ALTERNATIVE_SERVER] Exception saat pencarian: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return None
 
 # ---- face utilities (face_recognition) ----
 def load_image_file_to_encoding(path: Path):

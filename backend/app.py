@@ -5896,6 +5896,12 @@ def perform_regular_search(token, params, data, user_data):
         using_server_116 = j.get('_server_116_fallback', False)
         server_224_unavailable = j.get('_server_224_unavailable', False)
         
+        # Check if alternative server results are available
+        alternative_server_results = j.get('_alternative_server_results', [])
+        alternative_server_count = j.get('_alternative_server_count', 0)
+        has_comparison_data = j.get('_has_comparison_data', False)
+        using_alternative_server = j.get('_alternative_server_fallback', False)
+        
         if using_server_116:
             print(f"DEBUG: perform_regular_search - Server 116 digunakan sebagai fallback", file=sys.stderr)
         
@@ -6063,6 +6069,21 @@ def perform_regular_search(token, params, data, user_data):
             response_data['_server_116_fallback'] = True
             response_data['_server_224_unavailable'] = True
             print(f"DEBUG: perform_regular_search - Mengirim flag fallback dengan {len(results)} hasil", file=sys.stderr)
+        
+        # Add alternative server results if available
+        if alternative_server_results and len(alternative_server_results) > 0:
+            print(f"DEBUG: perform_regular_search - Menambahkan {len(alternative_server_results)} hasil dari server alternatif", file=sys.stderr)
+            response_data['_alternative_server_results'] = alternative_server_results
+            response_data['_alternative_server_count'] = alternative_server_count
+            response_data['_alternative_server_fallback'] = using_alternative_server
+            if has_comparison_data:
+                response_data['_has_comparison_data'] = True
+        elif using_alternative_server:
+            # Alternative server was used but returned empty results
+            print(f"DEBUG: perform_regular_search - Server alternatif digunakan tapi tidak mengembalikan hasil", file=sys.stderr)
+            response_data['_alternative_server_results'] = []
+            response_data['_alternative_server_count'] = 0
+            response_data['_alternative_server_fallback'] = True
         
         return jsonify(response_data)
         

@@ -6303,8 +6303,31 @@
                 const server116Unavailable = result._server_116_unavailable || false;
                 const server116ConnectionError = result._server_116_connection_error || false;
                 const server116Base = result._server_116_base || 'http://10.1.54.116';
+                
+                // Check if server alternatif (154.26.138.135) was used
+                const usingServerAlt = result._alternative_server_fallback || false;
+                const alternativeServerResults = result._alternative_server_results || [];
+                const alternativeServerCount = result._alternative_server_count || 0;
+                const hasComparisonData = result._has_comparison_data || false;
+                
+                // Debug logging
+                console.log('Alternative server data:', {
+                    usingServerAlt,
+                    alternativeServerResults: alternativeServerResults.length,
+                    alternativeServerCount,
+                    hasComparisonData,
+                    resultKeys: Object.keys(result)
+                });
 
-                console.log('Server status:', { usingServer116, server224Unavailable, server116Unavailable, server116ConnectionError });
+                console.log('Server status:', { 
+                    usingServer116, 
+                    server224Unavailable, 
+                    server116Unavailable, 
+                    server116ConnectionError,
+                    usingServerAlt,
+                    alternativeServerCount,
+                    hasComparisonData
+                });
 
                 // PENTING: Tampilkan error jika server 116 tidak bisa diakses (ngrok issue)
                 if (server116Unavailable && server116ConnectionError) {
@@ -6350,19 +6373,52 @@
                     return; // Stop here, don't show other messages
                 }
 
-                // PENTING: Tampilkan notifikasi server 116 fallback SELALU jika digunakan, bahkan jika hasil kosong
-                if (usingServer116 || server224Unavailable) {
+                // PENTING: Tampilkan notifikasi server fallback SELALU jika digunakan, bahkan jika hasil kosong
+                if (usingServer116 || server224Unavailable || usingServerAlt) {
                     const fallbackNotice = document.createElement('div');
                     fallbackNotice.className = 'result-card';
                     fallbackNotice.style.cssText = 'background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 15px; margin-bottom: 20px;';
+                    
+                    // Build server info message
+                    let serverInfo = '';
+                    const serversUsed = [];
+                    
+                    if (usingServer116) {
+                        serversUsed.push('Server 116');
+                    }
+                    if (usingServerAlt) {
+                        serversUsed.push('Server Alternatif (154.26.138.135)');
+                    }
+                    
+                    if (serversUsed.length > 0) {
+                        if (server224Unavailable) {
+                            serverInfo = `Server utama (224) tidak tersedia. Data ditampilkan dari ${serversUsed.join(' dan ')}.`;
+                        } else {
+                            serverInfo = `Data ditampilkan dari ${serversUsed.join(' dan ')}.`;
+                        }
+                        
+                        if (hasComparisonData && alternativeServerCount > 0) {
+                            serverInfo += `<br><small style="color: #059669; font-weight: 500;"><i class="fas fa-check-circle"></i> Server Alternatif menemukan ${alternativeServerCount} hasil tambahan untuk perbandingan.</small>`;
+                        }
+                    } else {
+                        serverInfo = 'Server utama (224) tidak tersedia.';
+                    }
+                    
+                    if ((!result.results || result.results.length === 0) && alternativeServerCount === 0) {
+                        serverInfo += '<br><small style="color: #64748b;">Tidak ada hasil ditemukan di server alternatif untuk parameter pencarian ini.</small>';
+                    }
+                    
                     fallbackNotice.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <i class="fas fa-info-circle" style="font-size: 1.5rem; color: #3b82f6;"></i>
                             <div style="flex: 1;">
-                                <strong style="color: #1e40af;">Menggunakan Server Alternatif (116)</strong>
+                                <strong style="color: #1e40af;">
+                                    ${usingServerAlt && usingServer116 ? 'Menggunakan Server Alternatif (116 & 154.26.138.135)' : 
+                                      usingServerAlt ? 'Menggunakan Server Alternatif (154.26.138.135)' : 
+                                      'Menggunakan Server Alternatif (116)'}
+                                </strong>
                                 <p style="color: #1e3a8a; margin: 5px 0 0 0; font-size: 0.9rem;">
-                                    Server utama (224) tidak tersedia. Data ditampilkan dari server alternatif (116).
-                                    ${(!result.results || result.results.length === 0) ? '<br><small style="color: #64748b;">Tidak ada hasil ditemukan di server alternatif untuk parameter pencarian ini.</small>' : ''}
+                                    ${serverInfo}
                                 </p>
                             </div>
                         </div>
@@ -6390,46 +6446,202 @@
                     resultsContent.appendChild(fallbackDiv);
                 } else if (result.results && result.results.length > 0) {
                     console.log('Creating results grid with', result.results.length, 'items');
-                    // Create grid container
-                    const gridContainer = document.createElement('div');
-                    gridContainer.className = 'results-grid';
                     
-                    result.results.forEach((item, index) => {
-                        console.log('Processing item', index, ':', item);
-                        const person = item.person;
-                        console.log('Person data:', person);
-                        const resultCard = this.createResultCard(person, index, result.results.length);
-                        gridContainer.appendChild(resultCard);
-                    });
+                    // Create tabs for comparison if we have alternative server results
+                    if (hasComparisonData && alternativeServerCount > 0 && alternativeServerResults.length > 0) {
+                        const tabsContainer = document.createElement('div');
+                        tabsContainer.style.cssText = 'margin-bottom: 20px; border-bottom: 2px solid #e5e7eb;';
+                        
+                        const tabsWrapper = document.createElement('div');
+                        tabsWrapper.style.cssText = 'display: flex; gap: 10px;';
+                        
+                        // Tab 1: Server 116/224 Results
+                        const tab1 = document.createElement('button');
+                        tab1.className = 'server-tab active';
+                        tab1.style.cssText = 'padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 500;';
+                        tab1.textContent = `Server Utama (${result.results.length} hasil)`;
+                        tab1.onclick = () => {
+                            // Switch to main results
+                            document.querySelectorAll('.server-results-section').forEach(s => s.style.display = 'none');
+                            document.getElementById('mainServerResults').style.display = 'block';
+                            document.querySelectorAll('.server-tab').forEach(t => {
+                                t.classList.remove('active');
+                                t.style.background = '#e5e7eb';
+                                t.style.color = '#6b7280';
+                            });
+                            tab1.classList.add('active');
+                            tab1.style.background = '#3b82f6';
+                            tab1.style.color = 'white';
+                        };
+                        
+                        // Tab 2: Alternative Server Results
+                        const tab2 = document.createElement('button');
+                        tab2.className = 'server-tab';
+                        tab2.style.cssText = 'padding: 10px 20px; background: #e5e7eb; color: #6b7280; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 500;';
+                        tab2.textContent = `Server Alternatif (${alternativeServerCount} hasil)`;
+                        tab2.onclick = () => {
+                            // Switch to alternative results
+                            document.querySelectorAll('.server-results-section').forEach(s => s.style.display = 'none');
+                            document.getElementById('alternativeServerResults').style.display = 'block';
+                            document.querySelectorAll('.server-tab').forEach(t => {
+                                t.classList.remove('active');
+                                t.style.background = '#e5e7eb';
+                                t.style.color = '#6b7280';
+                            });
+                            tab2.classList.add('active');
+                            tab2.style.background = '#10b981';
+                            tab2.style.color = 'white';
+                        };
+                        
+                        tabsWrapper.appendChild(tab1);
+                        tabsWrapper.appendChild(tab2);
+                        tabsContainer.appendChild(tabsWrapper);
+                        resultsContent.appendChild(tabsContainer);
+                        
+                        // Main server results section
+                        const mainResultsSection = document.createElement('div');
+                        mainResultsSection.id = 'mainServerResults';
+                        mainResultsSection.className = 'server-results-section';
+                        const mainGridContainer = document.createElement('div');
+                        mainGridContainer.className = 'results-grid';
+                        
+                        result.results.forEach((item, index) => {
+                            const person = item.person || item;
+                            const resultCard = this.createResultCard(person, index, result.results.length, 'main');
+                            mainGridContainer.appendChild(resultCard);
+                        });
+                        
+                        mainResultsSection.appendChild(mainGridContainer);
+                        resultsContent.appendChild(mainResultsSection);
+                        
+                        // Alternative server results section
+                        const altResultsSection = document.createElement('div');
+                        altResultsSection.id = 'alternativeServerResults';
+                        altResultsSection.className = 'server-results-section';
+                        altResultsSection.style.display = 'none';
+                        const altGridContainer = document.createElement('div');
+                        altGridContainer.className = 'results-grid';
+                        
+                        alternativeServerResults.forEach((person, index) => {
+                            const resultCard = this.createResultCard(person, index, alternativeServerCount, 'alternative');
+                            altGridContainer.appendChild(resultCard);
+                        });
+                        
+                        altResultsSection.appendChild(altGridContainer);
+                        resultsContent.appendChild(altResultsSection);
+                    } else {
+                        // No comparison data - show normal results
+                        const gridContainer = document.createElement('div');
+                        gridContainer.className = 'results-grid';
+                        
+                        result.results.forEach((item, index) => {
+                            const person = item.person || item;
+                            const resultCard = this.createResultCard(person, index, result.results.length);
+                            gridContainer.appendChild(resultCard);
+                        });
+                        
+                        resultsContent.appendChild(gridContainer);
+                    }
                     
-                    resultsContent.appendChild(gridContainer);
                     console.log('Results grid created and appended');
-                } else if (!usingServer116 && !server224Unavailable) {
-                    // Only show "no results" message if NOT using server 116 fallback
-                    console.log('No results found, showing empty message');
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'result-card';
-                    messageDiv.innerHTML = `
-                        <div style="text-align: center; padding: 20px;">
-                            <i class="fas fa-search" style="font-size: 3rem; color: #9ca3af; margin-bottom: 15px;"></i>
-                            <h3 style="color: #6b7280; margin-bottom: 10px;">Tidak Ada Hasil Ditemukan</h3>
-                            <p style="color: #9ca3af;">Coba sesuaikan kriteria pencarian Anda</p>
-                        </div>
-                    `;
-                    resultsContent.appendChild(messageDiv);
+                } else if ((!result.results || result.results.length === 0)) {
+                    // Check if we have alternative server results even if main server has no results
+                    // OR if alternative server is the primary source (usingServerAlt is true and we have results)
+                    if ((alternativeServerResults && alternativeServerResults.length > 0) || 
+                        (usingServerAlt && result.results && result.results.length > 0)) {
+                        console.log('No main results but have alternative server results OR alternative is primary');
+                        
+                        // Determine which results to show
+                        let resultsToShow = [];
+                        let resultsCount = 0;
+                        let isAlternativePrimary = false;
+                        
+                        if (usingServerAlt && result.results && result.results.length > 0) {
+                            // Alternative server is primary source
+                            resultsToShow = result.results.map(item => item.person || item);
+                            resultsCount = result.results.length;
+                            isAlternativePrimary = true;
+                        } else if (alternativeServerResults && alternativeServerResults.length > 0) {
+                            // Alternative server results from comparison data
+                            resultsToShow = alternativeServerResults;
+                            resultsCount = alternativeServerCount;
+                        }
+                        
+                        if (resultsToShow.length > 0) {
+                            // Show alternative server results notice
+                            const altNotice = document.createElement('div');
+                            altNotice.className = 'result-card';
+                            altNotice.style.cssText = 'background: #ecfdf5; border: 2px solid #10b981; border-radius: 8px; padding: 15px; margin-bottom: 20px;';
+                            altNotice.innerHTML = `
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-check-circle" style="font-size: 1.5rem; color: #10b981;"></i>
+                                    <div style="flex: 1;">
+                                        <strong style="color: #059669;">
+                                            Ditemukan ${resultsCount} hasil dari Server Alternatif
+                                        </strong>
+                                        <p style="color: #047857; margin: 5px 0 0 0; font-size: 0.9rem;">
+                                            ${isAlternativePrimary 
+                                                ? 'Server utama tidak mengembalikan hasil, tetapi server alternatif menemukan data.' 
+                                                : 'Server utama tidak mengembalikan hasil, tetapi server alternatif menemukan data.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            `;
+                            resultsContent.appendChild(altNotice);
+                            
+                            // Create grid for alternative server results
+                            const gridContainer = document.createElement('div');
+                            gridContainer.className = 'results-grid';
+                            
+                            resultsToShow.forEach((person, index) => {
+                                const resultCard = this.createResultCard(person, index, resultsCount, 'alternative');
+                                gridContainer.appendChild(resultCard);
+                            });
+                            
+                            resultsContent.appendChild(gridContainer);
+                        }
+                    } else if (!usingServer116 && !server224Unavailable && !usingServerAlt) {
+                        // Only show "no results" message if NOT using any fallback server
+                        console.log('No results found, showing empty message');
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'result-card';
+                        messageDiv.innerHTML = `
+                            <div style="text-align: center; padding: 20px;">
+                                <i class="fas fa-search" style="font-size: 3rem; color: #9ca3af; margin-bottom: 15px;"></i>
+                                <h3 style="color: #6b7280; margin-bottom: 10px;">Tidak Ada Hasil Ditemukan</h3>
+                                <p style="color: #9ca3af;">Coba sesuaikan kriteria pencarian Anda</p>
+                            </div>
+                        `;
+                        resultsContent.appendChild(messageDiv);
+                    }
                 }
 
                 this.showResults();
             }
 
-            createResultCard(person, index, totalResults) {
+            createResultCard(person, index, totalResults, serverType = 'main') {
                 const card = document.createElement('div');
                 card.className = 'result-card';
+                
+                // Add server type indicator
+                if (serverType === 'alternative') {
+                    card.style.borderLeft = '4px solid #10b981';
+                    card.style.position = 'relative';
+                } else if (serverType === 'main') {
+                    card.style.borderLeft = '4px solid #3b82f6';
+                }
                 
                 const fullName = person.full_name || person.name || 'Unknown';
                 const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
                 
+                const serverBadge = serverType === 'alternative' 
+                    ? '<div style="position: absolute; top: 10px; right: 10px; background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-server"></i> Server Alternatif</div>'
+                    : serverType === 'main' 
+                    ? '<div style="position: absolute; top: 10px; right: 10px; background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-server"></i> Server Utama</div>'
+                    : '';
+                
                 card.innerHTML = `
+                    ${serverBadge}
                     ${index === 0 ? `<div class="data-count">${totalResults} data</div>` : ''}
                     <div class="result-header">
                         <div class="result-avatar">
