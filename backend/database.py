@@ -75,14 +75,39 @@ class UserDatabase:
     
     def init_database(self):
         """Initialize the database with required tables"""
-        # Use a separate connection for initialization
+        db_name = os.getenv('DB_NAME', 'clearance_facesearch')
+        
+        # First, try to connect without database to create it if needed
+        try:
+            temp_conn = mysql.connector.connect(
+                host=os.getenv('DB_HOST', 'localhost'),
+                port=int(os.getenv('DB_PORT', 3306)),
+                user=os.getenv('DB_USER', 'root'),
+                password=os.getenv('DB_PASSWORD', ''),
+                charset='utf8mb4',
+                collation='utf8mb4_unicode_ci',
+                autocommit=True,
+                connect_timeout=30
+            )
+            if temp_conn:
+                temp_cursor = temp_conn.cursor()
+                # Create database if not exists
+                temp_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+                temp_cursor.close()
+                temp_conn.close()
+                print(f"✅ Database '{db_name}' ready")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not create database automatically: {e}")
+            print(f"   Please create database '{db_name}' manually if it doesn't exist")
+        
+        # Now connect to the database
         try:
             self._init_connection = mysql.connector.connect(
                 host=os.getenv('DB_HOST', 'localhost'),
                 port=int(os.getenv('DB_PORT', 3306)),
                 user=os.getenv('DB_USER', 'root'),
                 password=os.getenv('DB_PASSWORD', ''),
-                database=os.getenv('DB_NAME', 'clearance_facesearch'),
+                database=db_name,
                 charset='utf8mb4',
                 collation='utf8mb4_unicode_ci',
                 autocommit=True,
@@ -90,11 +115,15 @@ class UserDatabase:
             )
             conn = self._init_connection
         except Exception as e:
-            print(f"Failed to connect to MySQL database for initialization: {e}")
+            print(f"❌ Failed to connect to MySQL database '{db_name}' for initialization: {e}")
+            print(f"   Please ensure:")
+            print(f"   1. MySQL server is running")
+            print(f"   2. Database '{db_name}' exists (or create it manually)")
+            print(f"   3. User '{os.getenv('DB_USER', 'root')}' has proper permissions")
             return
         
         if not conn:
-            print("Failed to connect to MySQL database")
+            print(f"❌ Failed to connect to MySQL database '{db_name}'")
             return
         
         cursor = conn.cursor()
@@ -298,6 +327,25 @@ class UserDatabase:
                     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ''')
+            
+            # Telegram users whitelist table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS telegram_users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    telegram_id BIGINT UNIQUE NOT NULL,
+                    username VARCHAR(100),
+                    first_name VARCHAR(100),
+                    last_name VARCHAR(100),
+                    is_allowed BOOLEAN DEFAULT FALSE,
+                    added_by BIGINT,
+                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_used TIMESTAMP NULL,
+                    notes TEXT,
+                    INDEX idx_telegram_id (telegram_id),
+                    INDEX idx_is_allowed (is_allowed)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ''')
+            print("✅ Table 'telegram_users' ready")
             
             # Cek plat data table
             cursor.execute('''
@@ -2011,6 +2059,176 @@ class UserDatabase:
             return True
         except Error as e:
             print(f"Error logging export audit: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    # Telegram User Management Methods
+    def is_telegram_user_allowed(self, telegram_id: int) -> bool:
+        """Check if telegram user is allowed to use the bot"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('''
+                SELECT is_allowed FROM telegram_users 
+                WHERE telegram_id = %s
+            ''', (telegram_id,))
+            
+            result = cursor.fetchone()
+            return result['is_allowed'] if result else False
+        except Error as e:
+            print(f"Error checking telegram user allowed: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def add_telegram_user(self, telegram_id: int, username: str = None, 
+                         first_name: str = None, last_name: str = None, 
+                         is_allowed: bool = False, added_by: int = None, 
+                         notes: str = None) -> bool:
+        """Add or update telegram user"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO telegram_users 
+                (telegram_id, username, first_name, last_name, is_allowed, added_by, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    username = COALESCE(VALUES(username), username),
+                    first_name = COALESCE(VALUES(first_name), first_name),
+                    last_name = COALESCE(VALUES(last_name), last_name),
+                    is_allowed = VALUES(is_allowed),
+                    added_by = COALESCE(VALUES(added_by), added_by),
+                    notes = COALESCE(VALUES(notes), notes)
+            ''', (telegram_id, username, first_name, last_name, is_allowed, added_by, notes))
+            
+            return True
+        except Error as e:
+            print(f"Error adding telegram user: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def get_telegram_user(self, telegram_id: int) -> Optional[Dict]:
+        """Get telegram user by ID"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return None
+            
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('''
+                SELECT * FROM telegram_users 
+                WHERE telegram_id = %s
+            ''', (telegram_id,))
+            
+            return cursor.fetchone()
+        except Error as e:
+            print(f"Error getting telegram user: {e}")
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def remove_telegram_user(self, telegram_id: int) -> bool:
+        """Remove telegram user from whitelist (set is_allowed = False)"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE telegram_users 
+                SET is_allowed = FALSE 
+                WHERE telegram_id = %s
+            ''', (telegram_id,))
+            
+            return cursor.rowcount > 0
+        except Error as e:
+            print(f"Error removing telegram user: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def get_all_telegram_users(self, only_allowed: bool = False) -> List[Dict]:
+        """Get all telegram users"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor(dictionary=True)
+            if only_allowed:
+                cursor.execute('''
+                    SELECT * FROM telegram_users 
+                    WHERE is_allowed = TRUE
+                    ORDER BY last_used DESC, added_at DESC
+                ''')
+            else:
+                cursor.execute('''
+                    SELECT * FROM telegram_users 
+                    ORDER BY last_used DESC, added_at DESC
+                ''')
+            
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error getting all telegram users: {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def get_pending_telegram_users(self) -> List[Dict]:
+        """Get pending telegram users (not allowed yet)"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('''
+                SELECT * FROM telegram_users 
+                WHERE is_allowed = FALSE
+                ORDER BY added_at DESC
+            ''')
+            
+            return cursor.fetchall()
+        except Error as e:
+            print(f"Error getting pending telegram users: {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+    
+    def update_telegram_user_last_used(self, telegram_id: int) -> bool:
+        """Update last_used timestamp for telegram user"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE telegram_users 
+                SET last_used = NOW() 
+                WHERE telegram_id = %s
+            ''', (telegram_id,))
+            
+            return True
+        except Error as e:
+            print(f"Error updating telegram user last used: {e}")
             return False
         finally:
             if cursor:
