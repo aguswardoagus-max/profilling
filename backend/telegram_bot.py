@@ -1801,10 +1801,11 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
             print(f"[TELEGRAM_BOT] 🌐 Trying local Flask API: {local_api_url}", file=sys.stderr)
             print(f"[TELEGRAM_BOT] 📱 Phone number to search: {phone_number}", file=sys.stderr)
             
+            # Increase timeout untuk database besar (30 juta record mungkin membutuhkan waktu lebih lama)
             response = requests.get(
                 local_api_url,
                 params={'phone': phone_number},
-                timeout=30
+                timeout=60  # 60 detik untuk query database besar
             )
             
             logger.info(f"Local Flask API response status: {response.status_code}")
@@ -2007,10 +2008,21 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
         )
 
 
+def escape_markdown_v2(text):
+    """Escape special characters for Telegram MarkdownV2"""
+    if not text:
+        return ""
+    text = str(text)
+    # Escape karakter khusus untuk Markdown
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
 def format_phone_data_item(item):
     """Format a single phone data item for display"""
     if not isinstance(item, dict):
-        return f"📄 {str(item)}\n"
+        return f"📄 {escape_markdown_v2(str(item))}\n"
     
     message = ""
     
@@ -2067,7 +2079,9 @@ def format_phone_data_item(item):
             value = item.get(key) or item.get(key.upper()) or item.get(key.lower())
             if value and str(value).strip() and str(value) != 'None' and str(value) != '':
                 emoji, label = field_mappings[key]
-                message += f"{emoji} *{label}:* {value}\n"
+                # Escape nilai untuk menghindari error parsing entities
+                escaped_value = escape_markdown_v2(value)
+                message += f"{emoji} *{label}:* {escaped_value}\n"
                 displayed_keys.add(key.lower())
     
     # Tampilkan kolom lain yang belum ditampilkan
@@ -2075,7 +2089,9 @@ def format_phone_data_item(item):
         if key.lower() not in displayed_keys:
             value = item.get(key) or item.get(key.upper()) or item.get(key.lower())
             if value and str(value).strip() and str(value) != 'None' and str(value) != '':
-                message += f"{emoji} *{label}:* {value}\n"
+                # Escape nilai untuk menghindari error parsing entities
+                escaped_value = escape_markdown_v2(value)
+                message += f"{emoji} *{label}:* {escaped_value}\n"
                 displayed_keys.add(key.lower())
     
     # Display any remaining fields yang belum ditampilkan
@@ -2112,7 +2128,9 @@ def format_phone_data_item(item):
                 
                 # Format key name untuk display
                 display_key = key.replace('_', ' ').title()
-                message += f"{emoji} *{display_key}:* {value}\n"
+                # Escape nilai untuk menghindari error parsing entities
+                escaped_value = escape_markdown_v2(value)
+                message += f"{emoji} *{display_key}:* {escaped_value}\n"
     
     if not message:
         message = "📄 *Data tidak tersedia*\n"
@@ -2415,11 +2433,17 @@ async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYP
             last_name = user.get('last_name') or ''
             last_used = user.get('last_used')
             
-            message += f"{idx}. 👤 *{first_name} {last_name}*\n"
+            # Escape semua nilai untuk menghindari error parsing entities
+            escaped_first_name = escape_markdown_v2(first_name)
+            escaped_last_name = escape_markdown_v2(last_name)
+            escaped_username = escape_markdown_v2(username)
+            escaped_last_used = escape_markdown_v2(str(last_used)) if last_used else None
+            
+            message += f"{idx}. 👤 *{escaped_first_name} {escaped_last_name}*\n"
             message += f"   🆔 ID: `{user_id_str}`\n"
-            message += f"   📝 @{username}\n"
-            if last_used:
-                message += f"   🕐 Terakhir: {last_used}\n"
+            message += f"   📝 @{escaped_username}\n"
+            if escaped_last_used:
+                message += f"   🕐 Terakhir: {escaped_last_used}\n"
             message += "\n"
         
         if len(users) > 20:

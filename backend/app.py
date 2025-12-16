@@ -4851,45 +4851,78 @@ def api_phone_search():
         seen_ids = set()
         
         try:
-            # Try querying with different column names and phone variants
+            # Optimasi query untuk database besar (30 juta record)
+            # Gunakan query yang lebih efisien dengan exact match terlebih dahulu, lalu LIKE jika perlu
             # PRIORITAS: Kolom 'hp' di tabel 'penduduk' (sesuai dengan struktur database)
-            possible_queries = [
-                # Query dengan kolom hp (PRIORITAS - sesuai struktur tabel penduduk)
-                ("SELECT * FROM penduduk WHERE hp = %s OR hp LIKE %s OR hp LIKE %s OR hp LIKE %s LIMIT 100", 'hp'),
-                # Query dengan kolom phone (fallback)
-                ("SELECT * FROM penduduk WHERE phone = %s OR phone LIKE %s OR phone LIKE %s OR phone LIKE %s LIMIT 100", 'phone'),
-                # Query dengan kolom nomor_hp (fallback)
-                ("SELECT * FROM penduduk WHERE nomor_hp = %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s LIMIT 100", 'nomor_hp'),
-            ]
             
-            logger.info(f"Starting query with {len(phone_variants)} phone variants")
-            print(f"[PHONE_API] 🔍 Starting query with {len(phone_variants)} variants", file=sys.stderr)
+            logger.info(f"Starting optimized query with {len(phone_variants)} phone variants")
+            print(f"[PHONE_API] 🔍 Starting optimized query with {len(phone_variants)} variants", file=sys.stderr)
             
-            for query_template, col_name in possible_queries:
-                logger.info(f"Trying query with column: {col_name}")
-                print(f"[PHONE_API] 🔍 Trying column: {col_name}", file=sys.stderr)
+            # Set query timeout untuk menghindari timeout terlalu lama
+            try:
+                cursor.execute("SET SESSION max_execution_time = 30000")  # 30 detik timeout
+            except:
+                pass  # Ignore if not supported
+            
+            # Coba query dengan kolom hp terlebih dahulu (PRIORITAS)
+            col_name = 'hp'
+            query_template = "SELECT * FROM penduduk WHERE hp = %s LIMIT 100"
+            
+            # Coba exact match terlebih dahulu untuk setiap variant (lebih cepat)
+            for variant in phone_variants:
+                if not variant or len(variant) < 10:
+                    continue
                 
-                for variant in phone_variants:
-                    if not variant or len(variant) < 10:
-                        continue
+                try:
+                    logger.debug(f"Executing exact match query with variant: {variant[:10]}...")
+                    print(f"[PHONE_API] 🔍 Trying exact match: {variant[:10]}...", file=sys.stderr)
                     
-                    like_patterns = [
-                        variant,  # Exact match
-                        f'%{variant}%',  # Contains
-                        f'{variant}%',  # Starts with
-                        f'%{variant}',  # Ends with
-                    ]
+                    cursor.execute(query_template, (variant,))
+                    rows = cursor.fetchall()
                     
+                    logger.info(f"Exact match returned {len(rows)} rows for variant {variant[:10]}...")
+                    print(f"[PHONE_API] 📊 Exact match: {len(rows)} rows", file=sys.stderr)
+                    
+                    for row in rows:
+                        unique_key = None
+                        for key in ['id', 'nik', 'hp', 'phone', 'nomor_hp']:
+                            if key in row and row[key]:
+                                unique_key = str(row[key])
+                                break
+                        
+                        if unique_key and unique_key not in seen_ids:
+                            seen_ids.add(unique_key)
+                            results.append(row)
+                    
+                    # Jika sudah dapat hasil dari exact match, skip LIKE query (lebih cepat)
+                    if len(results) > 0:
+                        logger.info(f"Found {len(results)} results from exact match, skipping LIKE queries")
+                        print(f"[PHONE_API] ✅ Found {len(results)} results, skipping LIKE queries", file=sys.stderr)
+                        break
+                        
+                except Error as e:
+                    error_msg = f"Query failed for variant {variant[:10]}: {str(e)}"
+                    logger.warning(error_msg)
+                    print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
+                    continue
+            
+            # Jika exact match tidak menghasilkan hasil, coba LIKE query (hanya untuk variant pertama)
+            if len(results) == 0 and len(phone_variants) > 0:
+                variant = phone_variants[0]  # Hanya coba variant pertama dengan LIKE
+                if variant and len(variant) >= 10:
                     try:
-                        logger.debug(f"Executing query with variant: {variant[:10]}...")
-                        cursor.execute(query_template, like_patterns)
+                        logger.info(f"Trying LIKE query with variant: {variant[:10]}...")
+                        print(f"[PHONE_API] 🔍 Trying LIKE query: {variant[:10]}...", file=sys.stderr)
+                        
+                        # Gunakan LIKE yang lebih spesifik (starts with lebih cepat daripada contains)
+                        like_query = "SELECT * FROM penduduk WHERE hp LIKE %s LIMIT 100"
+                        cursor.execute(like_query, (f'{variant}%',))  # Starts with lebih cepat
                         rows = cursor.fetchall()
                         
-                        logger.info(f"Query returned {len(rows)} rows for variant {variant[:10]}...")
-                        print(f"[PHONE_API] 📊 Query returned {len(rows)} rows for variant {variant[:10]}...", file=sys.stderr)
+                        logger.info(f"LIKE query returned {len(rows)} rows")
+                        print(f"[PHONE_API] 📊 LIKE query: {len(rows)} rows", file=sys.stderr)
                         
                         for row in rows:
-                            # Create unique key from ID fields
                             unique_key = None
                             for key in ['id', 'nik', 'hp', 'phone', 'nomor_hp']:
                                 if key in row and row[key]:
@@ -4901,11 +4934,9 @@ def api_phone_search():
                                 results.append(row)
                                 
                     except Error as e:
-                        # Column might not exist, try next query
-                        error_msg = f"Query failed for column {col_name}: {str(e)}"
+                        error_msg = f"LIKE query failed: {str(e)}"
                         logger.warning(error_msg)
                         print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
-                        continue
             
             if cursor:
                 cursor.close()
