@@ -4853,49 +4853,36 @@ def api_phone_search():
         try:
             # Try querying with different column names and phone variants
             # PRIORITAS: Kolom 'hp' di tabel 'penduduk' (sesuai dengan struktur database)
-            possible_queries = [
-                # Query dengan kolom hp (PRIORITAS - sesuai struktur tabel penduduk)
-                ("SELECT * FROM penduduk WHERE hp = %s OR hp LIKE %s OR hp LIKE %s OR hp LIKE %s LIMIT 100", 'hp'),
-                # Query dengan kolom phone (fallback)
-                ("SELECT * FROM penduduk WHERE phone = %s OR phone LIKE %s OR phone LIKE %s OR phone LIKE %s LIMIT 100", 'phone'),
-                # Query dengan kolom nomor_hp (fallback)
-                ("SELECT * FROM penduduk WHERE nomor_hp = %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s LIMIT 100", 'nomor_hp'),
-            ]
+            # Optimasi: Coba exact match terlebih dahulu (lebih cepat), baru LIKE jika perlu
+            columns_to_try = ['hp', 'phone', 'nomor_hp']
             
-            logger.info(f"Starting query with {len(phone_variants)} phone variants")
-            print(f"[PHONE_API] 🔍 Starting query with {len(phone_variants)} variants", file=sys.stderr)
+            logger.info(f"Starting optimized query with {len(phone_variants)} phone variants")
+            print(f"[PHONE_API] 🔍 Starting optimized query with {len(phone_variants)} variants", file=sys.stderr)
             
-            # Set query timeout untuk menghindari timeout terlalu lama (120 detik)
-            try:
-                cursor.execute("SET SESSION max_execution_time = 120000")  # 120 detik dalam milliseconds
-                logger.info("Query timeout set to 120 seconds")
-                print(f"[PHONE_API] ⏱️ Query timeout set to 120 seconds", file=sys.stderr)
-            except Exception as e:
-                logger.warning(f"Could not set query timeout: {e}")
-                print(f"[PHONE_API] ⚠️ Could not set query timeout: {e}", file=sys.stderr)
+            # Note: Query timeout di-handle oleh connection timeout dan request timeout
+            # MySQL/MariaDB tidak memiliki max_execution_time seperti MySQL 8.0+
+            # Timeout di-handle oleh connection timeout (30 detik) dan Flask request timeout
             
-            for query_template, col_name in possible_queries:
+            for col_name in columns_to_try:
                 logger.info(f"Trying query with column: {col_name}")
                 print(f"[PHONE_API] 🔍 Trying column: {col_name}", file=sys.stderr)
                 
+                # Coba exact match terlebih dahulu untuk setiap variant (lebih cepat)
                 for variant in phone_variants:
                     if not variant or len(variant) < 10:
                         continue
                     
-                    like_patterns = [
-                        variant,  # Exact match
-                        f'%{variant}%',  # Contains
-                        f'{variant}%',  # Starts with
-                        f'%{variant}',  # Ends with
-                    ]
-                    
                     try:
-                        logger.debug(f"Executing query with variant: {variant[:10]}...")
-                        cursor.execute(query_template, like_patterns)
+                        # Exact match query (lebih cepat)
+                        exact_query = f"SELECT * FROM penduduk WHERE {col_name} = %s LIMIT 100"
+                        logger.debug(f"Executing exact match query with variant: {variant[:10]}...")
+                        print(f"[PHONE_API] 🔍 Trying exact match: {variant[:10]}...", file=sys.stderr)
+                        
+                        cursor.execute(exact_query, (variant,))
                         rows = cursor.fetchall()
                         
-                        logger.info(f"Query returned {len(rows)} rows for variant {variant[:10]}...")
-                        print(f"[PHONE_API] 📊 Query returned {len(rows)} rows for variant {variant[:10]}...", file=sys.stderr)
+                        logger.info(f"Exact match returned {len(rows)} rows for variant {variant[:10]}...")
+                        print(f"[PHONE_API] 📊 Exact match: {len(rows)} rows", file=sys.stderr)
                         
                         for row in rows:
                             # Create unique key from ID fields
@@ -4908,13 +4895,57 @@ def api_phone_search():
                             if unique_key and unique_key not in seen_ids:
                                 seen_ids.add(unique_key)
                                 results.append(row)
-                                
+                        
+                        # Jika sudah dapat hasil dari exact match, skip LIKE query (lebih cepat)
+                        if len(results) > 0:
+                            logger.info(f"Found {len(results)} results from exact match, skipping LIKE queries for column {col_name}")
+                            print(f"[PHONE_API] ✅ Found {len(results)} results, skipping LIKE queries", file=sys.stderr)
+                            break  # Break dari loop variant, lanjut ke kolom berikutnya jika perlu
+                        
                     except Error as e:
-                        # Column might not exist, try next query
+                        # Column might not exist, try next column
                         error_msg = f"Query failed for column {col_name}: {str(e)}"
                         logger.warning(error_msg)
                         print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
-                        continue
+                        break  # Break dari loop variant, lanjut ke kolom berikutnya
+                
+                # Jika sudah dapat hasil, tidak perlu coba kolom lain
+                if len(results) > 0:
+                    logger.info(f"Found results from column {col_name}, skipping other columns")
+                    print(f"[PHONE_API] ✅ Found results from {col_name}, skipping other columns", file=sys.stderr)
+                    break
+                
+                # Jika exact match tidak menghasilkan hasil, coba LIKE query (hanya untuk variant pertama)
+                if len(results) == 0 and len(phone_variants) > 0:
+                    variant = phone_variants[0]  # Hanya coba variant pertama dengan LIKE
+                    if variant and len(variant) >= 10:
+                        try:
+                            # LIKE query dengan starts with (lebih cepat daripada contains)
+                            like_query = f"SELECT * FROM penduduk WHERE {col_name} LIKE %s LIMIT 100"
+                            logger.info(f"Trying LIKE query with variant: {variant[:10]}...")
+                            print(f"[PHONE_API] 🔍 Trying LIKE query: {variant[:10]}...", file=sys.stderr)
+                            
+                            cursor.execute(like_query, (f'{variant}%',))  # Starts with lebih cepat
+                            rows = cursor.fetchall()
+                            
+                            logger.info(f"LIKE query returned {len(rows)} rows")
+                            print(f"[PHONE_API] 📊 LIKE query: {len(rows)} rows", file=sys.stderr)
+                            
+                            for row in rows:
+                                unique_key = None
+                                for key in ['id', 'nik', 'hp', 'phone', 'nomor_hp']:
+                                    if key in row and row[key]:
+                                        unique_key = str(row[key])
+                                        break
+                                
+                                if unique_key and unique_key not in seen_ids:
+                                    seen_ids.add(unique_key)
+                                    results.append(row)
+                                    
+                        except Error as e:
+                            error_msg = f"LIKE query failed for column {col_name}: {str(e)}"
+                            logger.warning(error_msg)
+                            print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
             
             if cursor:
                 cursor.close()
