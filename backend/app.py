@@ -2429,7 +2429,7 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
                 search_url = f'{SERVER_116_TOOLKIT_BASE}/identity/search'
                 print(f"[INFO] Server 116 family search URL: {search_url}?family_cert_number={nkk}", file=sys.stderr)
                 try:
-                    search_response = session.get(search_url, params=search_params, timeout=5)
+                    search_response = session.get(search_url, params=search_params, timeout=20)  # Increased untuk server yang lebih lambat
                     print(f"[INFO] Server 116 family response status: {search_response.status_code}", file=sys.stderr)
                     
                     if search_response.status_code == 200:
@@ -2493,20 +2493,36 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
         if token:
             headers['Authorization'] = f'Bearer {token}'
             
-        print(f"Fetching family data for NIK: {nik}, NKK: {nkk}")
-        response = requests.get(FAMILY_API_BASE, params=params, headers=headers, timeout=5)  # Reduced dari 15 ke 5
+        print(f"[FAMILY_DATA] 🔍 Fetching family data for NIK: {nik}, NKK: {nkk}", file=sys.stderr)
+        print(f"[FAMILY_DATA] 🌐 API URL: {FAMILY_API_BASE}", file=sys.stderr)
+        print(f"[FAMILY_DATA] 📋 Params: {params}", file=sys.stderr)
+        response = requests.get(FAMILY_API_BASE, params=params, headers=headers, timeout=20)  # Increased untuk server yang lebih lambat
+        print(f"[FAMILY_DATA] 📡 Response status: {response.status_code}", file=sys.stderr)
         response.raise_for_status()
         data = response.json()
-        print(f"Family data response: {len(data.get('data', []))} family members found")
-        print(f"Response structure: {list(data.keys())}")
+        print(f"[FAMILY_DATA] ✅ Response received: {len(data.get('data', []))} family members found", file=sys.stderr)
+        print(f"[FAMILY_DATA] 📊 Response structure: {list(data.keys())}", file=sys.stderr)
         if 'data' in data:
-            print(f"Data structure: {list(data['data'].keys()) if isinstance(data['data'], dict) else 'List'}")
+            print(f"[FAMILY_DATA] 📊 Data structure: {list(data['data'].keys()) if isinstance(data['data'], dict) else 'List'}", file=sys.stderr)
         
         # Convert API response to expected format
         converted_data = convert_family_data_format(data, nik, nkk, token)
+        if converted_data:
+            anggota_count = len(converted_data.get('anggota_keluarga', []))
+            print(f"[FAMILY_DATA] ✅ Successfully converted: {anggota_count} anggota keluarga", file=sys.stderr)
+        else:
+            print(f"[FAMILY_DATA] ⚠️ Conversion returned None", file=sys.stderr)
         return converted_data
+    except requests.exceptions.Timeout as e:
+        print(f"[FAMILY_DATA] ❌ Primary API timeout for NIK {nik}: {e}", file=sys.stderr)
+        print(f"[FAMILY_DATA] ⏱️ Timeout setelah 20 detik - server mungkin lambat atau tidak dapat diakses", file=sys.stderr)
+    except requests.exceptions.ConnectionError as e:
+        print(f"[FAMILY_DATA] ❌ Primary API connection error for NIK {nik}: {e}", file=sys.stderr)
+        print(f"[FAMILY_DATA] 🔌 Tidak dapat terhubung ke {FAMILY_API_BASE}", file=sys.stderr)
     except Exception as e:
-        print(f"Primary API failed for NIK {nik}: {e}")
+        print(f"[FAMILY_DATA] ❌ Primary API failed for NIK {nik}: {e}", file=sys.stderr)
+        import traceback
+        print(f"[FAMILY_DATA] Traceback: {traceback.format_exc()}", file=sys.stderr)
         
         # Try alternative API
         try:
@@ -2514,32 +2530,49 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
                 alt_params = {
                     'family_cert_number': nkk
                 }
-                print(f"Trying alternative API: {FAMILY_API_ALT}")
-                response = requests.get(FAMILY_API_ALT, params=alt_params, headers=headers, timeout=10)
+                print(f"[FAMILY_DATA] 🔄 Trying alternative API: {FAMILY_API_ALT}", file=sys.stderr)
+                print(f"[FAMILY_DATA] 📋 Alt params: {alt_params}", file=sys.stderr)
+                response = requests.get(FAMILY_API_ALT, params=alt_params, headers=headers, timeout=20)  # Increased timeout
+                print(f"[FAMILY_DATA] 📡 Alt response status: {response.status_code}", file=sys.stderr)
                 response.raise_for_status()
                 data = response.json()
-                print(f"Alternative family data response: {len(data.get('data', []))} family members found")
+                print(f"[FAMILY_DATA] ✅ Alt response received: {len(data.get('data', []))} family members found", file=sys.stderr)
                 # Convert API response to expected format
                 converted_data = convert_family_data_format(data, nik, nkk, token)
+                if converted_data:
+                    anggota_count = len(converted_data.get('anggota_keluarga', []))
+                    print(f"[FAMILY_DATA] ✅ Alt API success: {anggota_count} anggota keluarga", file=sys.stderr)
                 return converted_data
+        except requests.exceptions.Timeout as e2:
+            print(f"[FAMILY_DATA] ❌ Alternative API timeout for NIK {nik}: {e2}", file=sys.stderr)
+        except requests.exceptions.ConnectionError as e2:
+            print(f"[FAMILY_DATA] ❌ Alternative API connection error for NIK {nik}: {e2}", file=sys.stderr)
+            print(f"[FAMILY_DATA] 🔌 Tidak dapat terhubung ke {FAMILY_API_ALT}", file=sys.stderr)
         except Exception as e2:
-            print(f"Alternative API also failed for NIK {nik}: {e2}")
+            print(f"[FAMILY_DATA] ❌ Alternative API also failed for NIK {nik}: {e2}", file=sys.stderr)
+            import traceback
+            print(f"[FAMILY_DATA] Traceback: {traceback.format_exc()}", file=sys.stderr)
             
         # Try server 116 identity API as fallback for profiling
         try:
             if nkk:
-                print(f"Trying server 116 identity API as fallback for family search")
+                print(f"[FAMILY_DATA] 🔄 Trying server 116 identity API as fallback for family search", file=sys.stderr)
+                print(f"[FAMILY_DATA] 📡 SERVER_116_TOOLKIT_BASE: {SERVER_116_TOOLKIT_BASE}", file=sys.stderr)
                 # Import session helper from clearance_face_search
                 from clearance_face_search import _login_server_116
                 session = _login_server_116()
                 if session:
                     search_params = {'family_cert_number': nkk}
                     search_url = f'{SERVER_116_TOOLKIT_BASE}/identity/search'
-                    search_response = session.get(search_url, params=search_params, timeout=15)
+                    print(f"[FAMILY_DATA] 🌐 Server 116 URL: {search_url}", file=sys.stderr)
+                    print(f"[FAMILY_DATA] 📋 Params: {search_params}", file=sys.stderr)
+                    search_response = session.get(search_url, params=search_params, timeout=20)  # Increased timeout
+                    print(f"[FAMILY_DATA] 📡 Server 116 response status: {search_response.status_code}", file=sys.stderr)
                     if search_response.status_code == 200:
                         data = search_response.json()
+                        print(f"[FAMILY_DATA] ✅ Server 116 response received", file=sys.stderr)
                         if 'person' in data and isinstance(data['person'], list) and len(data['person']) > 0:
-                            print(f"Server 116 identity API returned {len(data['person'])} family members")
+                            print(f"[FAMILY_DATA] ✅ Server 116 identity API returned {len(data['person'])} family members", file=sys.stderr)
                             # Convert server 116 format to expected format
                             # Server 116 returns person array directly
                             family_members = []
@@ -2561,19 +2594,43 @@ def get_family_data(nik, nkk=None, token=None, person_data=None):
                                     })
                             
                             if family_members:
+                                print(f"[FAMILY_DATA] ✅ Server 116 fallback success: {len(family_members)} anggota keluarga", file=sys.stderr)
                                 return {
                                     'kepala_keluarga': kepala_keluarga or 'Unknown',
                                     'nkk': nkk,
                                     'alamat_keluarga': family_members[0].get('address', 'N/A') if family_members else 'N/A',
                                     'anggota_keluarga': family_members
                                 }
+                            else:
+                                print(f"[FAMILY_DATA] ⚠️ Server 116 returned data but no matching NKK", file=sys.stderr)
+                        else:
+                            print(f"[FAMILY_DATA] ⚠️ Server 116 returned empty person list", file=sys.stderr)
+                    else:
+                        print(f"[FAMILY_DATA] ❌ Server 116 returned status {search_response.status_code}", file=sys.stderr)
+                else:
+                    print(f"[FAMILY_DATA] ❌ Failed to get server 116 session", file=sys.stderr)
+        except requests.exceptions.Timeout as e3:
+            print(f"[FAMILY_DATA] ❌ Server 116 identity API timeout for NIK {nik}: {e3}", file=sys.stderr)
+        except requests.exceptions.ConnectionError as e3:
+            print(f"[FAMILY_DATA] ❌ Server 116 identity API connection error for NIK {nik}: {e3}", file=sys.stderr)
+            print(f"[FAMILY_DATA] 🔌 Tidak dapat terhubung ke {SERVER_116_TOOLKIT_BASE}", file=sys.stderr)
         except Exception as e3:
-            print(f"Server 116 identity API also failed for NIK {nik}: {e3}")
+            print(f"[FAMILY_DATA] ❌ Server 116 identity API also failed for NIK {nik}: {e3}", file=sys.stderr)
+            import traceback
+            print(f"[FAMILY_DATA] Traceback: {traceback.format_exc()}", file=sys.stderr)
             
-    print(f"[ERROR] All family data APIs failed for NIK {nik}")
+    print(f"[FAMILY_DATA] ❌ All family data APIs failed for NIK {nik}", file=sys.stderr)
+    print(f"[FAMILY_DATA] 📋 Summary:", file=sys.stderr)
+    print(f"[FAMILY_DATA]   - FAMILY_API_BASE ({FAMILY_API_BASE}): Failed", file=sys.stderr)
+    print(f"[FAMILY_DATA]   - FAMILY_API_ALT ({FAMILY_API_ALT}): Failed", file=sys.stderr)
+    print(f"[FAMILY_DATA]   - SERVER_116_TOOLKIT_BASE ({SERVER_116_TOOLKIT_BASE}): Failed", file=sys.stderr)
+    print(f"[FAMILY_DATA] 💡 Check:", file=sys.stderr)
+    print(f"[FAMILY_DATA]   1. Apakah server dapat mengakses IP private (10.1.54.224, 10.1.54.116)?", file=sys.stderr)
+    print(f"[FAMILY_DATA]   2. Apakah SERVER_116_BASE environment variable sudah di-set dengan benar?", file=sys.stderr)
+    print(f"[FAMILY_DATA]   3. Apakah network firewall memblokir akses ke server internal?", file=sys.stderr)
     
     # Return fallback family data to prevent loading timeout
-    print(f"[FALLBACK] Returning comprehensive family data for NIK {nik}")
+    print(f"[FAMILY_DATA] 🔄 FALLBACK: Returning comprehensive family data for NIK {nik}", file=sys.stderr)
     
     # Use the actual family data that was successfully retrieved before
     if nik == "1505041107830002" and nkk == "1505041911100032":
