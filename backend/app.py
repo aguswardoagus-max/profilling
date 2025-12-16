@@ -4767,26 +4767,15 @@ def api_phone_search():
         if not phone_clean or len(phone_clean) < 10:
             return jsonify({'error': 'Invalid phone number'}), 400
         
-        # Generate phone variants (dibatasi untuk mempercepat query)
-        # Hanya coba 3 variant paling penting untuk mempercepat pencarian
-        phone_variants = []
-        
-        # Variant 1: Original
-        phone_variants.append(phone_clean)
-        
-        # Variant 2: Remove leading 0 (jika ada)
-        if phone_clean.startswith('0'):
-            phone_variants.append(phone_clean.lstrip('0'))
-        
-        # Variant 3: Add 62 prefix (jika belum ada)
-        if not phone_clean.startswith('62'):
-            phone_variants.append('62' + phone_clean.lstrip('0'))
-        
-        # Hapus duplikat dan filter yang terlalu pendek
+        # Generate phone variants
+        phone_variants = [
+            phone_clean,  # Original
+            phone_clean.lstrip('0'),  # Remove leading 0
+            '0' + phone_clean if not phone_clean.startswith('0') else phone_clean,  # Add leading 0
+            '62' + phone_clean.lstrip('0') if not phone_clean.startswith('62') else phone_clean,  # Add 62 prefix
+            phone_clean.replace('62', '0', 1) if phone_clean.startswith('62') else phone_clean,  # Replace 62 with 0
+        ]
         phone_variants = list(dict.fromkeys([v for v in phone_variants if v and len(v) >= 10]))
-        
-        # Batasi maksimal 3 variant untuk mempercepat query
-        phone_variants = phone_variants[:3]
         
         logger.info(f"Phone variants generated: {phone_variants}")
         print(f"[PHONE_API] 📱 Phone variants: {phone_variants}", file=sys.stderr)
@@ -4813,7 +4802,7 @@ def api_phone_search():
                 charset='utf8mb4',
                 collation='utf8mb4_unicode_ci',
                 autocommit=True,
-                connect_timeout=60  # Increase timeout untuk koneksi database besar
+                connect_timeout=30  # Increase timeout untuk koneksi database besar
             )
             cursor = conn.cursor(dictionary=True)
             logger.info("✅ Successfully connected to phone database")
@@ -4864,60 +4853,40 @@ def api_phone_search():
         try:
             # Try querying with different column names and phone variants
             # PRIORITAS: Kolom 'hp' di tabel 'penduduk' (sesuai dengan struktur database)
-            # Optimasi: Coba exact match terlebih dahulu (lebih cepat), baru LIKE jika perlu
-            columns_to_try = ['hp', 'phone', 'nomor_hp']
+            possible_queries = [
+                # Query dengan kolom hp (PRIORITAS - sesuai struktur tabel penduduk)
+                ("SELECT * FROM penduduk WHERE hp = %s OR hp LIKE %s OR hp LIKE %s OR hp LIKE %s LIMIT 100", 'hp'),
+                # Query dengan kolom phone (fallback)
+                ("SELECT * FROM penduduk WHERE phone = %s OR phone LIKE %s OR phone LIKE %s OR phone LIKE %s LIMIT 100", 'phone'),
+                # Query dengan kolom nomor_hp (fallback)
+                ("SELECT * FROM penduduk WHERE nomor_hp = %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s LIMIT 100", 'nomor_hp'),
+            ]
             
-            logger.info(f"Starting optimized query with {len(phone_variants)} phone variants")
-            print(f"[PHONE_API] 🔍 Starting optimized query with {len(phone_variants)} variants", file=sys.stderr)
+            logger.info(f"Starting query with {len(phone_variants)} phone variants")
+            print(f"[PHONE_API] 🔍 Starting query with {len(phone_variants)} variants", file=sys.stderr)
             
-            # Cek apakah kolom hp memiliki index (untuk optimasi query)
-            try:
-                index_check_query = "SHOW INDEX FROM penduduk WHERE Column_name = 'hp'"
-                cursor.execute(index_check_query)
-                indexes = cursor.fetchall()
-                if indexes:
-                    logger.info(f"✅ Index found on column 'hp' - query should be fast")
-                    print(f"[PHONE_API] ✅ Index found on column 'hp'", file=sys.stderr)
-                else:
-                    logger.warning(f"⚠️ No index found on column 'hp' - query may be slow on large database")
-                    print(f"[PHONE_API] ⚠️ No index on 'hp' - query may be slow", file=sys.stderr)
-            except Exception as e:
-                logger.debug(f"Could not check index: {e}")
-            
-            # Note: Query timeout di-handle oleh connection timeout dan request timeout
-            # MySQL/MariaDB tidak memiliki max_execution_time seperti MySQL 8.0+
-            # Timeout di-handle oleh connection timeout (30 detik) dan Flask request timeout
-            
-            # Flag untuk menghentikan pencarian setelah menemukan hasil
-            search_stopped = False
-            
-            for col_name in columns_to_try:
-                if search_stopped:
-                    break
-                    
+            for query_template, col_name in possible_queries:
                 logger.info(f"Trying query with column: {col_name}")
                 print(f"[PHONE_API] 🔍 Trying column: {col_name}", file=sys.stderr)
                 
-                # Coba exact match terlebih dahulu untuk setiap variant (lebih cepat)
                 for variant in phone_variants:
-                    if search_stopped:
-                        break
                     if not variant or len(variant) < 10:
                         continue
                     
+                    like_patterns = [
+                        variant,  # Exact match
+                        f'%{variant}%',  # Contains
+                        f'{variant}%',  # Starts with
+                        f'%{variant}',  # Ends with
+                    ]
+                    
                     try:
-                        # Exact match query dengan optimasi untuk database besar
-                        # Hanya ambil kolom yang diperlukan untuk mengurangi data transfer
-                        # Kolom utama dari tabel penduduk: id, nik, nm, jk, ttl, hp, alamat, kel, kec, kab_kota, id_prov
-                        exact_query = f"SELECT id, nik, nm, jk, ttl, hp, alamat, kel, kec, kab_kota, id_prov FROM penduduk WHERE {col_name} = %s LIMIT 10"
-                        logger.debug(f"Executing exact match query: {variant[:10]}...")
-                        print(f"[PHONE_API] 🔍 Trying exact match: {variant[:10]}...", file=sys.stderr)
-                        cursor.execute(exact_query, (variant,))
-                        
+                        logger.debug(f"Executing query with variant: {variant[:10]}...")
+                        cursor.execute(query_template, like_patterns)
                         rows = cursor.fetchall()
                         
-                        logger.info(f"Exact match returned {len(rows)} rows for variant {variant[:10]}...")
-                        print(f"[PHONE_API] 📊 Exact match: {len(rows)} rows", file=sys.stderr)
+                        logger.info(f"Query returned {len(rows)} rows for variant {variant[:10]}...")
+                        print(f"[PHONE_API] 📊 Query returned {len(rows)} rows for variant {variant[:10]}...", file=sys.stderr)
                         
                         for row in rows:
                             # Create unique key from ID fields
@@ -4930,67 +4899,13 @@ def api_phone_search():
                             if unique_key and unique_key not in seen_ids:
                                 seen_ids.add(unique_key)
                                 results.append(row)
-                        
-                        # Jika sudah dapat hasil dari exact match, stop pencarian (lebih cepat)
-                        if len(results) > 0:
-                            logger.info(f"Found {len(results)} results from exact match, stopping search")
-                            print(f"[PHONE_API] ✅ Found {len(results)} results, stopping search", file=sys.stderr)
-                            search_stopped = True
-                            break  # Break dari loop variant
-                        
+                                
                     except Error as e:
-                        # Column might not exist, try next column
+                        # Column might not exist, try next query
                         error_msg = f"Query failed for column {col_name}: {str(e)}"
                         logger.warning(error_msg)
                         print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
-                        break  # Break dari loop variant, lanjut ke kolom berikutnya
-                
-                # Jika sudah dapat hasil, tidak perlu coba kolom lain
-                if len(results) > 0:
-                    logger.info(f"Found results from column {col_name}, skipping other columns")
-                    print(f"[PHONE_API] ✅ Found results from {col_name}, skipping other columns", file=sys.stderr)
-                    search_stopped = True
-                    break
-                
-                # Jika exact match tidak menghasilkan hasil, coba LIKE query (hanya untuk variant pertama)
-                if len(results) == 0 and len(phone_variants) > 0:
-                    variant = phone_variants[0]  # Hanya coba variant pertama dengan LIKE
-                    if variant and len(variant) >= 10:
-                        try:
-                            # LIKE query dengan starts with (lebih cepat daripada contains)
-                            # Hanya ambil kolom yang diperlukan, LIMIT 10 untuk mempercepat
-                            like_query = f"SELECT id, nik, nm, jk, ttl, hp, alamat, kel, kec, kab_kota, id_prov FROM penduduk WHERE {col_name} LIKE %s LIMIT 10"
-                            logger.info(f"Trying LIKE query with variant: {variant[:10]}...")
-                            print(f"[PHONE_API] 🔍 Trying LIKE query: {variant[:10]}...", file=sys.stderr)
-                            
-                            cursor.execute(like_query, (f'{variant}%',))  # Starts with lebih cepat
-                            rows = cursor.fetchall()
-                            
-                            logger.info(f"LIKE query returned {len(rows)} rows")
-                            print(f"[PHONE_API] 📊 LIKE query: {len(rows)} rows", file=sys.stderr)
-                            
-                            for row in rows:
-                                unique_key = None
-                                for key in ['id', 'nik', 'hp', 'phone', 'nomor_hp']:
-                                    if key in row and row[key]:
-                                        unique_key = str(row[key])
-                                        break
-                                
-                                if unique_key and unique_key not in seen_ids:
-                                    seen_ids.add(unique_key)
-                                    results.append(row)
-                            
-                            # Jika sudah dapat hasil dari LIKE query, stop pencarian
-                            if len(results) > 0:
-                                logger.info(f"Found {len(results)} results from LIKE query, stopping search")
-                                print(f"[PHONE_API] ✅ Found {len(results)} results from LIKE query, stopping search", file=sys.stderr)
-                                search_stopped = True
-                                break  # Break dari loop kolom
-                                    
-                        except Error as e:
-                            error_msg = f"LIKE query failed for column {col_name}: {str(e)}"
-                            logger.warning(error_msg)
-                            print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
+                        continue
             
             if cursor:
                 cursor.close()
@@ -5025,29 +4940,9 @@ def api_phone_search():
                 return response
                 
         except Exception as e:
-            error_msg = str(e)
-            error_code = None
-            solution = None
-            
-            # Cek apakah ini timeout error
-            if 'timeout' in error_msg.lower() or 'timed out' in error_msg.lower():
-                error_code = 'QUERY_TIMEOUT'
-                solution = (
-                    "Query timeout karena database sangat besar (30 juta record). "
-                    "Solusi: Buat index pada kolom 'hp' di tabel 'penduduk' dengan menjalankan: "
-                    "CREATE INDEX idx_hp ON penduduk(hp); "
-                    "Lihat file create_phone_index.sql untuk instruksi lengkap."
-                )
-            elif 'lost connection' in error_msg.lower():
-                error_code = 'CONNECTION_LOST'
-                solution = "Koneksi database terputus. Pastikan database server berjalan dan dapat diakses."
-            
-            detailed_error = f"Error querying phone database: {error_msg}"
-            logger.error(detailed_error, exc_info=True)
-            print(f"[PHONE_API] ❌ {detailed_error}", file=sys.stderr)
-            if solution:
-                logger.info(f"Solution: {solution}")
-                print(f"[PHONE_API] 💡 Solution: {solution}", file=sys.stderr)
+            error_msg = f"Error querying phone database: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            print(f"[PHONE_API] ❌ {error_msg}", file=sys.stderr)
             import traceback
             traceback.print_exc()
             
@@ -5062,17 +4957,11 @@ def api_phone_search():
                 except:
                     pass
                     
-            response_data = {
+            response = jsonify({
                 'success': False,
                 'error': error_msg,
-                'details': str(e),
-                'error_code': error_code
-            }
-            
-            if solution:
-                response_data['solution'] = solution
-            
-            response = jsonify(response_data)
+                'details': str(e)
+            })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 500
             

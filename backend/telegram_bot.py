@@ -91,8 +91,8 @@ def get_main_menu_keyboard(user_id: int = None):
     """Create main menu keyboard dengan layout yang lebih bagus"""
     keyboard = [
         [
-            KeyboardButton("🔍 Cari Utama"),
-            KeyboardButton("🔍 Cari Alternatif")
+            KeyboardButton("🔍 Cari Nama"),
+            KeyboardButton("🆔 Cari NIK")
         ],
         [
             KeyboardButton("📱 Cari Nomor HP"),
@@ -479,35 +479,31 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     
     # Handle menu buttons
-    if text == "🔍 Cari Utama":
-        user_search_state[user_id] = 'waiting_search_utama'
+    if text == "🔍 Cari Nama":
+        user_search_state[user_id] = 'waiting_name'
         await update.message.reply_text(
-            "🔍 *Cari di Server Utama*\n\n"
-            "Server Utama menampilkan data lengkap termasuk data keluarga.\n\n"
-            "Ketik nama atau NIK yang ingin dicari:\n\n"
+            "🔍 *Cari Berdasarkan Nama*\n\n"
+            "Ketik nama lengkap yang ingin dicari:\n\n"
             "Contoh:\n"
             "• Ahmad Hidayat\n"
             "• agus putra jambi\n"
-            "• 1505041107830002 (NIK)\n\n"
+            "• budi santoso jakarta\n\n"
             "💡 *Tips:* Tambahkan nama kota di akhir untuk filter lokasi\n\n"
+            "Atau: `/search nama Ahmad Hidayat`\n\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "Ketik nama atau NIK sekarang 👇",
+            "Ketik nama sekarang 👇",
             parse_mode='Markdown',
             reply_markup=get_main_menu_keyboard(user_id)
         )
-    elif text == "🔍 Cari Alternatif":
-        user_search_state[user_id] = 'waiting_search_alternatif'
+    elif text == "🆔 Cari NIK":
+        user_search_state[user_id] = 'waiting_nik'
         await update.message.reply_text(
-            "🔍 *Cari di Server Alternatif*\n\n"
-            "Server Alternatif digunakan jika data tidak ditemukan di Server Utama.\n\n"
-            "Ketik nama atau NIK yang ingin dicari:\n\n"
-            "Contoh:\n"
-            "• Ahmad Hidayat\n"
-            "• agus putra jambi\n"
-            "• 1505041107830002 (NIK)\n\n"
-            "💡 *Tips:* Tambahkan nama kota di akhir untuk filter lokasi\n\n"
+            "🆔 *Cari Berdasarkan NIK*\n\n"
+            "Ketik NIK yang ingin dicari:\n\n"
+            "Contoh: 1505041107830002\n"
+            "Atau: `/search nik 1505041107830002`\n\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "Ketik nama atau NIK sekarang 👇",
+            "Ketik NIK sekarang 👇",
             parse_mode='Markdown',
             reply_markup=get_main_menu_keyboard(user_id)
         )
@@ -677,70 +673,45 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         current_state = user_search_state.get(user_id)
         query = text.strip()
         
-        if current_state == 'waiting_search_utama':
-            # User is waiting to input search query for server utama
+        if current_state == 'waiting_name':
+            # User is waiting to input name - gunakan smart parsing
             if len(query) > 2:
                 user_search_state[user_id] = None
-                # Auto-detect apakah NIK atau nama
-                if query.isdigit() and len(query) == 16:
-                    # Ini NIK
-                    context.args = ['nama', query, 'utama']  # Pass 'utama' as server type
-                    await search(update, context, server_type='utama')
-                else:
-                    # Ini nama - gunakan smart parsing
-                    parsed = smart_parse_search_query(query)
-                    if parsed['tempat_lahir']:
-                        # Inform user bahwa lokasi terdeteksi
-                        await update.message.reply_text(
-                            f"🔍 *Pencarian Cerdas (Server Utama)*\n\n"
-                            f"📝 *Nama:* {parsed['name']}\n"
-                            f"📍 *Lokasi:* {parsed['tempat_lahir'].title()}\n\n"
-                            f"Mencari data dengan data lengkap keluarga...",
-                            parse_mode='Markdown',
-                            reply_markup=get_main_menu_keyboard(user_id)
-                        )
-                    context.args = ['nama', query, 'utama']
-                    await search(update, context, server_type='utama')
+                # Smart parse untuk deteksi lokasi
+                parsed = smart_parse_search_query(query)
+                if parsed['tempat_lahir']:
+                    # Inform user bahwa lokasi terdeteksi
+                    await update.message.reply_text(
+                        f"🔍 *Pencarian Cerdas*\n\n"
+                        f"📝 *Nama:* {parsed['name']}\n"
+                        f"📍 *Lokasi:* {parsed['tempat_lahir'].title()}\n\n"
+                        f"Mencari data...",
+                        parse_mode='Markdown',
+                        reply_markup=get_main_menu_keyboard(user_id)
+                    )
+                context.args = ['nama', query]
+                await search(update, context)
             else:
                 await update.message.reply_text(
-                    "❌ Input terlalu pendek. Minimal 3 karakter.\n\n"
-                    "Ketik nama lengkap atau NIK yang ingin dicari:\n"
+                    "❌ Nama terlalu pendek. Minimal 3 karakter.\n\n"
+                    "Ketik nama lengkap yang ingin dicari:\n"
                     "💡 *Tips:* Tambahkan nama kota di akhir untuk filter lokasi\n"
                     "Contoh: agus putra jambi",
                     parse_mode='Markdown',
                     reply_markup=get_main_menu_keyboard(user_id)
                 )
-        elif current_state == 'waiting_search_alternatif':
-            # User is waiting to input search query for server alternatif
-            if len(query) > 2:
+        elif current_state == 'waiting_nik':
+            # User is waiting to input NIK
+            if query.isdigit() and len(query) == 16:
                 user_search_state[user_id] = None
-                # Auto-detect apakah NIK atau nama
-                if query.isdigit() and len(query) == 16:
-                    # Ini NIK
-                    context.args = ['nama', query, 'alternatif']
-                    await search(update, context, server_type='alternatif')
-                else:
-                    # Ini nama - gunakan smart parsing
-                    parsed = smart_parse_search_query(query)
-                    if parsed['tempat_lahir']:
-                        # Inform user bahwa lokasi terdeteksi
-                        await update.message.reply_text(
-                            f"🔍 *Pencarian Cerdas (Server Alternatif)*\n\n"
-                            f"📝 *Nama:* {parsed['name']}\n"
-                            f"📍 *Lokasi:* {parsed['tempat_lahir'].title()}\n\n"
-                            f"Mencari data di server alternatif...",
-                            parse_mode='Markdown',
-                            reply_markup=get_main_menu_keyboard(user_id)
-                        )
-                    context.args = ['nama', query, 'alternatif']
-                    await search(update, context, server_type='alternatif')
+                context.args = ['nik', query]
+                await search(update, context)
             else:
                 await update.message.reply_text(
-                    "❌ Input terlalu pendek. Minimal 3 karakter.\n\n"
-                    "Ketik nama lengkap atau NIK yang ingin dicari:\n"
-                    "💡 *Tips:* Tambahkan nama kota di akhir untuk filter lokasi\n"
-                    "Contoh: agus putra jambi",
-                    parse_mode='Markdown',
+                    "❌ Format NIK salah!\n\n"
+                    "NIK harus 16 digit angka.\n"
+                    "Contoh: 1505041107830002\n\n"
+                    "Ketik NIK yang benar:",
                     reply_markup=get_main_menu_keyboard(user_id)
                 )
         elif current_state == 'waiting_phone':
@@ -807,7 +778,7 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # PRIORITAS 2: Check if it looks like NIK (16 digits)
                 if query.isdigit() and len(query) == 16:
                     context.args = ['nik', query]
-                    await search(update, context, server_type='utama')  # Default ke server utama
+                    await search(update, context)
                     return
                 
                 # PRIORITAS 3: Check if it looks like phone number (10+ digits)
@@ -817,22 +788,22 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     await check_phone_from_database(update, context, phone_clean)
                     return
                 
-                # PRIORITAS 4: Assume it's a name search - gunakan smart parsing (default ke server utama)
+                # PRIORITAS 4: Assume it's a name search - gunakan smart parsing
                 else:
                     # Smart parse untuk deteksi lokasi
                     parsed = smart_parse_search_query(query)
                     if parsed['tempat_lahir']:
                         # Inform user bahwa lokasi terdeteksi
                         await update.message.reply_text(
-                            f"🔍 *Pencarian Cerdas (Server Utama)*\n\n"
+                            f"🔍 *Pencarian Cerdas*\n\n"
                             f"📝 *Nama:* {parsed['name']}\n"
                             f"📍 *Lokasi:* {parsed['tempat_lahir'].title()}\n\n"
-                            f"Mencari data dengan data lengkap keluarga...",
+                            f"Mencari data...",
                             parse_mode='Markdown',
                             reply_markup=get_main_menu_keyboard(user_id)
                         )
                     context.args = ['nama', query]
-                    await search(update, context, server_type='utama')  # Default ke server utama
+                    await search(update, context)
                     return
             else:
                 # Unknown input, show help
@@ -893,10 +864,8 @@ def smart_parse_search_query(query: str):
     return {'name': query, 'tempat_lahir': ''}
 
 
-async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, server_type: str = 'utama'):
-    """Handle /search command - menggunakan login otomatis seperti clearance_face_search.py
-    server_type: 'utama' untuk server utama (116) dengan data lengkap keluarga, 'alternatif' untuk server alternatif sebagai fallback
-    """
+async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /search command - menggunakan login otomatis seperti clearance_face_search.py"""
     # Cek akses user
     if not await check_user_access(update, context):
         return
@@ -906,12 +875,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, server_type
     # Handle both command args and direct text input
     if context.args and len(context.args) >= 2:
         search_type = context.args[0].lower()
-        search_value = ' '.join(context.args[1:-1]) if len(context.args) > 2 else context.args[1]
-        # Check if server_type is passed in args
-        if len(context.args) >= 3:
-            server_type_arg = context.args[-1].lower()
-            if server_type_arg in ['utama', 'alternatif']:
-                server_type = server_type_arg
+        search_value = ' '.join(context.args[1:])
     elif update.message.text and not update.message.text.startswith('/'):
         # Direct text input (from menu button)
         query = update.message.text.strip()
@@ -1001,57 +965,16 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, server_type
             # Tapi untuk sekarang, kita gunakan call_search dengan name
             params['name'] = search_value
         
-        # Call search berdasarkan server_type yang dipilih
-        if server_type == 'utama':
-            # Server Utama (116) - dengan data lengkap keluarga
-            logger.info(f"🔍 Searching on Server Utama (116) with full family data")
-            print(f"[TELEGRAM_BOT] 🔍 Searching on Server Utama (116) with full family data", file=sys.stderr)
-            
-            # Import fungsi internal untuk memanggil server 116 langsung
-            try:
-                from clearance_face_search import _search_server_116
-                server_116_result = _search_server_116(params, username=None, password=None)
-                
-                # Parse results
-                if server_116_result and isinstance(server_116_result, dict):
-                    people = parse_people_from_response(server_116_result) if CLEARANCE_AVAILABLE else []
-                else:
-                    people = []
-            except Exception as e:
-                logger.error(f"Error calling server utama: {e}")
-                print(f"[TELEGRAM_BOT] ❌ Error calling server utama: {e}", file=sys.stderr)
-                people = []
-        elif server_type == 'alternatif':
-            # Server Alternatif - hanya jika tidak ditemukan di utama
-            logger.info(f"🔍 Searching on Server Alternatif")
-            print(f"[TELEGRAM_BOT] 🔍 Searching on Server Alternatif", file=sys.stderr)
-            
-            # Import fungsi internal untuk memanggil server alternatif langsung
-            try:
-                from clearance_face_search import _search_alternative_server
-                alternative_result = _search_alternative_server(params, username=None, password=None)
-                
-                # Parse results
-                if alternative_result and isinstance(alternative_result, dict):
-                    people = parse_people_from_response(alternative_result) if CLEARANCE_AVAILABLE else []
-                else:
-                    people = []
-            except Exception as e:
-                logger.error(f"Error calling server alternatif: {e}")
-                print(f"[TELEGRAM_BOT] ❌ Error calling server alternatif: {e}", file=sys.stderr)
-                people = []
-        else:
-            # Default: gunakan call_search yang menggabungkan semua server
-            result = call_search(token, params, username=None, password=None)
-            people = parse_people_from_response(result) if CLEARANCE_AVAILABLE else []
+        # Call search menggunakan call_search (sama seperti clearance_face_search.py)
+        # PENTING: username/password diabaikan karena server 116 menggunakan kredensial hardcoded
+        result = call_search(token, params, username=None, password=None)
+        
+        # Parse results menggunakan parse_people_from_response
+        people = parse_people_from_response(result) if CLEARANCE_AVAILABLE else []
         
         if not people:
-            server_name = "Server Utama" if server_type == 'utama' else "Server Alternatif"
             await update.message.reply_text(
-                f"❌ *Data tidak ditemukan*\n\n"
-                f"Tidak ada data ditemukan di {server_name}.\n\n"
-                f"{'💡 Coba gunakan menu \"🔍 Cari Alternatif\" untuk mencari di server alternatif.' if server_type == 'utama' else ''}",
-                parse_mode='Markdown',
+                "❌ Data tidak ditemukan",
                 reply_markup=get_main_menu_keyboard(user_id)
             )
             return
@@ -1123,83 +1046,70 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE, server_type
                     reply_markup=get_main_menu_keyboard(user_id)
                 )
         
-        # Enrich people dengan family data HANYA untuk server utama (OPTIMASI: hanya untuk 5 hasil pertama untuk mempercepat)
+        # Enrich people dengan family data jika tersedia
         # Import get_family_data dari app.py jika tersedia
-        max_enrich = min(5, len(people))  # Hanya enrich 5 hasil pertama untuk mempercepat
-        
-        # Hanya enrich untuk server utama (server alternatif tidak perlu enrichment)
-        if server_type == 'utama':
-            print(f"[TELEGRAM_BOT] Starting family data enrichment for {max_enrich} people (out of {len(people)}) on Server Utama...", file=sys.stderr)
-        else:
-            print(f"[TELEGRAM_BOT] Skipping family data enrichment for Server Alternatif", file=sys.stderr)
-            max_enrich = 0  # Skip enrichment untuk server alternatif
-        
-        # Hanya lakukan enrichment jika max_enrich > 0 (hanya untuk server utama)
-        if max_enrich > 0:
-            try:
-                import os
-                # Add backend directory to path if not already there
-                backend_dir = os.path.dirname(os.path.abspath(__file__))
-                if backend_dir not in sys.path:
-                    sys.path.insert(0, backend_dir)
-                
-                from app import get_family_data
-                print(f"[TELEGRAM_BOT] ✅ Successfully imported get_family_data", file=sys.stderr)
-                
-                logger.info(f"🔍 Enriching first {max_enrich} people with family data...")
-                print(f"[TELEGRAM_BOT] 🔍 Enriching first {max_enrich} people with family data...", file=sys.stderr)
-                enriched_count = 0
-                
-                # Hanya enrich beberapa hasil pertama untuk mempercepat (sisanya akan tetap ditampilkan tanpa family data)
-                for idx, person in enumerate(people[:max_enrich], 1):
-                    if isinstance(person, dict):
-                        nik = person.get('ktp_number') or person.get('nik')
-                        nkk = person.get('family_cert_number') or person.get('nkk') or person.get('nomor_kk') or person.get('family_card_number')
-                        person_name = person.get('full_name') or person.get('name', 'Unknown')
-                        
-                        if nik:
-                            try:
-                                logger.info(f"📋 [{idx}/{max_enrich}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})")
-                                print(f"[TELEGRAM_BOT] 📋 [{idx}/{max_enrich}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})", file=sys.stderr)
+        print(f"[TELEGRAM_BOT] Starting family data enrichment for {len(people)} people...", file=sys.stderr)
+        try:
+            import os
+            # Add backend directory to path if not already there
+            backend_dir = os.path.dirname(os.path.abspath(__file__))
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
+            
+            from app import get_family_data
+            print(f"[TELEGRAM_BOT] ✅ Successfully imported get_family_data", file=sys.stderr)
+            
+            logger.info(f"🔍 Enriching {len(people)} people with family data...")
+            print(f"[TELEGRAM_BOT] 🔍 Enriching {len(people)} people with family data...", file=sys.stderr)
+            enriched_count = 0
+            
+            for idx, person in enumerate(people, 1):
+                if isinstance(person, dict):
+                    nik = person.get('ktp_number') or person.get('nik')
+                    nkk = person.get('family_cert_number') or person.get('nkk') or person.get('nomor_kk') or person.get('family_card_number')
+                    person_name = person.get('full_name') or person.get('name', 'Unknown')
+                    
+                    if nik:
+                        try:
+                            logger.info(f"📋 [{idx}/{len(people)}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})")
+                            print(f"[TELEGRAM_BOT] 📋 [{idx}/{len(people)}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})", file=sys.stderr)
+                            
+                            # Coba ambil family data
+                            family_data = get_family_data(nik, nkk, token, person)
+                            if family_data:
+                                person['family_data'] = family_data
+                                anggota_count = len(family_data.get('anggota_keluarga', []))
+                                enriched_count += 1
+                                logger.info(f"✅ [{idx}/{len(people)}] Added family data for {person_name}: {anggota_count} members")
+                                print(f"[TELEGRAM_BOT] ✅ [{idx}/{len(people)}] Added family data for {person_name}: {anggota_count} members", file=sys.stderr)
                                 
-                                # Coba ambil family data dengan timeout lebih pendek
-                                family_data = get_family_data(nik, nkk, token, person)
-                                if family_data:
-                                    person['family_data'] = family_data
-                                    anggota_count = len(family_data.get('anggota_keluarga', []))
-                                    enriched_count += 1
-                                    logger.info(f"✅ [{idx}/{max_enrich}] Added family data for {person_name}: {anggota_count} members")
-                                    print(f"[TELEGRAM_BOT] ✅ [{idx}/{max_enrich}] Added family data for {person_name}: {anggota_count} members", file=sys.stderr)
-                                    
-                                    # Log detail anggota keluarga
-                                    if anggota_count > 0:
-                                        for i, member in enumerate(family_data.get('anggota_keluarga', [])[:3], 1):
-                                            logger.info(f"   - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})")
-                                            print(f"[TELEGRAM_BOT]    - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})", file=sys.stderr)
-                                else:
-                                    logger.info(f"⚠️ [{idx}/{max_enrich}] No family data found for NIK: {nik}")
-                                    print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{max_enrich}] No family data found for NIK: {nik}", file=sys.stderr)
-                            except Exception as e:
-                                logger.warning(f"❌ [{idx}/{max_enrich}] Failed to get family data for NIK {nik}: {e}")
-                                print(f"[TELEGRAM_BOT] ❌ [{idx}/{max_enrich}] Failed to get family data for NIK {nik}: {e}", file=sys.stderr)
-                                # Jangan stop, lanjutkan ke person berikutnya
-                        else:
-                            logger.warning(f"⚠️ [{idx}/{max_enrich}] No NIK found for person: {person_name}")
-                            print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{max_enrich}] No NIK found for person: {person_name}", file=sys.stderr)
-                
-                logger.info(f"✅ Family data enrichment complete: {enriched_count}/{max_enrich} people enriched")
-                print(f"[TELEGRAM_BOT] ✅ Family data enrichment complete: {enriched_count}/{max_enrich} people enriched", file=sys.stderr)
-                
-                # Catatan: Data keluarga juga bisa langsung dari server (tidak perlu enrichment)
-                # Jadi meskipun tidak di-enrich, data keluarga dari server tetap akan ditampilkan
-            except ImportError as e:
-                logger.warning(f"⚠️ get_family_data not available: {e}, skipping family data enrichment")
-                print(f"[TELEGRAM_BOT] ⚠️ get_family_data not available: {e}", file=sys.stderr)
-            except Exception as e:
-                logger.error(f"❌ Error enriching family data: {e}")
-                print(f"[TELEGRAM_BOT] ❌ Error enriching family data: {e}", file=sys.stderr)
-                import traceback
-                traceback.print_exc()
+                                # Log detail anggota keluarga
+                                if anggota_count > 0:
+                                    for i, member in enumerate(family_data.get('anggota_keluarga', [])[:3], 1):
+                                        logger.info(f"   - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})")
+                                        print(f"[TELEGRAM_BOT]    - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})", file=sys.stderr)
+                            else:
+                                logger.info(f"⚠️ [{idx}/{len(people)}] No family data found for NIK: {nik}")
+                                print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{len(people)}] No family data found for NIK: {nik}", file=sys.stderr)
+                        except Exception as e:
+                            logger.warning(f"❌ [{idx}/{len(people)}] Failed to get family data for NIK {nik}: {e}")
+                            print(f"[TELEGRAM_BOT] ❌ [{idx}/{len(people)}] Failed to get family data for NIK {nik}: {e}", file=sys.stderr)
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        logger.warning(f"⚠️ [{idx}/{len(people)}] No NIK found for person: {person_name}")
+                        print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{len(people)}] No NIK found for person: {person_name}", file=sys.stderr)
+            
+            logger.info(f"✅ Family data enrichment complete: {enriched_count}/{len(people)} people enriched")
+            print(f"[TELEGRAM_BOT] ✅ Family data enrichment complete: {enriched_count}/{len(people)} people enriched", file=sys.stderr)
+        except ImportError as e:
+            logger.warning(f"⚠️ get_family_data not available: {e}, skipping family data enrichment")
+            print(f"[TELEGRAM_BOT] ⚠️ get_family_data not available: {e}", file=sys.stderr)
+        except Exception as e:
+            logger.error(f"❌ Error enriching family data: {e}")
+            print(f"[TELEGRAM_BOT] ❌ Error enriching family data: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
         
         # Send results (pesan filter sudah dikirim di atas jika ada)
         await send_search_results_from_people(update, people)
@@ -1929,10 +1839,7 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
         except requests.exceptions.Timeout as e:
             logger.warning(f"Local Flask API timeout: {e}")
             print(f"[TELEGRAM_BOT] ⚠️ Local Flask API timeout: {e}", file=sys.stderr)
-            print(f"[TELEGRAM_BOT] 💡 Query timeout karena database sangat besar (30 juta record)", file=sys.stderr)
-            print(f"[TELEGRAM_BOT] 💡 Solusi: Buat index pada kolom 'hp' di tabel 'penduduk'", file=sys.stderr)
-            print(f"[TELEGRAM_BOT] 💡 Jalankan: CREATE INDEX idx_hp ON penduduk(hp);", file=sys.stderr)
-            last_error = "Query timeout - Database terlalu besar tanpa index. Buat index pada kolom 'hp' untuk mempercepat query."
+            last_error = "Local Flask API timeout"
         except Exception as e:
             logger.error(f"Local Flask API error: {e}", exc_info=True)
             print(f"[TELEGRAM_BOT] ❌ Local Flask API error: {e}", file=sys.stderr)
@@ -1973,25 +1880,12 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
             except:
                 pass
             
-            error_message = f"❌ *Query Timeout*\n\n"
-            error_message += f"Nomor HP: `{escape_markdown(phone_number)}`\n\n"
-            
-            if 'timeout' in last_error.lower() or 'Query timeout' in last_error:
-                error_message += f"⏱️ *Query timeout* karena database sangat besar (30 juta record).\n\n"
-                error_message += f"💡 *Solusi:*\n"
-                error_message += f"Buat index pada kolom 'hp' di tabel 'penduduk':\n"
-                error_message += f"```sql\n"
-                error_message += f"CREATE INDEX idx_hp ON penduduk(hp);\n"
-                error_message += f"```\n\n"
-                error_message += f"📄 Lihat file `create_phone_index.sql` untuk instruksi lengkap.\n\n"
-                error_message += f"Setelah index dibuat, query akan jauh lebih cepat."
-            else:
-                error_message += f"Data tidak ditemukan di database.\n"
-                error_message += f"Error: {escape_markdown(last_error or 'Tidak dapat terhubung ke database')}"
-            
             await update.message.reply_text(
-                error_message,
-                parse_mode='MarkdownV2',
+                f"❌ *Data Tidak Ditemukan*\n\n"
+                f"Nomor HP: `{phone_number}`\n\n"
+                f"Data tidak ditemukan di database.\n"
+                f"Error: {last_error or 'Tidak dapat terhubung ke database'}",
+                parse_mode='Markdown',
                 reply_markup=get_main_menu_keyboard(user_id)
             )
             return
@@ -2072,7 +1966,14 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
         else:
             message += "❌ Format data tidak dikenali"
         
-        # Footer dihapus sesuai permintaan user (tidak menampilkan Sumber dan Server)
+        # Add footer
+        message += f"\n━━━━━━━━━━━━━━━━━━━━\n"
+        if PHONE_DB_NAME:
+            message += f"💡 *Sumber:* Database MySQL langsung\n"
+            message += f"🌐 *Server:* {PHONE_DB_HOST}:{PHONE_DB_PORT}/{PHONE_DB_NAME}"
+        else:
+            message += f"💡 *Sumber:* Flask API lokal\n"
+            message += f"🌐 *Endpoint:* http://localhost:5000/api/phone/search"
         
         # Hapus pesan status sebelum mengirim hasil
         try:
@@ -2112,8 +2013,8 @@ def escape_markdown(text):
     if not text:
         return ""
     text = str(text)
-    # Escape karakter khusus untuk Markdown (bukan MarkdownV2)
-    special_chars = ['_', '*', '[', ']', '(', ')', '`']
+    # Escape karakter khusus untuk Markdown
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
     for char in special_chars:
         text = text.replace(char, f'\\{char}')
     return text
@@ -2121,7 +2022,7 @@ def escape_markdown(text):
 def format_phone_data_item(item):
     """Format a single phone data item for display"""
     if not isinstance(item, dict):
-        return f"📄 {escape_markdown(str(item))}\n"
+        return f"📄 {str(item)}\n"
     
     message = ""
     
@@ -2178,9 +2079,7 @@ def format_phone_data_item(item):
             value = item.get(key) or item.get(key.upper()) or item.get(key.lower())
             if value and str(value).strip() and str(value) != 'None' and str(value) != '':
                 emoji, label = field_mappings[key]
-                # Escape nilai untuk menghindari error parsing entities
-                escaped_value = escape_markdown(str(value))
-                message += f"{emoji} *{label}:* {escaped_value}\n"
+                message += f"{emoji} *{label}:* {value}\n"
                 displayed_keys.add(key.lower())
     
     # Tampilkan kolom lain yang belum ditampilkan
@@ -2188,9 +2087,7 @@ def format_phone_data_item(item):
         if key.lower() not in displayed_keys:
             value = item.get(key) or item.get(key.upper()) or item.get(key.lower())
             if value and str(value).strip() and str(value) != 'None' and str(value) != '':
-                # Escape nilai untuk menghindari error parsing entities
-                escaped_value = escape_markdown(str(value))
-                message += f"{emoji} *{label}:* {escaped_value}\n"
+                message += f"{emoji} *{label}:* {value}\n"
                 displayed_keys.add(key.lower())
     
     # Display any remaining fields yang belum ditampilkan
@@ -2227,9 +2124,7 @@ def format_phone_data_item(item):
                 
                 # Format key name untuk display
                 display_key = key.replace('_', ' ').title()
-                # Escape nilai untuk menghindari error parsing entities
-                escaped_value = escape_markdown(str(value))
-                message += f"{emoji} *{display_key}:* {escaped_value}\n"
+                message += f"{emoji} *{display_key}:* {value}\n"
     
     if not message:
         message = "📄 *Data tidak tersedia*\n"
@@ -2522,7 +2417,7 @@ async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
         
-        message = f"📋 *Daftar User Terdaftar ({len(users)})*\n\n"
+        message = f"📋 *Daftar User Terdaftar \\({len(users)}\\)*\n\n"
         message += "━━━━━━━━━━━━━━━━━━━━\n\n"
         
         for idx, user in enumerate(users[:20], 1):  # Limit to 20 users
@@ -2532,13 +2427,13 @@ async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYP
             last_name = user.get('last_name') or ''
             last_used = user.get('last_used')
             
-            # Escape nilai untuk menghindari error parsing entities
+            # Escape karakter khusus untuk Markdown
             escaped_first_name = escape_markdown(first_name)
             escaped_last_name = escape_markdown(last_name)
             escaped_username = escape_markdown(username)
             escaped_last_used = escape_markdown(str(last_used)) if last_used else None
             
-            message += f"{idx}. 👤 *{escaped_first_name} {escaped_last_name}*\n"
+            message += f"{idx}\\. 👤 *{escaped_first_name} {escaped_last_name}*\n"
             message += f"   🆔 ID: `{user_id_str}`\n"
             message += f"   📝 @{escaped_username}\n"
             if escaped_last_used:
@@ -2546,7 +2441,7 @@ async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYP
             message += "\n"
         
         if len(users) > 20:
-            message += f"\n... dan {len(users) - 20} user lainnya"
+            message += f"\n\\.\\.\\. dan {len(users) - 20} user lainnya"
         
         await update.message.reply_text(
             message,
@@ -2587,7 +2482,7 @@ async def list_pending_users(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return
         
-        message = f"🆕 *User Menunggu Akses ({len(users)})*\n\n"
+        message = f"🆕 *User Menunggu Akses \\({len(users)}\\)*\n\n"
         message += "━━━━━━━━━━━━━━━━━━━━\n\n"
         message += "Gunakan `/adduser <id>` untuk memberikan akses\n\n"
         message += "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2599,13 +2494,13 @@ async def list_pending_users(update: Update, context: ContextTypes.DEFAULT_TYPE)
             last_name = user.get('last_name') or ''
             added_at = user.get('added_at')
             
-            # Escape nilai untuk menghindari error parsing entities
+            # Escape karakter khusus untuk Markdown
             escaped_first_name = escape_markdown(first_name)
             escaped_last_name = escape_markdown(last_name)
             escaped_username = escape_markdown(username)
             escaped_added_at = escape_markdown(str(added_at)) if added_at else None
             
-            message += f"{idx}. 👤 *{escaped_first_name} {escaped_last_name}*\n"
+            message += f"{idx}\\. 👤 *{escaped_first_name} {escaped_last_name}*\n"
             message += f"   🆔 ID: `{user_id_str}`\n"
             message += f"   📝 @{escaped_username}\n"
             message += f"   ➕ Tambahkan: `/adduser {user_id_str}`\n"
@@ -2614,7 +2509,7 @@ async def list_pending_users(update: Update, context: ContextTypes.DEFAULT_TYPE)
             message += "\n"
         
         if len(users) > 20:
-            message += f"\n... dan {len(users) - 20} user lainnya"
+            message += f"\n\\.\\.\\. dan {len(users) - 20} user lainnya"
         
         await update.message.reply_text(
             message,
@@ -2728,7 +2623,7 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             logger.info(f"   ✅ Has family_data with {len(anggota_keluarga)} members")
     
     # Cek 2: anggota_keluarga langsung di person (beberapa server mengirim langsung)
-    if not anggota_keluarga or len(anggota_keluarga) == 0:
+    if not has_family_data:
         anggota_keluarga = person.get('anggota_keluarga', [])
         logger.info(f"   Checking person.anggota_keluarga: {len(anggota_keluarga) if isinstance(anggota_keluarga, list) else 'not list'}")
         if anggota_keluarga and isinstance(anggota_keluarga, list) and len(anggota_keluarga) > 0:
@@ -2770,19 +2665,7 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
     logger.info(f"   has_family_data: {has_family_data}, has_valid_family_data: {has_valid_family_data}")
     logger.info(f"   family_data type: {type(family_data)}, anggota_keluarga count: {len(anggota_keluarga) if anggota_keluarga else 0}")
     
-    # SELALU tampilkan data keluarga jika ada (baik dari enrichment maupun dari server langsung)
-    # Cek apakah ada data keluarga di manapun
-    has_any_family_data = (
-        has_valid_family_data or 
-        has_family_data or 
-        (anggota_keluarga and len(anggota_keluarga) > 0) or
-        person.get('kepala_keluarga') or 
-        person.get('nkk') or 
-        person.get('family_cert_number') or
-        person.get('alamat_keluarga')
-    )
-    
-    if has_any_family_data:
+    if has_valid_family_data or has_family_data:
         personal_info += f"\n*👨‍👩‍👧‍👦 DATA KELUARGA*\n"
         personal_info += f"━━━━━━━━━━━━━━━━━━━━\n"
         
@@ -3182,19 +3065,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         ]])
                     )
                 else:
-                    message = f"📋 *User Terdaftar ({len(users)})*\n\n"
+                    message = f"📋 *User Terdaftar \\({len(users)}\\)*\n\n"
                     for idx, user in enumerate(users[:10], 1):
                         user_id_str = str(user.get('telegram_id', 'N/A'))
                         username = user.get('username') or 'N/A'
                         first_name = user.get('first_name') or 'N/A'
-                        # Escape nilai untuk menghindari error parsing entities
+                        # Escape karakter khusus untuk Markdown
                         escaped_first_name = escape_markdown(first_name)
                         escaped_username = escape_markdown(username)
-                        message += f"{idx}. 👤 *{escaped_first_name}*\n"
+                        message += f"{idx}\\. 👤 *{escaped_first_name}*\n"
                         message += f"   🆔 `{user_id_str}`\n"
                         message += f"   📝 @{escaped_username}\n\n"
                     if len(users) > 10:
-                        message += f"\n... dan {len(users) - 10} user lainnya"
+                        message += f"\n\\.\\.\\. dan {len(users) - 10} user lainnya"
                     await query.edit_message_text(
                         message,
                         parse_mode='Markdown',
@@ -3224,22 +3107,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         ]])
                     )
                 else:
-                    message = f"🆕 *User Pending ({len(users)})*\n\n"
+                    message = f"🆕 *User Pending \\({len(users)}\\)*\n\n"
                     message += "Gunakan `/adduser <id>` untuk memberikan akses\n\n"
                     message += "━━━━━━━━━━━━━━━━━━━━\n\n"
                     for idx, user in enumerate(users[:10], 1):
                         user_id_str = str(user.get('telegram_id', 'N/A'))
                         username = user.get('username') or 'N/A'
                         first_name = user.get('first_name') or 'N/A'
-                        # Escape nilai untuk menghindari error parsing entities
+                        # Escape karakter khusus untuk Markdown
                         escaped_first_name = escape_markdown(first_name)
                         escaped_username = escape_markdown(username)
-                        message += f"{idx}. 👤 *{escaped_first_name}*\n"
+                        message += f"{idx}\\. 👤 *{escaped_first_name}*\n"
                         message += f"   🆔 `{user_id_str}`\n"
                         message += f"   📝 @{escaped_username}\n"
                         message += f"   ➕ `/adduser {user_id_str}`\n\n"
                     if len(users) > 10:
-                        message += f"\n... dan {len(users) - 10} user lainnya"
+                        message += f"\n\\.\\.\\. dan {len(users) - 10} user lainnya"
                     await query.edit_message_text(
                         message,
                         parse_mode='Markdown',
@@ -3269,6 +3152,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📋 Total: {len(all_users)}\n\n"
                     "━━━━━━━━━━━━━━━━━━━━"
                 )
+                # Tidak perlu escape karena hanya angka
                 await query.edit_message_text(
                     message,
                     parse_mode='Markdown',
