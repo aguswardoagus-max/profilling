@@ -1805,7 +1805,7 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
             response = requests.get(
                 local_api_url,
                 params={'phone': phone_number},
-                timeout=60  # 60 detik untuk query database besar
+                timeout=120  # 120 detik untuk query database besar
             )
             
             logger.info(f"Local Flask API response status: {response.status_code}")
@@ -2008,13 +2008,13 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
         )
 
 
-def escape_markdown_v2(text):
-    """Escape special characters for Telegram MarkdownV2"""
+def escape_markdown(text):
+    """Escape special characters for Telegram Markdown"""
     if not text:
         return ""
     text = str(text)
-    # Escape karakter khusus untuk Markdown
-    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    # Escape karakter khusus untuk Markdown (bukan MarkdownV2)
+    special_chars = ['_', '*', '[', ']', '(', ')', '`']
     for char in special_chars:
         text = text.replace(char, f'\\{char}')
     return text
@@ -2022,7 +2022,7 @@ def escape_markdown_v2(text):
 def format_phone_data_item(item):
     """Format a single phone data item for display"""
     if not isinstance(item, dict):
-        return f"📄 {escape_markdown_v2(str(item))}\n"
+        return f"📄 {escape_markdown(str(item))}\n"
     
     message = ""
     
@@ -2080,7 +2080,7 @@ def format_phone_data_item(item):
             if value and str(value).strip() and str(value) != 'None' and str(value) != '':
                 emoji, label = field_mappings[key]
                 # Escape nilai untuk menghindari error parsing entities
-                escaped_value = escape_markdown_v2(value)
+                escaped_value = escape_markdown(str(value))
                 message += f"{emoji} *{label}:* {escaped_value}\n"
                 displayed_keys.add(key.lower())
     
@@ -2090,7 +2090,7 @@ def format_phone_data_item(item):
             value = item.get(key) or item.get(key.upper()) or item.get(key.lower())
             if value and str(value).strip() and str(value) != 'None' and str(value) != '':
                 # Escape nilai untuk menghindari error parsing entities
-                escaped_value = escape_markdown_v2(value)
+                escaped_value = escape_markdown(str(value))
                 message += f"{emoji} *{label}:* {escaped_value}\n"
                 displayed_keys.add(key.lower())
     
@@ -2129,7 +2129,7 @@ def format_phone_data_item(item):
                 # Format key name untuk display
                 display_key = key.replace('_', ' ').title()
                 # Escape nilai untuk menghindari error parsing entities
-                escaped_value = escape_markdown_v2(value)
+                escaped_value = escape_markdown(str(value))
                 message += f"{emoji} *{display_key}:* {escaped_value}\n"
     
     if not message:
@@ -2433,11 +2433,11 @@ async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYP
             last_name = user.get('last_name') or ''
             last_used = user.get('last_used')
             
-            # Escape semua nilai untuk menghindari error parsing entities
-            escaped_first_name = escape_markdown_v2(first_name)
-            escaped_last_name = escape_markdown_v2(last_name)
-            escaped_username = escape_markdown_v2(username)
-            escaped_last_used = escape_markdown_v2(str(last_used)) if last_used else None
+            # Escape nilai untuk menghindari error parsing entities
+            escaped_first_name = escape_markdown(first_name)
+            escaped_last_name = escape_markdown(last_name)
+            escaped_username = escape_markdown(username)
+            escaped_last_used = escape_markdown(str(last_used)) if last_used else None
             
             message += f"{idx}. 👤 *{escaped_first_name} {escaped_last_name}*\n"
             message += f"   🆔 ID: `{user_id_str}`\n"
@@ -2500,12 +2500,18 @@ async def list_pending_users(update: Update, context: ContextTypes.DEFAULT_TYPE)
             last_name = user.get('last_name') or ''
             added_at = user.get('added_at')
             
-            message += f"{idx}. 👤 *{first_name} {last_name}*\n"
+            # Escape nilai untuk menghindari error parsing entities
+            escaped_first_name = escape_markdown(first_name)
+            escaped_last_name = escape_markdown(last_name)
+            escaped_username = escape_markdown(username)
+            escaped_added_at = escape_markdown(str(added_at)) if added_at else None
+            
+            message += f"{idx}. 👤 *{escaped_first_name} {escaped_last_name}*\n"
             message += f"   🆔 ID: `{user_id_str}`\n"
-            message += f"   📝 @{username}\n"
+            message += f"   📝 @{escaped_username}\n"
             message += f"   ➕ Tambahkan: `/adduser {user_id_str}`\n"
-            if added_at:
-                message += f"   🕐 Mencoba akses: {added_at}\n"
+            if escaped_added_at:
+                message += f"   🕐 Mencoba akses: {escaped_added_at}\n"
             message += "\n"
         
         if len(users) > 20:
@@ -3070,9 +3076,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         user_id_str = str(user.get('telegram_id', 'N/A'))
                         username = user.get('username') or 'N/A'
                         first_name = user.get('first_name') or 'N/A'
-                        message += f"{idx}. 👤 *{first_name}*\n"
+                        # Escape nilai untuk menghindari error parsing entities
+                        escaped_first_name = escape_markdown(first_name)
+                        escaped_username = escape_markdown(username)
+                        message += f"{idx}. 👤 *{escaped_first_name}*\n"
                         message += f"   🆔 `{user_id_str}`\n"
-                        message += f"   📝 @{username}\n\n"
+                        message += f"   📝 @{escaped_username}\n\n"
                     if len(users) > 10:
                         message += f"\n... dan {len(users) - 10} user lainnya"
                     await query.edit_message_text(
@@ -3111,9 +3120,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         user_id_str = str(user.get('telegram_id', 'N/A'))
                         username = user.get('username') or 'N/A'
                         first_name = user.get('first_name') or 'N/A'
-                        message += f"{idx}. 👤 *{first_name}*\n"
+                        # Escape nilai untuk menghindari error parsing entities
+                        escaped_first_name = escape_markdown(first_name)
+                        escaped_username = escape_markdown(username)
+                        message += f"{idx}. 👤 *{escaped_first_name}*\n"
                         message += f"   🆔 `{user_id_str}`\n"
-                        message += f"   📝 @{username}\n"
+                        message += f"   📝 @{escaped_username}\n"
                         message += f"   ➕ `/adduser {user_id_str}`\n\n"
                     if len(users) > 10:
                         message += f"\n... dan {len(users) - 10} user lainnya"
