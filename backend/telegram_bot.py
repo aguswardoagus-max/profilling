@@ -2948,23 +2948,31 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             
             # Tampilkan maksimal 5 hasil pertama
             for idx, result in enumerate(organic_results[:5], 1):
-                title = result.get('title', 'No Title')
-                link = result.get('link', '#')
-                snippet = result.get('snippet', '')
-                source = result.get('source', 'Unknown Source')
-                
-                # Escape markdown untuk title dan snippet
-                escaped_title = escape_markdown(title)
-                escaped_snippet = escape_markdown(snippet[:200]) if snippet else ''  # Limit snippet length
-                escaped_source = escape_markdown(source)
-                
-                personal_info += f"{idx}\\. *{escaped_title}*\n"
-                if escaped_snippet:
-                    personal_info += f"   📄 {escaped_snippet}\n"
-                personal_info += f"   🔗 {link}\n"
-                if escaped_source and escaped_source != 'Unknown Source':
-                    personal_info += f"   🌐 Sumber: {escaped_source}\n"
-                personal_info += "\n"
+                try:
+                    title = result.get('title', 'No Title') or 'No Title'
+                    link = result.get('link', '#') or '#'
+                    snippet = result.get('snippet', '') or ''
+                    source = result.get('source', 'Unknown Source') or 'Unknown Source'
+                    
+                    # Escape markdown untuk semua teks (termasuk link untuk menghindari karakter khusus)
+                    escaped_title = escape_markdown(str(title))
+                    escaped_snippet = escape_markdown(str(snippet[:150])) if snippet else ''  # Limit snippet length lebih pendek
+                    escaped_source = escape_markdown(str(source))
+                    escaped_link = escape_markdown(str(link))  # Escape link juga untuk menghindari karakter khusus
+                    
+                    # Pastikan tidak ada karakter yang menyebabkan error - gunakan format yang lebih aman
+                    personal_info += f"{idx}\\. *{escaped_title}*\n"
+                    if escaped_snippet:
+                        personal_info += f"   📄 {escaped_snippet}\n"
+                    personal_info += f"   🔗 `{escaped_link}`\n"  # Gunakan code block untuk link agar lebih aman
+                    if escaped_source and escaped_source != 'Unknown Source':
+                        personal_info += f"   🌐 Sumber: {escaped_source}\n"
+                    personal_info += "\n"
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Error formatting search engine result {idx}: {e}")
+                    print(f"[TELEGRAM_BOT]   ⚠️ Error formatting search engine result {idx}: {e}", file=sys.stderr)
+                    # Skip result ini dan lanjutkan ke berikutnya
+                    continue
             
             if len(organic_results) > 5:
                 personal_info += f"\\.\\.\\. dan {len(organic_results) - 5} hasil lainnya\n"
@@ -2975,8 +2983,8 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
     # Combine header and personal info
     full_message = header + personal_info
     
-    # Split message if too long (Telegram limit is 4096 characters)
-    if len(full_message) > 4000:
+    # Split message if too long (Telegram limit is 4096 characters, kita gunakan 3800 untuk safety margin)
+    if len(full_message) > 3800:
         # Send in parts
         parts = []
         current_part = header + "*👤 INFORMASI PRIBADI*\n━━━━━━━━━━━━━━━━━━━━\n"
@@ -2984,19 +2992,51 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
         # Split personal info into chunks
         lines = personal_info.split('\n')
         for line in lines:
-            if len(current_part + line + '\n') > 4000:
-                parts.append(current_part)
+            # Pastikan setiap part tidak melebihi 3800 karakter
+            if len(current_part + line + '\n') > 3800:
+                if current_part.strip():  # Hanya tambahkan jika tidak kosong
+                    parts.append(current_part)
                 current_part = line + '\n'
             else:
                 current_part += line + '\n'
         
-        if current_part:
+        if current_part.strip():  # Hanya tambahkan jika tidak kosong
             parts.append(current_part)
         
-        for part in parts:
-            await update.message.reply_text(part, parse_mode='Markdown')
+        # Kirim setiap part dengan error handling
+        for idx, part in enumerate(parts, 1):
+            try:
+                # Pastikan part tidak kosong dan tidak terlalu panjang
+                if part.strip() and len(part) <= 4096:
+                    await update.message.reply_text(part, parse_mode='Markdown')
+                else:
+                    logger.warning(f"   ⚠️ Skipping part {idx} - too long or empty: {len(part)} chars")
+                    print(f"[TELEGRAM_BOT]   ⚠️ Skipping part {idx} - too long or empty: {len(part)} chars", file=sys.stderr)
+            except Exception as e:
+                logger.error(f"   ❌ Error sending part {idx}: {e}")
+                print(f"[TELEGRAM_BOT]   ❌ Error sending part {idx}: {e}", file=sys.stderr)
+                # Coba kirim tanpa parse_mode jika ada error
+                try:
+                    # Remove markdown formatting untuk fallback
+                    fallback_text = part.replace('*', '').replace('_', '').replace('`', '').replace('\\', '')
+                    if fallback_text.strip() and len(fallback_text) <= 4096:
+                        await update.message.reply_text(fallback_text)
+                except Exception as e2:
+                    logger.error(f"   ❌ Error sending fallback part {idx}: {e2}")
+                    print(f"[TELEGRAM_BOT]   ❌ Error sending fallback part {idx}: {e2}", file=sys.stderr)
     else:
-        await update.message.reply_text(full_message, parse_mode='Markdown')
+        try:
+            await update.message.reply_text(full_message, parse_mode='Markdown')
+        except Exception as e:
+            logger.error(f"   ❌ Error sending message: {e}")
+            print(f"[TELEGRAM_BOT]   ❌ Error sending message: {e}", file=sys.stderr)
+            # Coba kirim tanpa parse_mode jika ada error
+            try:
+                fallback_text = full_message.replace('*', '').replace('_', '').replace('`', '').replace('\\', '')
+                await update.message.reply_text(fallback_text)
+            except Exception as e2:
+                logger.error(f"   ❌ Error sending fallback message: {e2}")
+                print(f"[TELEGRAM_BOT]   ❌ Error sending fallback message: {e2}", file=sys.stderr)
 
 
 async def send_search_results_from_people(update: Update, people: list):
