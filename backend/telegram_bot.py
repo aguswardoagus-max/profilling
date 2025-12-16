@@ -1046,9 +1046,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=get_main_menu_keyboard(user_id)
                 )
         
-        # Enrich people dengan family data jika tersedia
+        # Enrich people dengan family data jika tersedia (OPTIMASI: hanya untuk 5 hasil pertama untuk mempercepat)
         # Import get_family_data dari app.py jika tersedia
-        print(f"[TELEGRAM_BOT] Starting family data enrichment for {len(people)} people...", file=sys.stderr)
+        max_enrich = min(5, len(people))  # Hanya enrich 5 hasil pertama untuk mempercepat
+        print(f"[TELEGRAM_BOT] Starting family data enrichment for {max_enrich} people (out of {len(people)})...", file=sys.stderr)
         try:
             import os
             # Add backend directory to path if not already there
@@ -1059,11 +1060,12 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from app import get_family_data
             print(f"[TELEGRAM_BOT] ✅ Successfully imported get_family_data", file=sys.stderr)
             
-            logger.info(f"🔍 Enriching {len(people)} people with family data...")
-            print(f"[TELEGRAM_BOT] 🔍 Enriching {len(people)} people with family data...", file=sys.stderr)
+            logger.info(f"🔍 Enriching first {max_enrich} people with family data...")
+            print(f"[TELEGRAM_BOT] 🔍 Enriching first {max_enrich} people with family data...", file=sys.stderr)
             enriched_count = 0
             
-            for idx, person in enumerate(people, 1):
+            # Hanya enrich beberapa hasil pertama untuk mempercepat (sisanya akan tetap ditampilkan tanpa family data)
+            for idx, person in enumerate(people[:max_enrich], 1):
                 if isinstance(person, dict):
                     nik = person.get('ktp_number') or person.get('nik')
                     nkk = person.get('family_cert_number') or person.get('nkk') or person.get('nomor_kk') or person.get('family_card_number')
@@ -1071,17 +1073,17 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     
                     if nik:
                         try:
-                            logger.info(f"📋 [{idx}/{len(people)}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})")
-                            print(f"[TELEGRAM_BOT] 📋 [{idx}/{len(people)}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})", file=sys.stderr)
+                            logger.info(f"📋 [{idx}/{max_enrich}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})")
+                            print(f"[TELEGRAM_BOT] 📋 [{idx}/{max_enrich}] Getting family data for: {person_name} (NIK: {nik}, NKK: {nkk or 'None'})", file=sys.stderr)
                             
-                            # Coba ambil family data
+                            # Coba ambil family data dengan timeout lebih pendek
                             family_data = get_family_data(nik, nkk, token, person)
                             if family_data:
                                 person['family_data'] = family_data
                                 anggota_count = len(family_data.get('anggota_keluarga', []))
                                 enriched_count += 1
-                                logger.info(f"✅ [{idx}/{len(people)}] Added family data for {person_name}: {anggota_count} members")
-                                print(f"[TELEGRAM_BOT] ✅ [{idx}/{len(people)}] Added family data for {person_name}: {anggota_count} members", file=sys.stderr)
+                                logger.info(f"✅ [{idx}/{max_enrich}] Added family data for {person_name}: {anggota_count} members")
+                                print(f"[TELEGRAM_BOT] ✅ [{idx}/{max_enrich}] Added family data for {person_name}: {anggota_count} members", file=sys.stderr)
                                 
                                 # Log detail anggota keluarga
                                 if anggota_count > 0:
@@ -1089,19 +1091,21 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                         logger.info(f"   - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})")
                                         print(f"[TELEGRAM_BOT]    - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})", file=sys.stderr)
                             else:
-                                logger.info(f"⚠️ [{idx}/{len(people)}] No family data found for NIK: {nik}")
-                                print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{len(people)}] No family data found for NIK: {nik}", file=sys.stderr)
+                                logger.info(f"⚠️ [{idx}/{max_enrich}] No family data found for NIK: {nik}")
+                                print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{max_enrich}] No family data found for NIK: {nik}", file=sys.stderr)
                         except Exception as e:
-                            logger.warning(f"❌ [{idx}/{len(people)}] Failed to get family data for NIK {nik}: {e}")
-                            print(f"[TELEGRAM_BOT] ❌ [{idx}/{len(people)}] Failed to get family data for NIK {nik}: {e}", file=sys.stderr)
-                            import traceback
-                            traceback.print_exc()
+                            logger.warning(f"❌ [{idx}/{max_enrich}] Failed to get family data for NIK {nik}: {e}")
+                            print(f"[TELEGRAM_BOT] ❌ [{idx}/{max_enrich}] Failed to get family data for NIK {nik}: {e}", file=sys.stderr)
+                            # Jangan stop, lanjutkan ke person berikutnya
                     else:
-                        logger.warning(f"⚠️ [{idx}/{len(people)}] No NIK found for person: {person_name}")
-                        print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{len(people)}] No NIK found for person: {person_name}", file=sys.stderr)
+                        logger.warning(f"⚠️ [{idx}/{max_enrich}] No NIK found for person: {person_name}")
+                        print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{max_enrich}] No NIK found for person: {person_name}", file=sys.stderr)
             
-            logger.info(f"✅ Family data enrichment complete: {enriched_count}/{len(people)} people enriched")
-            print(f"[TELEGRAM_BOT] ✅ Family data enrichment complete: {enriched_count}/{len(people)} people enriched", file=sys.stderr)
+            logger.info(f"✅ Family data enrichment complete: {enriched_count}/{max_enrich} people enriched")
+            print(f"[TELEGRAM_BOT] ✅ Family data enrichment complete: {enriched_count}/{max_enrich} people enriched", file=sys.stderr)
+            
+            # Catatan: Data keluarga juga bisa langsung dari server (tidak perlu enrichment)
+            # Jadi meskipun tidak di-enrich, data keluarga dari server tetap akan ditampilkan
         except ImportError as e:
             logger.warning(f"⚠️ get_family_data not available: {e}, skipping family data enrichment")
             print(f"[TELEGRAM_BOT] ⚠️ get_family_data not available: {e}", file=sys.stderr)
@@ -2638,7 +2642,7 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             logger.info(f"   ✅ Has family_data with {len(anggota_keluarga)} members")
     
     # Cek 2: anggota_keluarga langsung di person (beberapa server mengirim langsung)
-    if not has_family_data:
+    if not anggota_keluarga or len(anggota_keluarga) == 0:
         anggota_keluarga = person.get('anggota_keluarga', [])
         logger.info(f"   Checking person.anggota_keluarga: {len(anggota_keluarga) if isinstance(anggota_keluarga, list) else 'not list'}")
         if anggota_keluarga and isinstance(anggota_keluarga, list) and len(anggota_keluarga) > 0:
@@ -2680,7 +2684,19 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
     logger.info(f"   has_family_data: {has_family_data}, has_valid_family_data: {has_valid_family_data}")
     logger.info(f"   family_data type: {type(family_data)}, anggota_keluarga count: {len(anggota_keluarga) if anggota_keluarga else 0}")
     
-    if has_valid_family_data or has_family_data:
+    # SELALU tampilkan data keluarga jika ada (baik dari enrichment maupun dari server langsung)
+    # Cek apakah ada data keluarga di manapun
+    has_any_family_data = (
+        has_valid_family_data or 
+        has_family_data or 
+        (anggota_keluarga and len(anggota_keluarga) > 0) or
+        person.get('kepala_keluarga') or 
+        person.get('nkk') or 
+        person.get('family_cert_number') or
+        person.get('alamat_keluarga')
+    )
+    
+    if has_any_family_data:
         personal_info += f"\n*👨‍👩‍👧‍👦 DATA KELUARGA*\n"
         personal_info += f"━━━━━━━━━━━━━━━━━━━━\n"
         
