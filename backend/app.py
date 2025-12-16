@@ -4727,6 +4727,270 @@ def api_get_cekplat_data_test():
         print(f"Error in test endpoint: {e}")
         return jsonify({'error': f'Error getting cek plat data: {str(e)}'}), 500
 
+# Phone Database API Endpoints (Local API untuk query database phone)
+@app.route('/api/phone/search', methods=['OPTIONS'])
+def handle_phone_search_options():
+    """Handle CORS preflight requests"""
+    response_headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    }
+    return '', 200, response_headers
+
+@app.route('/api/phone/search', methods=['GET', 'POST'])
+def api_phone_search():
+    """API endpoint lokal untuk query database phone (tidak perlu authentication untuk Telegram bot)"""
+    conn = None
+    cursor = None
+    
+    try:
+        import mysql.connector
+        from mysql.connector import Error
+        import re
+        
+        # Get phone number from query parameter or JSON body
+        if request.method == 'GET':
+            phone_number = request.args.get('phone') or request.args.get('hp') or request.args.get('number')
+        else:
+            data = request.get_json() or {}
+            phone_number = data.get('phone') or data.get('hp') or data.get('number')
+        
+        logger.info(f"Phone search API called with: {phone_number}")
+        print(f"[PHONE_API] 📱 Phone search request: {phone_number}", file=sys.stderr)
+        
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+        
+        # Normalize phone number
+        phone_clean = ''.join(filter(str.isdigit, phone_number))
+        if not phone_clean or len(phone_clean) < 10:
+            return jsonify({'error': 'Invalid phone number'}), 400
+        
+        # Generate phone variants
+        phone_variants = [
+            phone_clean,  # Original
+            phone_clean.lstrip('0'),  # Remove leading 0
+            '0' + phone_clean if not phone_clean.startswith('0') else phone_clean,  # Add leading 0
+            '62' + phone_clean.lstrip('0') if not phone_clean.startswith('62') else phone_clean,  # Add 62 prefix
+            phone_clean.replace('62', '0', 1) if phone_clean.startswith('62') else phone_clean,  # Replace 62 with 0
+        ]
+        phone_variants = list(dict.fromkeys([v for v in phone_variants if v and len(v) >= 10]))
+        
+        logger.info(f"Phone variants generated: {phone_variants}")
+        print(f"[PHONE_API] 📱 Phone variants: {phone_variants}", file=sys.stderr)
+        
+        # Get database connection info from environment
+        # Default menggunakan localhost karena Flask app akan berjalan di server yang sama dengan database
+        phone_db_host = os.getenv('PHONE_DB_HOST', 'localhost')
+        phone_db_port = int(os.getenv('PHONE_DB_PORT', 3306))
+        phone_db_user = os.getenv('PHONE_DB_USER', 'root')
+        phone_db_password = os.getenv('PHONE_DB_PASSWORD', '')
+        phone_db_name = os.getenv('PHONE_DB_NAME', 'sipudat1')
+        
+        logger.info(f"Connecting to phone database: {phone_db_host}:{phone_db_port}/{phone_db_name}")
+        print(f"[PHONE_API] 🔌 Connecting to: {phone_db_host}:{phone_db_port}/{phone_db_name}", file=sys.stderr)
+        
+        # Connect to phone database
+        try:
+            conn = mysql.connector.connect(
+                host=phone_db_host,
+                port=phone_db_port,
+                user=phone_db_user,
+                password=phone_db_password,
+                database=phone_db_name,
+                charset='utf8mb4',
+                collation='utf8mb4_unicode_ci',
+                autocommit=True,
+                connect_timeout=10
+            )
+            cursor = conn.cursor(dictionary=True)
+            logger.info("✅ Successfully connected to phone database")
+            print(f"[PHONE_API] ✅ Database connection successful", file=sys.stderr)
+        except Error as e:
+            error_msg = str(e)
+            error_code = None
+            
+            # Extract error code if available
+            if '1130' in error_msg or 'Host' in error_msg and 'not allowed' in error_msg:
+                error_code = 'HOST_NOT_ALLOWED'
+                detailed_msg = (
+                    f"Database connection error: {error_msg}\n\n"
+                    f"⚠️ MySQL server tidak mengizinkan koneksi dari IP ini.\n"
+                    f"💡 Solusi:\n"
+                    f"   1. Minta admin MySQL untuk mengizinkan IP '10.1.90.175' di MySQL server\n"
+                    f"   2. Atau jalankan Flask app di server yang sama dengan database\n"
+                    f"   3. Atau gunakan SSH tunnel ke MySQL server"
+                )
+            else:
+                detailed_msg = f"Database connection error: {error_msg}"
+            
+            logger.error(detailed_msg)
+            print(f"[PHONE_API] ❌ {detailed_msg}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            
+            response_data = {
+                'success': False,
+                'error': error_msg,
+                'details': str(e),
+                'error_code': error_code
+            }
+            
+            if error_code == 'HOST_NOT_ALLOWED':
+                response_data['solution'] = (
+                    "MySQL server tidak mengizinkan remote connection. "
+                    "Hubungi admin database untuk mengizinkan IP '10.1.90.175' atau gunakan metode alternatif."
+                )
+            
+            response = jsonify(response_data)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 500
+        
+        results = []
+        seen_ids = set()
+        
+        try:
+            # Try querying with different column names and phone variants
+            # PRIORITAS: Kolom 'hp' di tabel 'penduduk' (sesuai dengan struktur database)
+            possible_queries = [
+                # Query dengan kolom hp (PRIORITAS - sesuai struktur tabel penduduk)
+                ("SELECT * FROM penduduk WHERE hp = %s OR hp LIKE %s OR hp LIKE %s OR hp LIKE %s LIMIT 100", 'hp'),
+                # Query dengan kolom phone (fallback)
+                ("SELECT * FROM penduduk WHERE phone = %s OR phone LIKE %s OR phone LIKE %s OR phone LIKE %s LIMIT 100", 'phone'),
+                # Query dengan kolom nomor_hp (fallback)
+                ("SELECT * FROM penduduk WHERE nomor_hp = %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s OR nomor_hp LIKE %s LIMIT 100", 'nomor_hp'),
+            ]
+            
+            logger.info(f"Starting query with {len(phone_variants)} phone variants")
+            print(f"[PHONE_API] 🔍 Starting query with {len(phone_variants)} variants", file=sys.stderr)
+            
+            for query_template, col_name in possible_queries:
+                logger.info(f"Trying query with column: {col_name}")
+                print(f"[PHONE_API] 🔍 Trying column: {col_name}", file=sys.stderr)
+                
+                for variant in phone_variants:
+                    if not variant or len(variant) < 10:
+                        continue
+                    
+                    like_patterns = [
+                        variant,  # Exact match
+                        f'%{variant}%',  # Contains
+                        f'{variant}%',  # Starts with
+                        f'%{variant}',  # Ends with
+                    ]
+                    
+                    try:
+                        logger.debug(f"Executing query with variant: {variant[:10]}...")
+                        cursor.execute(query_template, like_patterns)
+                        rows = cursor.fetchall()
+                        
+                        logger.info(f"Query returned {len(rows)} rows for variant {variant[:10]}...")
+                        print(f"[PHONE_API] 📊 Query returned {len(rows)} rows for variant {variant[:10]}...", file=sys.stderr)
+                        
+                        for row in rows:
+                            # Create unique key from ID fields
+                            unique_key = None
+                            for key in ['id', 'nik', 'hp', 'phone', 'nomor_hp']:
+                                if key in row and row[key]:
+                                    unique_key = str(row[key])
+                                    break
+                            
+                            if unique_key and unique_key not in seen_ids:
+                                seen_ids.add(unique_key)
+                                results.append(row)
+                                
+                    except Error as e:
+                        # Column might not exist, try next query
+                        error_msg = f"Query failed for column {col_name}: {str(e)}"
+                        logger.warning(error_msg)
+                        print(f"[PHONE_API] ⚠️ {error_msg}", file=sys.stderr)
+                        continue
+            
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+            
+            logger.info(f"Total unique results found: {len(results)}")
+            print(f"[PHONE_API] ✅ Total unique results: {len(results)}", file=sys.stderr)
+            
+            if results:
+                logger.info(f"Found {len(results)} results for phone: {phone_number}")
+                response = jsonify({
+                    'success': True,
+                    'data': results,
+                    'count': len(results),
+                    'phone_number': phone_number,
+                    'phone_variants': phone_variants
+                })
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response
+            else:
+                logger.info(f"No results found for phone: {phone_number}")
+                response = jsonify({
+                    'success': False,
+                    'data': [],
+                    'count': 0,
+                    'message': 'No data found',
+                    'phone_number': phone_number,
+                    'phone_variants': phone_variants
+                })
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response
+                
+        except Exception as e:
+            error_msg = f"Error querying phone database: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            print(f"[PHONE_API] ❌ {error_msg}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            
+            if cursor:
+                try:
+                    cursor.close()
+                except:
+                    pass
+            if conn and conn.is_connected():
+                try:
+                    conn.close()
+                except:
+                    pass
+                    
+            response = jsonify({
+                'success': False,
+                'error': error_msg,
+                'details': str(e)
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 500
+            
+    except Exception as e:
+        error_msg = f"Error in phone search API: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        print(f"[PHONE_API] ❌ {error_msg}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if conn and conn.is_connected():
+            try:
+                conn.close()
+            except:
+                pass
+                
+        response = jsonify({
+            'success': False,
+            'error': error_msg,
+            'details': str(e)
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
 @app.route('/api/cekplat-data/<int:cekplat_id>', methods=['DELETE'])
 def api_delete_cekplat_data(cekplat_id):
     """API endpoint untuk delete cek plat data"""
@@ -8973,7 +9237,42 @@ def api_ai_face_to_nik():
         return jsonify({'error': f'AI analysis failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
+    import threading
+    
+    # Import Telegram bot
+    try:
+        from telegram_bot import run_bot
+        TELEGRAM_BOT_AVAILABLE = True
+    except ImportError as e:
+        print(f"⚠️ Warning: Telegram bot tidak dapat diimport: {e}")
+        print("   Bot Telegram akan dinonaktifkan")
+        TELEGRAM_BOT_AVAILABLE = False
+    
+    def start_telegram_bot():
+        """Start Telegram bot in separate thread"""
+        if TELEGRAM_BOT_AVAILABLE:
+            try:
+                import time
+                time.sleep(2)  # Tunggu sebentar agar Flask app sudah siap
+                print("🤖 Starting Telegram bot...")
+                run_bot()
+            except Exception as e:
+                print(f"❌ Error starting Telegram bot: {e}")
+                import traceback
+                traceback.print_exc()
+    
     print("Starting Clearance Face Search Web Server...")
     print(f"Face recognition library available: {USE_FACE_LIB}")
     print("Access the application at: http://localhost:5000")
+    
+    # Start Telegram bot in background thread
+    if TELEGRAM_BOT_AVAILABLE:
+        bot_thread = threading.Thread(target=start_telegram_bot, daemon=True)
+        bot_thread.start()
+        print("Telegram Bot: ✅ Enabled")
+    else:
+        print("Telegram Bot: ❌ Disabled")
+    
+    print("-" * 50)
+    
     app.run(debug=True, host='0.0.0.0', port=5000)
