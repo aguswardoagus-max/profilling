@@ -2805,54 +2805,69 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
                 family_data = {}
     
     # Tampilkan data keluarga jika ada - SELALU tampilkan jika ada data
-    # Cek apakah ada family_data yang valid
+    # Cek apakah ada family_data yang valid atau data keluarga di level person
     has_valid_family_data = False
+    
+    # Cek di family_data dict
     if family_data and isinstance(family_data, dict):
         # Cek apakah ada anggota_keluarga atau data keluarga lainnya
-        if family_data.get('anggota_keluarga') or family_data.get('kepala_keluarga') or family_data.get('nkk'):
+        if family_data.get('anggota_keluarga') or family_data.get('kepala_keluarga') or family_data.get('nkk') or family_data.get('alamat_keluarga'):
             has_valid_family_data = True
             logger.info(f"   ✅ Found family_data dict with data")
     
-    # Juga cek di level person
+    # Juga cek di level person (PENTING: cek semua kemungkinan field)
     if not has_valid_family_data:
-        if person.get('kepala_keluarga') or person.get('nkk') or person.get('alamat_keluarga') or person.get('anggota_keluarga'):
+        nkk_person = person.get('nkk') or person.get('nomor_kk') or person.get('no_kk') or person.get('family_cert_number')
+        kepala_keluarga_person = person.get('kepala_keluarga') or person.get('nama_kepala_keluarga')
+        alamat_keluarga_person = person.get('alamat_keluarga')
+        anggota_keluarga_person = person.get('anggota_keluarga')
+        
+        if kepala_keluarga_person or nkk_person or alamat_keluarga_person or anggota_keluarga_person:
             has_valid_family_data = True
             logger.info(f"   ✅ Found family data at person level")
     
     # Log untuk debugging
     logger.info(f"   has_family_data: {has_family_data}, has_valid_family_data: {has_valid_family_data}")
     logger.info(f"   family_data type: {type(family_data)}, anggota_keluarga count: {len(anggota_keluarga) if anggota_keluarga else 0}")
+    print(f"[TELEGRAM_BOT]   has_family_data: {has_family_data}, has_valid_family_data: {has_valid_family_data}", file=sys.stderr)
+    print(f"[TELEGRAM_BOT]   family_data exists: {bool(family_data)}, anggota_keluarga count: {len(anggota_keluarga) if anggota_keluarga else 0}", file=sys.stderr)
     
-    if has_valid_family_data or has_family_data:
+    # SELALU tampilkan data keluarga jika ada (baik dari family_data maupun person level)
+    # Cek apakah ada data keluarga di manapun
+    nkk_final = None
+    kepala_keluarga_final = None
+    alamat_keluarga_final = None
+    
+    # Ambil dari family_data dulu
+    if family_data and isinstance(family_data, dict):
+        nkk_final = family_data.get('nkk')
+        kepala_keluarga_final = family_data.get('kepala_keluarga')
+        alamat_keluarga_final = family_data.get('alamat_keluarga')
+    
+    # Ambil dari person level jika belum ada
+    if not nkk_final:
+        nkk_final = person.get('nkk') or person.get('nomor_kk') or person.get('no_kk') or person.get('family_cert_number')
+    if not kepala_keluarga_final:
+        kepala_keluarga_final = person.get('kepala_keluarga') or person.get('nama_kepala_keluarga')
+    if not alamat_keluarga_final:
+        alamat_keluarga_final = person.get('alamat_keluarga')
+    
+    # Tampilkan data keluarga jika ada minimal salah satu: NKK, kepala_keluarga, alamat_keluarga, atau anggota_keluarga
+    if nkk_final or kepala_keluarga_final or alamat_keluarga_final or anggota_keluarga or has_valid_family_data or has_family_data:
         personal_info += f"\n*👨‍👩‍👧‍👦 DATA KELUARGA*\n"
         personal_info += f"━━━━━━━━━━━━━━━━━━━━\n"
         
         # Kepala Keluarga
-        kepala_keluarga = None
-        if family_data and isinstance(family_data, dict):
-            kepala_keluarga = family_data.get('kepala_keluarga')
-        if not kepala_keluarga:
-            kepala_keluarga = person.get('kepala_keluarga') or person.get('nama_kepala_keluarga')
-        if kepala_keluarga and kepala_keluarga != 'N/A' and kepala_keluarga != '':
-            personal_info += f"👨 *Kepala Keluarga:* {format_field_value(kepala_keluarga)}\n"
+        if kepala_keluarga_final and kepala_keluarga_final != 'N/A' and kepala_keluarga_final != '':
+            personal_info += f"👨 *Kepala Keluarga:* {format_field_value(kepala_keluarga_final)}\n"
         
         # NKK
-        nkk = None
-        if family_data and isinstance(family_data, dict):
-            nkk = family_data.get('nkk')
-        if not nkk:
-            nkk = person.get('nkk') or person.get('nomor_kk') or person.get('no_kk') or person.get('family_cert_number')
-        if nkk and nkk != 'N/A' and nkk != '':
-            personal_info += f"🆔 *NKK:* {format_field_value(nkk)}\n"
+        if nkk_final and nkk_final != 'N/A' and nkk_final != '':
+            personal_info += f"🆔 *NKK:* {format_field_value(nkk_final)}\n"
         
         # Alamat Keluarga
-        alamat_keluarga = None
-        if family_data and isinstance(family_data, dict):
-            alamat_keluarga = family_data.get('alamat_keluarga')
-        if not alamat_keluarga:
-            alamat_keluarga = person.get('alamat_keluarga')
-        if alamat_keluarga and alamat_keluarga != 'N/A' and alamat_keluarga != '':
-            personal_info += f"🏠 *Alamat Keluarga:* {format_field_value(alamat_keluarga, max_length=300)}\n"
+        if alamat_keluarga_final and alamat_keluarga_final != 'N/A' and alamat_keluarga_final != '':
+            personal_info += f"🏠 *Alamat Keluarga:* {format_field_value(alamat_keluarga_final, max_length=300)}\n"
         
         # Anggota Keluarga - SELALU tampilkan jika ada
         # Pastikan anggota_keluarga adalah list dan tidak kosong
@@ -2903,7 +2918,7 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             logger.info(f"   ⚠️ No anggota_keluarga found, but checking other fields...")
             print(f"[TELEGRAM_BOT]   ⚠️ No anggota_keluarga found", file=sys.stderr)
             print(f"[TELEGRAM_BOT]      anggota_keluarga type: {type(anggota_keluarga)}, value: {anggota_keluarga}", file=sys.stderr)
-            if kepala_keluarga or nkk or alamat_keluarga:
+            if kepala_keluarga_final or nkk_final or alamat_keluarga_final:
                 personal_info += f"\n*Data keluarga tersedia, namun detail anggota belum lengkap*\n"
                 logger.warning(f"   ⚠️ Family data exists but anggota_keluarga is missing or empty")
                 print(f"[TELEGRAM_BOT]   ⚠️ Family data exists but anggota_keluarga is missing or empty", file=sys.stderr)
