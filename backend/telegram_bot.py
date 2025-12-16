@@ -1077,17 +1077,37 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             # Coba ambil family data
                             family_data = get_family_data(nik, nkk, token, person)
                             if family_data:
+                                # Log struktur family_data untuk debugging
+                                logger.info(f"📊 [{idx}/{len(people)}] Family data structure: {type(family_data)}, keys: {list(family_data.keys()) if isinstance(family_data, dict) else 'not dict'}")
+                                print(f"[TELEGRAM_BOT] 📊 [{idx}/{len(people)}] Family data structure: {type(family_data)}, keys: {list(family_data.keys()) if isinstance(family_data, dict) else 'not dict'}", file=sys.stderr)
+                                
                                 person['family_data'] = family_data
-                                anggota_count = len(family_data.get('anggota_keluarga', []))
+                                anggota_keluarga = family_data.get('anggota_keluarga', [])
+                                anggota_count = len(anggota_keluarga) if isinstance(anggota_keluarga, list) else 0
+                                
+                                # Log detail struktur anggota_keluarga
+                                if anggota_keluarga:
+                                    logger.info(f"📋 [{idx}/{len(people)}] anggota_keluarga type: {type(anggota_keluarga)}, length: {anggota_count}")
+                                    print(f"[TELEGRAM_BOT] 📋 [{idx}/{len(people)}] anggota_keluarga type: {type(anggota_keluarga)}, length: {anggota_count}", file=sys.stderr)
+                                    if anggota_count > 0 and isinstance(anggota_keluarga[0], dict):
+                                        logger.info(f"📋 [{idx}/{len(people)}] First member keys: {list(anggota_keluarga[0].keys())}")
+                                        print(f"[TELEGRAM_BOT] 📋 [{idx}/{len(people)}] First member keys: {list(anggota_keluarga[0].keys())}", file=sys.stderr)
+                                
                                 enriched_count += 1
                                 logger.info(f"✅ [{idx}/{len(people)}] Added family data for {person_name}: {anggota_count} members")
                                 print(f"[TELEGRAM_BOT] ✅ [{idx}/{len(people)}] Added family data for {person_name}: {anggota_count} members", file=sys.stderr)
                                 
                                 # Log detail anggota keluarga
                                 if anggota_count > 0:
-                                    for i, member in enumerate(family_data.get('anggota_keluarga', [])[:3], 1):
-                                        logger.info(f"   - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})")
-                                        print(f"[TELEGRAM_BOT]    - Member {i}: {member.get('nama', 'N/A')} ({member.get('hubungan', 'N/A')})", file=sys.stderr)
+                                    for i, member in enumerate(anggota_keluarga[:3], 1):
+                                        member_name = member.get('nama') or member.get('name', 'N/A')
+                                        member_hubungan = member.get('hubungan') or member.get('relationship', 'N/A')
+                                        logger.info(f"   - Member {i}: {member_name} ({member_hubungan})")
+                                        print(f"[TELEGRAM_BOT]    - Member {i}: {member_name} ({member_hubungan})", file=sys.stderr)
+                                else:
+                                    logger.warning(f"⚠️ [{idx}/{len(people)}] Family data exists but anggota_keluarga is empty or not a list")
+                                    print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{len(people)}] Family data exists but anggota_keluarga is empty or not a list", file=sys.stderr)
+                                    print(f"[TELEGRAM_BOT]    Family data keys: {list(family_data.keys()) if isinstance(family_data, dict) else 'not dict'}", file=sys.stderr)
                             else:
                                 logger.info(f"⚠️ [{idx}/{len(people)}] No family data found for NIK: {nik}")
                                 print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{len(people)}] No family data found for NIK: {nik}", file=sys.stderr)
@@ -2616,19 +2636,39 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
     
     # Cek 1: family_data sebagai dict dengan anggota_keluarga
     if family_data and isinstance(family_data, dict):
-        anggota_keluarga = family_data.get('anggota_keluarga', [])
-        logger.info(f"   Found family_data dict, anggota_keluarga: {len(anggota_keluarga) if isinstance(anggota_keluarga, list) else 'not list'}")
-        if anggota_keluarga and isinstance(anggota_keluarga, list) and len(anggota_keluarga) > 0:
-            has_family_data = True
-            logger.info(f"   ✅ Has family_data with {len(anggota_keluarga)} members")
+        anggota_keluarga_from_family = family_data.get('anggota_keluarga', [])
+        logger.info(f"   Found family_data dict, anggota_keluarga: {len(anggota_keluarga_from_family) if isinstance(anggota_keluarga_from_family, list) else 'not list'}")
+        logger.info(f"   Family data keys: {list(family_data.keys())}")
+        print(f"[TELEGRAM_BOT]   Family data keys: {list(family_data.keys())}", file=sys.stderr)
+        
+        # Cek berbagai kemungkinan format anggota_keluarga
+        if anggota_keluarga_from_family:
+            if isinstance(anggota_keluarga_from_family, list) and len(anggota_keluarga_from_family) > 0:
+                anggota_keluarga = anggota_keluarga_from_family
+                has_family_data = True
+                logger.info(f"   ✅ Has family_data with {len(anggota_keluarga)} members")
+                print(f"[TELEGRAM_BOT]   ✅ Has family_data with {len(anggota_keluarga)} members", file=sys.stderr)
+            elif isinstance(anggota_keluarga_from_family, dict):
+                # Mungkin format berbeda, coba convert
+                logger.info(f"   ⚠️ anggota_keluarga is dict, trying to convert...")
+                print(f"[TELEGRAM_BOT]   ⚠️ anggota_keluarga is dict, keys: {list(anggota_keluarga_from_family.keys())}", file=sys.stderr)
+                # Coba ambil sebagai list dari dict
+                if 'data' in anggota_keluarga_from_family:
+                    anggota_keluarga = anggota_keluarga_from_family.get('data', [])
+                    if isinstance(anggota_keluarga, list) and len(anggota_keluarga) > 0:
+                        has_family_data = True
+                        logger.info(f"   ✅ Converted dict to list: {len(anggota_keluarga)} members")
+                        print(f"[TELEGRAM_BOT]   ✅ Converted dict to list: {len(anggota_keluarga)} members", file=sys.stderr)
     
     # Cek 2: anggota_keluarga langsung di person (beberapa server mengirim langsung)
-    if not has_family_data:
-        anggota_keluarga = person.get('anggota_keluarga', [])
-        logger.info(f"   Checking person.anggota_keluarga: {len(anggota_keluarga) if isinstance(anggota_keluarga, list) else 'not list'}")
-        if anggota_keluarga and isinstance(anggota_keluarga, list) and len(anggota_keluarga) > 0:
+    if not has_family_data or not anggota_keluarga:
+        anggota_keluarga_from_person = person.get('anggota_keluarga', [])
+        logger.info(f"   Checking person.anggota_keluarga: {len(anggota_keluarga_from_person) if isinstance(anggota_keluarga_from_person, list) else 'not list'}")
+        if anggota_keluarga_from_person and isinstance(anggota_keluarga_from_person, list) and len(anggota_keluarga_from_person) > 0:
+            anggota_keluarga = anggota_keluarga_from_person
             has_family_data = True
             logger.info(f"   ✅ Has anggota_keluarga at person level with {len(anggota_keluarga)} members")
+            print(f"[TELEGRAM_BOT]   ✅ Has anggota_keluarga at person level with {len(anggota_keluarga)} members", file=sys.stderr)
             # Jika anggota_keluarga ada di root, coba ambil family_data lainnya juga
             if not family_data:
                 family_data = {}
@@ -2697,35 +2737,61 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             personal_info += f"🏠 *Alamat Keluarga:* {format_field_value(alamat_keluarga, max_length=300)}\n"
         
         # Anggota Keluarga - SELALU tampilkan jika ada
-        if anggota_keluarga and len(anggota_keluarga) > 0:
+        # Pastikan anggota_keluarga adalah list dan tidak kosong
+        if anggota_keluarga and isinstance(anggota_keluarga, list) and len(anggota_keluarga) > 0:
             personal_info += f"\n*Anggota Keluarga ({len(anggota_keluarga)}):*\n"
             logger.info(f"   ✅ Displaying {len(anggota_keluarga)} anggota keluarga")
+            print(f"[TELEGRAM_BOT]   ✅ Displaying {len(anggota_keluarga)} anggota keluarga", file=sys.stderr)
             
+            displayed_count = 0
             for idx, member in enumerate(anggota_keluarga[:10], 1):  # Limit to 10 members
                 if not isinstance(member, dict):
+                    logger.warning(f"   ⚠️ Member {idx} is not a dict: {type(member)}")
+                    print(f"[TELEGRAM_BOT]   ⚠️ Member {idx} is not a dict: {type(member)}", file=sys.stderr)
                     continue
+                
+                # Log member keys untuk debugging
+                if idx == 1:
+                    logger.info(f"   📋 First member keys: {list(member.keys())}")
+                    print(f"[TELEGRAM_BOT]   📋 First member keys: {list(member.keys())}", file=sys.stderr)
                     
-                member_name = member.get('nama') or member.get('name', 'N/A')
-                member_nik = member.get('nik') or member.get('ktp_number', 'N/A')
-                hubungan = member.get('hubungan') or member.get('relationship') or member.get('status_hubungan', 'N/A')
-                member_ttl = member.get('tanggal_lahir') or member.get('date_of_birth') or member.get('birth_date', 'N/A')
+                member_name = member.get('nama') or member.get('name') or member.get('full_name', 'N/A')
+                member_nik = member.get('nik') or member.get('ktp_number') or member.get('ktp') or 'N/A'
+                hubungan = member.get('hubungan') or member.get('relationship') or member.get('status_hubungan') or member.get('hubungan_keluarga', 'N/A')
+                member_ttl = member.get('tanggal_lahir') or member.get('date_of_birth') or member.get('birth_date') or member.get('ttl', 'N/A')
                 member_jk = member.get('jenis_kelamin') or member.get('gender') or member.get('sex', 'N/A')
                 
-                personal_info += f"\n{idx}. *{member_name}*\n"
-                personal_info += f"   🆔 NIK: {member_nik}\n"
-                personal_info += f"   👤 Hubungan: {hubungan}\n"
-                personal_info += f"   📅 TTL: {member_ttl}\n"
-                personal_info += f"   ⚧️ JK: {member_jk}\n"
+                # Hanya tampilkan jika ada minimal nama
+                if member_name and member_name != 'N/A':
+                    personal_info += f"\n{idx}. *{format_field_value(member_name)}*\n"
+                    if member_nik and member_nik != 'N/A':
+                        personal_info += f"   🆔 NIK: {format_field_value(member_nik)}\n"
+                    if hubungan and hubungan != 'N/A':
+                        personal_info += f"   👤 Hubungan: {format_field_value(hubungan)}\n"
+                    if member_ttl and member_ttl != 'N/A':
+                        personal_info += f"   📅 TTL: {format_field_value(member_ttl)}\n"
+                    if member_jk and member_jk != 'N/A':
+                        personal_info += f"   ⚧️ JK: {format_field_value(member_jk)}\n"
+                    displayed_count += 1
             
-            if len(anggota_keluarga) > 10:
+            if displayed_count == 0:
+                logger.warning(f"   ⚠️ No valid members found in anggota_keluarga list")
+                print(f"[TELEGRAM_BOT]   ⚠️ No valid members found in anggota_keluarga list", file=sys.stderr)
+                personal_info += f"\n*Data keluarga tersedia, namun detail anggota belum lengkap*\n"
+            elif len(anggota_keluarga) > 10:
                 personal_info += f"\n... dan {len(anggota_keluarga) - 10} anggota lainnya\n"
         else:
             # Jika tidak ada anggota_keluarga tapi ada data keluarga lainnya, tetap tampilkan header
             logger.info(f"   ⚠️ No anggota_keluarga found, but checking other fields...")
+            print(f"[TELEGRAM_BOT]   ⚠️ No anggota_keluarga found", file=sys.stderr)
+            print(f"[TELEGRAM_BOT]      anggota_keluarga type: {type(anggota_keluarga)}, value: {anggota_keluarga}", file=sys.stderr)
             if kepala_keluarga or nkk or alamat_keluarga:
                 personal_info += f"\n*Data keluarga tersedia, namun detail anggota belum lengkap*\n"
+                logger.warning(f"   ⚠️ Family data exists but anggota_keluarga is missing or empty")
+                print(f"[TELEGRAM_BOT]   ⚠️ Family data exists but anggota_keluarga is missing or empty", file=sys.stderr)
             else:
                 logger.info(f"   ⚠️ No family data found at all for this person")
+                print(f"[TELEGRAM_BOT]   ⚠️ No family data found at all for this person", file=sys.stderr)
     
     # Cek juga untuk informasi keluarga dasar (nama ayah/ibu) jika tidak ada data keluarga lengkap
     if not has_family_data:
