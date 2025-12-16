@@ -2413,7 +2413,7 @@ async def remove_user_from_whitelist(update: Update, context: ContextTypes.DEFAU
 
 
 async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """List all whitelisted users"""
+    """List all users in database (both allowed and pending)"""
     user_id = update.effective_user.id
     
     if not is_owner(user_id):
@@ -2426,42 +2426,81 @@ async def list_whitelist_users(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     
     try:
-        users = db.get_all_telegram_users(only_allowed=True)
+        # Ambil semua user dari database (baik yang allowed maupun pending)
+        all_users = db.get_all_telegram_users(only_allowed=False) if db else []
         
-        if not users:
+        if not all_users:
             await update.message.reply_text(
                 "📋 *Daftar User*\n\n"
-                "Tidak ada user yang terdaftar.",
+                "Tidak ada user di database.",
                 parse_mode='Markdown',
                 reply_markup=get_main_menu_keyboard(user_id)
             )
             return
         
-        message = f"📋 *Daftar User Terdaftar \\({len(users)}\\)*\n\n"
+        # Pisahkan user yang allowed dan pending
+        allowed_users = [u for u in all_users if u.get('is_allowed', False)]
+        pending_users = [u for u in all_users if not u.get('is_allowed', False)]
+        
+        message = f"📋 *Semua User di Database \\({len(all_users)}\\)*\n\n"
+        message += f"✅ Terdaftar: {len(allowed_users)}\n"
+        message += f"🆕 Pending: {len(pending_users)}\n\n"
         message += "━━━━━━━━━━━━━━━━━━━━\n\n"
         
-        for idx, user in enumerate(users[:20], 1):  # Limit to 20 users
-            user_id_str = str(user.get('telegram_id', 'N/A'))
-            username = user.get('username') or 'N/A'
-            first_name = user.get('first_name') or 'N/A'
-            last_name = user.get('last_name') or ''
-            last_used = user.get('last_used')
+        # Tampilkan user yang terdaftar dulu
+        if allowed_users:
+            message += f"*✅ USER TERDAFTAR \\({len(allowed_users)}\\):*\n\n"
+            for idx, user in enumerate(allowed_users[:15], 1):  # Limit to 15 allowed users
+                user_id_str = str(user.get('telegram_id', 'N/A'))
+                username = user.get('username') or 'N/A'
+                first_name = user.get('first_name') or 'N/A'
+                last_name = user.get('last_name') or ''
+                last_used = user.get('last_used')
+                
+                # Escape karakter khusus untuk Markdown
+                escaped_first_name = escape_markdown(first_name)
+                escaped_last_name = escape_markdown(last_name)
+                escaped_username = escape_markdown(username)
+                escaped_last_used = escape_markdown(str(last_used)) if last_used else None
+                
+                message += f"{idx}\\. ✅ 👤 *{escaped_first_name} {escaped_last_name}*\n"
+                message += f"   🆔 ID: `{user_id_str}`\n"
+                message += f"   📝 @{escaped_username}\n"
+                if escaped_last_used:
+                    message += f"   🕐 Terakhir: {escaped_last_used}\n"
+                message += "\n"
             
-            # Escape karakter khusus untuk Markdown
-            escaped_first_name = escape_markdown(first_name)
-            escaped_last_name = escape_markdown(last_name)
-            escaped_username = escape_markdown(username)
-            escaped_last_used = escape_markdown(str(last_used)) if last_used else None
+            if len(allowed_users) > 15:
+                message += f"\n\\.\\.\\. dan {len(allowed_users) - 15} user terdaftar lainnya\n"
             
-            message += f"{idx}\\. 👤 *{escaped_first_name} {escaped_last_name}*\n"
-            message += f"   🆔 ID: `{user_id_str}`\n"
-            message += f"   📝 @{escaped_username}\n"
-            if escaped_last_used:
-                message += f"   🕐 Terakhir: {escaped_last_used}\n"
-            message += "\n"
+            if pending_users:
+                message += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
         
-        if len(users) > 20:
-            message += f"\n\\.\\.\\. dan {len(users) - 20} user lainnya"
+        # Tampilkan user pending
+        if pending_users:
+            message += f"*🆕 USER PENDING \\({len(pending_users)}\\):*\n\n"
+            for idx, user in enumerate(pending_users[:15], 1):  # Limit to 15 pending users
+                user_id_str = str(user.get('telegram_id', 'N/A'))
+                username = user.get('username') or 'N/A'
+                first_name = user.get('first_name') or 'N/A'
+                last_name = user.get('last_name') or ''
+                added_at = user.get('added_at')
+                
+                # Escape karakter khusus untuk Markdown
+                escaped_first_name = escape_markdown(first_name)
+                escaped_last_name = escape_markdown(last_name)
+                escaped_username = escape_markdown(username)
+                escaped_added_at = escape_markdown(str(added_at)) if added_at else None
+                
+                message += f"{idx}\\. 🆕 👤 *{escaped_first_name} {escaped_last_name}*\n"
+                message += f"   🆔 ID: `{user_id_str}`\n"
+                message += f"   📝 @{escaped_username}\n"
+                if escaped_added_at:
+                    message += f"   🕐 Mencoba akses: {escaped_added_at}\n"
+                message += "\n"
+            
+            if len(pending_users) > 15:
+                message += f"\n\\.\\.\\. dan {len(pending_users) - 15} user pending lainnya\n"
         
         await update.message.reply_text(
             message,
@@ -3013,33 +3052,55 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Set state untuk input ID
             user_admin_state[user_id] = 'waiting_remove_id'
             
-            # Tampilkan list users yang terdaftar
+            # Tampilkan list semua users di database (baik yang allowed maupun pending)
             try:
-                users = db.get_all_telegram_users(only_allowed=True) if db else []
+                all_users = db.get_all_telegram_users(only_allowed=False) if db else []
                 
-                if users:
+                if all_users:
+                    # Pisahkan user yang allowed dan pending
+                    allowed_users = [u for u in all_users if u.get('is_allowed', False)]
+                    pending_users = [u for u in all_users if not u.get('is_allowed', False)]
+                    
                     # Buat keyboard dengan tombol untuk setiap user
                     keyboard_buttons = []
-                    for user in users[:10]:  # Limit 10 users
-                        user_id_str = str(user.get('telegram_id', 'N/A'))
-                        username = user.get('username') or 'N/A'
-                        first_name = user.get('first_name') or 'N/A'
-                        button_text = f"➖ {first_name} ({user_id_str})"
-                        keyboard_buttons.append([InlineKeyboardButton(
-                            button_text,
-                            callback_data=f"admin_remove_{user_id_str}"
-                        )])
+                    
+                    # Tampilkan user terdaftar dulu
+                    if allowed_users:
+                        for user in allowed_users[:8]:  # Limit 8 allowed users
+                            user_id_str = str(user.get('telegram_id', 'N/A'))
+                            username = user.get('username') or 'N/A'
+                            first_name = user.get('first_name') or 'N/A'
+                            button_text = f"✅ {first_name} ({user_id_str})"
+                            keyboard_buttons.append([InlineKeyboardButton(
+                                button_text,
+                                callback_data=f"admin_remove_{user_id_str}"
+                            )])
+                    
+                    # Tampilkan user pending
+                    if pending_users:
+                        for user in pending_users[:8]:  # Limit 8 pending users
+                            user_id_str = str(user.get('telegram_id', 'N/A'))
+                            username = user.get('username') or 'N/A'
+                            first_name = user.get('first_name') or 'N/A'
+                            button_text = f"🆕 {first_name} ({user_id_str})"
+                            keyboard_buttons.append([InlineKeyboardButton(
+                                button_text,
+                                callback_data=f"admin_remove_{user_id_str}"
+                            )])
                     
                     keyboard_buttons.append([InlineKeyboardButton("🔙 Kembali", callback_data="admin_back")])
                     
                     message = (
-                        "➖ *Hapus User dari Whitelist*\n\n"
+                        "➖ *Hapus User dari Database*\n\n"
                         "━━━━━━━━━━━━━━━━━━━━\n\n"
                         "Pilih user dari daftar di bawah, atau:\n\n"
                         "Ketik ID Telegram yang ingin dihapus:\n"
                         "Contoh: `123456789`\n\n"
                         "━━━━━━━━━━━━━━━━━━━━\n\n"
-                        f"📋 *User Terdaftar ({len(users)}):*"
+                        f"📋 *Total User: {len(all_users)}*\n"
+                        f"✅ Terdaftar: {len(allowed_users)}\n"
+                        f"🆕 Pending: {len(pending_users)}\n\n"
+                        f"*Pilih user untuk dihapus:*"
                     )
                     
                     await query.edit_message_text(
@@ -3049,9 +3110,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                 else:
                     message = (
-                        "➖ *Hapus User dari Whitelist*\n\n"
+                        "➖ *Hapus User dari Database*\n\n"
                         "━━━━━━━━━━━━━━━━━━━━\n\n"
-                        "Tidak ada user yang terdaftar.\n\n"
+                        "Tidak ada user di database.\n\n"
                         "Atau gunakan command:\n"
                         "`/removeuser <telegram_id>`"
                     )
@@ -3120,30 +3181,65 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         elif callback_data == 'admin_listusers':
             try:
-                users = db.get_all_telegram_users(only_allowed=True) if db else []
-                if not users:
+                # Ambil semua user dari database (baik yang allowed maupun pending)
+                all_users = db.get_all_telegram_users(only_allowed=False) if db else []
+                
+                if not all_users:
                     await query.edit_message_text(
                         "📋 *Daftar User*\n\n"
-                        "Tidak ada user yang terdaftar.",
+                        "Tidak ada user di database.",
                         parse_mode='Markdown',
                         reply_markup=InlineKeyboardMarkup([[
                             InlineKeyboardButton("🔙 Kembali", callback_data="admin_back")
                         ]])
                     )
                 else:
-                    message = f"📋 *User Terdaftar \\({len(users)}\\)*\n\n"
-                    for idx, user in enumerate(users[:10], 1):
-                        user_id_str = str(user.get('telegram_id', 'N/A'))
-                        username = user.get('username') or 'N/A'
-                        first_name = user.get('first_name') or 'N/A'
-                        # Escape karakter khusus untuk Markdown
-                        escaped_first_name = escape_markdown(first_name)
-                        escaped_username = escape_markdown(username)
-                        message += f"{idx}\\. 👤 *{escaped_first_name}*\n"
-                        message += f"   🆔 `{user_id_str}`\n"
-                        message += f"   📝 @{escaped_username}\n\n"
-                    if len(users) > 10:
-                        message += f"\n\\.\\.\\. dan {len(users) - 10} user lainnya"
+                    # Pisahkan user yang allowed dan pending
+                    allowed_users = [u for u in all_users if u.get('is_allowed', False)]
+                    pending_users = [u for u in all_users if not u.get('is_allowed', False)]
+                    
+                    message = f"📋 *Semua User di Database \\({len(all_users)}\\)*\n\n"
+                    message += f"✅ Terdaftar: {len(allowed_users)}\n"
+                    message += f"🆕 Pending: {len(pending_users)}\n\n"
+                    message += "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    
+                    # Tampilkan user yang terdaftar dulu
+                    if allowed_users:
+                        message += f"*✅ USER TERDAFTAR \\({len(allowed_users)}\\):*\n\n"
+                        for idx, user in enumerate(allowed_users[:10], 1):  # Limit to 10 allowed users
+                            user_id_str = str(user.get('telegram_id', 'N/A'))
+                            username = user.get('username') or 'N/A'
+                            first_name = user.get('first_name') or 'N/A'
+                            # Escape karakter khusus untuk Markdown
+                            escaped_first_name = escape_markdown(first_name)
+                            escaped_username = escape_markdown(username)
+                            message += f"{idx}\\. ✅ 👤 *{escaped_first_name}*\n"
+                            message += f"   🆔 `{user_id_str}`\n"
+                            message += f"   📝 @{escaped_username}\n\n"
+                        
+                        if len(allowed_users) > 10:
+                            message += f"\n\\.\\.\\. dan {len(allowed_users) - 10} user terdaftar lainnya\n"
+                        
+                        if pending_users:
+                            message += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                    
+                    # Tampilkan user pending
+                    if pending_users:
+                        message += f"*🆕 USER PENDING \\({len(pending_users)}\\):*\n\n"
+                        for idx, user in enumerate(pending_users[:10], 1):  # Limit to 10 pending users
+                            user_id_str = str(user.get('telegram_id', 'N/A'))
+                            username = user.get('username') or 'N/A'
+                            first_name = user.get('first_name') or 'N/A'
+                            # Escape karakter khusus untuk Markdown
+                            escaped_first_name = escape_markdown(first_name)
+                            escaped_username = escape_markdown(username)
+                            message += f"{idx}\\. 🆕 👤 *{escaped_first_name}*\n"
+                            message += f"   🆔 `{user_id_str}`\n"
+                            message += f"   📝 @{escaped_username}\n\n"
+                        
+                        if len(pending_users) > 10:
+                            message += f"\n\\.\\.\\. dan {len(pending_users) - 10} user pending lainnya\n"
+                    
                     await query.edit_message_text(
                         message,
                         parse_mode='Markdown',
