@@ -1839,7 +1839,10 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
         except requests.exceptions.Timeout as e:
             logger.warning(f"Local Flask API timeout: {e}")
             print(f"[TELEGRAM_BOT] ⚠️ Local Flask API timeout: {e}", file=sys.stderr)
-            last_error = "Local Flask API timeout"
+            print(f"[TELEGRAM_BOT] 💡 Query timeout karena database sangat besar (30 juta record)", file=sys.stderr)
+            print(f"[TELEGRAM_BOT] 💡 Solusi: Buat index pada kolom 'hp' di tabel 'penduduk'", file=sys.stderr)
+            print(f"[TELEGRAM_BOT] 💡 Jalankan: CREATE INDEX idx_hp ON penduduk(hp);", file=sys.stderr)
+            last_error = "Query timeout - Database terlalu besar tanpa index. Buat index pada kolom 'hp' untuk mempercepat query."
         except Exception as e:
             logger.error(f"Local Flask API error: {e}", exc_info=True)
             print(f"[TELEGRAM_BOT] ❌ Local Flask API error: {e}", file=sys.stderr)
@@ -1880,12 +1883,25 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
             except:
                 pass
             
+            error_message = f"❌ *Query Timeout*\n\n"
+            error_message += f"Nomor HP: `{escape_markdown(phone_number)}`\n\n"
+            
+            if 'timeout' in last_error.lower() or 'Query timeout' in last_error:
+                error_message += f"⏱️ *Query timeout* karena database sangat besar (30 juta record).\n\n"
+                error_message += f"💡 *Solusi:*\n"
+                error_message += f"Buat index pada kolom 'hp' di tabel 'penduduk':\n"
+                error_message += f"```sql\n"
+                error_message += f"CREATE INDEX idx_hp ON penduduk(hp);\n"
+                error_message += f"```\n\n"
+                error_message += f"📄 Lihat file `create_phone_index.sql` untuk instruksi lengkap.\n\n"
+                error_message += f"Setelah index dibuat, query akan jauh lebih cepat."
+            else:
+                error_message += f"Data tidak ditemukan di database.\n"
+                error_message += f"Error: {escape_markdown(last_error or 'Tidak dapat terhubung ke database')}"
+            
             await update.message.reply_text(
-                f"❌ *Data Tidak Ditemukan*\n\n"
-                f"Nomor HP: `{phone_number}`\n\n"
-                f"Data tidak ditemukan di database.\n"
-                f"Error: {last_error or 'Tidak dapat terhubung ke database'}",
-                parse_mode='Markdown',
+                error_message,
+                parse_mode='MarkdownV2',
                 reply_markup=get_main_menu_keyboard(user_id)
             )
             return
@@ -1966,14 +1982,7 @@ async def check_phone_from_database(update: Update, context: ContextTypes.DEFAUL
         else:
             message += "❌ Format data tidak dikenali"
         
-        # Add footer
-        message += f"\n━━━━━━━━━━━━━━━━━━━━\n"
-        if PHONE_DB_NAME:
-            message += f"💡 *Sumber:* Database MySQL langsung\n"
-            message += f"🌐 *Server:* {PHONE_DB_HOST}:{PHONE_DB_PORT}/{PHONE_DB_NAME}"
-        else:
-            message += f"💡 *Sumber:* Flask API lokal\n"
-            message += f"🌐 *Endpoint:* http://localhost:5000/api/phone/search"
+        # Footer dihapus sesuai permintaan user (tidak menampilkan Sumber dan Server)
         
         # Hapus pesan status sebelum mengirim hasil
         try:
