@@ -872,6 +872,18 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = update.effective_user.id
     
+    # PENTING: Reset server status untuk setiap pencarian baru
+    # Ini memastikan bot mencoba kedua server untuk setiap pencarian, tidak "mengingat" server sebelumnya
+    try:
+        from clearance_face_search import _server_224_status
+        # Reset status agar bot mencoba server 224 dulu, lalu fallback ke 116 jika perlu
+        _server_224_status['available'] = True  # Assume server 224 tersedia
+        _server_224_status['last_check'] = 0  # Force re-check
+        _server_224_status['consecutive_failures'] = 0  # Reset failures
+        print(f"[TELEGRAM_BOT] 🔄 Reset server status for new search - will try server 224 first", file=sys.stderr)
+    except Exception as e:
+        print(f"[TELEGRAM_BOT] ⚠️ Could not reset server status: {e}", file=sys.stderr)
+    
     # Handle both command args and direct text input
     if context.args and len(context.args) >= 2:
         search_type = context.args[0].lower()
@@ -1132,10 +1144,11 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             traceback.print_exc()
         
         # Enrich people dengan universal search engine data (hanya untuk 5 hasil pertama untuk mempercepat)
+        # PENTING: Universal search SELALU dipanggil untuk semua hasil, tidak peduli dari server mana
         print(f"[TELEGRAM_BOT] Starting universal search engine enrichment for {min(5, len(people))} people...", file=sys.stderr)
         try:
-            from clearance_face_search import _login_server_116
             import os
+            import requests
             
             # Get SERVER_116_TOOLKIT_BASE dari app.py atau environment variable
             try:
@@ -1150,13 +1163,14 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"[TELEGRAM_BOT] 🔍 Enriching first {min(5, len(people))} people with universal search engine data...", file=sys.stderr)
             search_enriched_count = 0
             
-            # Gunakan session yang sudah ada dari clearance_face_search jika memungkinkan
+            # Coba dapatkan session dari server 116 (opsional, karena kita bisa gunakan requests langsung)
             session = None
             try:
+                from clearance_face_search import _login_server_116
                 session = _login_server_116()
+                print(f"[TELEGRAM_BOT] ✅ Got server 116 session for universal search", file=sys.stderr)
             except Exception as e:
-                logger.warning(f"⚠️ Failed to get server 116 session for universal search: {e}")
-                print(f"[TELEGRAM_BOT] ⚠️ Failed to get server 116 session for universal search: {e}", file=sys.stderr)
+                print(f"[TELEGRAM_BOT] ⚠️ Could not get server 116 session: {e}, will use direct requests", file=sys.stderr)
             
             # Hanya enrich 5 hasil pertama untuk mempercepat
             for idx, person in enumerate(people[:5], 1):
@@ -1168,32 +1182,48 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             logger.info(f"🔍 [{idx}/{min(5, len(people))}] Getting universal search data for: {person_name}")
                             print(f"[TELEGRAM_BOT] 🔍 [{idx}/{min(5, len(people))}] Getting universal search data for: {person_name}", file=sys.stderr)
                             
-                            # Panggil universal search engine menggunakan logic yang sama dengan app.py
+                            # URL encode nama untuk menghindari masalah dengan spasi
+                            from urllib.parse import quote
+                            encoded_name = quote(person_name)
+                            search_url = f'{SERVER_116_TOOLKIT_BASE}/universal-search-engine/search?input={encoded_name}'
+                            logger.info(f"🔍 Calling universal search: {search_url}")
+                            print(f"[TELEGRAM_BOT] 🔍 Calling universal search: {search_url}", file=sys.stderr)
+                            
+                            # Coba gunakan session jika tersedia, jika tidak gunakan requests langsung
+                            search_response = None
                             if session:
-                                search_url = f'{SERVER_116_TOOLKIT_BASE}/universal-search-engine/search?input={person_name}'
-                                logger.info(f"🔍 Calling universal search: {search_url}")
-                                print(f"[TELEGRAM_BOT] 🔍 Calling universal search: {search_url}", file=sys.stderr)
+                                try:
+                                    search_response = session.get(search_url, timeout=15)
+                                except Exception as e:
+                                    print(f"[TELEGRAM_BOT] ⚠️ Session request failed: {e}, trying direct request", file=sys.stderr)
+                            
+                            # Fallback ke requests langsung jika session tidak berhasil
+                            if not search_response or (hasattr(search_response, 'status_code') and search_response.status_code != 200):
+                                try:
+                                    print(f"[TELEGRAM_BOT] 🔄 Using direct requests for universal search", file=sys.stderr)
+                                    search_response = requests.get(search_url, timeout=15)
+                                except Exception as e:
+                                    print(f"[TELEGRAM_BOT] ❌ Direct request also failed: {e}", file=sys.stderr)
+                                    continue
+                            
+                            if search_response and search_response.status_code == 200:
+                                search_data = search_response.json()
                                 
-                                search_response = session.get(search_url, timeout=15)
-                                
-                                if search_response.status_code == 200:
-                                    search_data = search_response.json()
-                                    
-                                    if search_data and search_data.get('organic_results'):
-                                        results_count = len(search_data.get('organic_results', []))
-                                        person['search_engine_data'] = search_data
-                                        search_enriched_count += 1
-                                        logger.info(f"✅ [{idx}/{min(5, len(people))}] Added universal search data for {person_name}: {results_count} results")
-                                        print(f"[TELEGRAM_BOT] ✅ [{idx}/{min(5, len(people))}] Added universal search data for {person_name}: {results_count} results", file=sys.stderr)
-                                    else:
-                                        logger.info(f"⚠️ [{idx}/{min(5, len(people))}] No universal search results found for: {person_name}")
-                                        print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{min(5, len(people))}] No universal search results found for: {person_name}", file=sys.stderr)
+                                if search_data and search_data.get('organic_results'):
+                                    results_count = len(search_data.get('organic_results', []))
+                                    person['search_engine_data'] = search_data
+                                    search_enriched_count += 1
+                                    logger.info(f"✅ [{idx}/{min(5, len(people))}] Added universal search data for {person_name}: {results_count} results")
+                                    print(f"[TELEGRAM_BOT] ✅ [{idx}/{min(5, len(people))}] Added universal search data for {person_name}: {results_count} results", file=sys.stderr)
                                 else:
-                                    logger.warning(f"⚠️ Universal search API failed: {search_response.status_code}")
-                                    print(f"[TELEGRAM_BOT] ⚠️ Universal search API failed: {search_response.status_code}", file=sys.stderr)
+                                    logger.info(f"⚠️ [{idx}/{min(5, len(people))}] No universal search results found for: {person_name}")
+                                    print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{min(5, len(people))}] No universal search results found for: {person_name}", file=sys.stderr)
+                            elif search_response:
+                                logger.warning(f"⚠️ Universal search API failed: {search_response.status_code}")
+                                print(f"[TELEGRAM_BOT] ⚠️ Universal search API failed: {search_response.status_code}", file=sys.stderr)
                             else:
-                                logger.warning(f"⚠️ [{idx}/{min(5, len(people))}] No session available for universal search")
-                                print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{min(5, len(people))}] No session available for universal search", file=sys.stderr)
+                                logger.warning(f"⚠️ [{idx}/{min(5, len(people))}] No response from universal search")
+                                print(f"[TELEGRAM_BOT] ⚠️ [{idx}/{min(5, len(people))}] No response from universal search", file=sys.stderr)
                         except Exception as e:
                             logger.warning(f"❌ [{idx}/{min(5, len(people))}] Failed to get universal search data for {person_name}: {e}")
                             print(f"[TELEGRAM_BOT] ❌ [{idx}/{min(5, len(people))}] Failed to get universal search data for {person_name}: {e}", file=sys.stderr)
@@ -2937,14 +2967,16 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             if person.get('nama_ibu'):
                 personal_info += f"👩 *Nama Ibu:* {format_field_value(person.get('nama_ibu'))}\n"
     
-    # Tampilkan data Search Engine jika ada (menggunakan logic yang sama dengan profiling.html)
+    # Search engine data akan dikirim sebagai pesan terpisah dengan HTML format agar link bisa diklik
+    search_engine_message = None
     search_engine_data = person.get('search_engine_data')
     if search_engine_data and search_engine_data.get('organic_results'):
         organic_results = search_engine_data.get('organic_results', [])
         if organic_results and len(organic_results) > 0:
-            personal_info += f"\n*🔍 HASIL SEARCH ENGINE*\n"
-            personal_info += f"━━━━━━━━━━━━━━━━━━━━\n"
-            personal_info += f"📊 *Total Hasil:* {len(organic_results)}\n\n"
+            # Buat pesan HTML untuk search engine results
+            search_engine_message = "<b>🔍 HASIL SEARCH ENGINE</b>\n"
+            search_engine_message += "━━━━━━━━━━━━━━━━━━━━\n"
+            search_engine_message += f"📊 <b>Total Hasil:</b> {len(organic_results)}\n\n"
             
             # Tampilkan maksimal 5 hasil pertama
             for idx, result in enumerate(organic_results[:5], 1):
@@ -2954,20 +2986,21 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
                     snippet = result.get('snippet', '') or ''
                     source = result.get('source', 'Unknown Source') or 'Unknown Source'
                     
-                    # Escape markdown untuk semua teks (termasuk link untuk menghindari karakter khusus)
-                    escaped_title = escape_markdown(str(title))
-                    escaped_snippet = escape_markdown(str(snippet[:150])) if snippet else ''  # Limit snippet length lebih pendek
-                    escaped_source = escape_markdown(str(source))
-                    escaped_link = escape_markdown(str(link))  # Escape link juga untuk menghindari karakter khusus
+                    # Escape HTML entities untuk keamanan
+                    import html
+                    escaped_title = html.escape(str(title))
+                    escaped_snippet = html.escape(str(snippet[:150])) if snippet else ''
+                    escaped_source = html.escape(str(source))
+                    # Link tidak perlu di-escape karena akan digunakan dalam href
                     
-                    # Pastikan tidak ada karakter yang menyebabkan error - gunakan format yang lebih aman
-                    personal_info += f"{idx}\\. *{escaped_title}*\n"
+                    search_engine_message += f"{idx}. <b>{escaped_title}</b>\n"
                     if escaped_snippet:
-                        personal_info += f"   📄 {escaped_snippet}\n"
-                    personal_info += f"   🔗 `{escaped_link}`\n"  # Gunakan code block untuk link agar lebih aman
+                        search_engine_message += f"   📄 <i>{escaped_snippet}</i>\n"
+                    # Link yang bisa diklik menggunakan HTML anchor tag
+                    search_engine_message += f'   🔗 <a href="{link}">Buka Link</a>\n'
                     if escaped_source and escaped_source != 'Unknown Source':
-                        personal_info += f"   🌐 Sumber: {escaped_source}\n"
-                    personal_info += "\n"
+                        search_engine_message += f"   🌐 Sumber: {escaped_source}\n"
+                    search_engine_message += "\n"
                 except Exception as e:
                     logger.warning(f"   ⚠️ Error formatting search engine result {idx}: {e}")
                     print(f"[TELEGRAM_BOT]   ⚠️ Error formatting search engine result {idx}: {e}", file=sys.stderr)
@@ -2975,10 +3008,10 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
                     continue
             
             if len(organic_results) > 5:
-                personal_info += f"\\.\\.\\. dan {len(organic_results) - 5} hasil lainnya\n"
+                search_engine_message += f"... dan {len(organic_results) - 5} hasil lainnya\n"
             
-            logger.info(f"   ✅ Displaying {len(organic_results)} search engine results")
-            print(f"[TELEGRAM_BOT]   ✅ Displaying {len(organic_results)} search engine results", file=sys.stderr)
+            logger.info(f"   ✅ Prepared {len(organic_results)} search engine results for display")
+            print(f"[TELEGRAM_BOT]   ✅ Prepared {len(organic_results)} search engine results for display", file=sys.stderr)
     
     # Combine header and personal info
     full_message = header + personal_info
@@ -3037,6 +3070,34 @@ async def send_person_detail_complete(update: Update, person: dict, index: int =
             except Exception as e2:
                 logger.error(f"   ❌ Error sending fallback message: {e2}")
                 print(f"[TELEGRAM_BOT]   ❌ Error sending fallback message: {e2}", file=sys.stderr)
+    
+    # Kirim search engine results sebagai pesan terpisah dengan HTML format (link bisa diklik)
+    if search_engine_message:
+        try:
+            # Pastikan pesan tidak terlalu panjang
+            if len(search_engine_message) > 4000:
+                # Truncate if too long
+                search_engine_message = search_engine_message[:3900] + "\n\n... (hasil terpotong)"
+            
+            await update.message.reply_text(
+                search_engine_message, 
+                parse_mode='HTML',
+                disable_web_page_preview=True  # Disable preview untuk menghindari spam
+            )
+            logger.info(f"   ✅ Search engine results sent successfully")
+            print(f"[TELEGRAM_BOT]   ✅ Search engine results sent successfully", file=sys.stderr)
+        except Exception as e:
+            logger.error(f"   ❌ Error sending search engine results: {e}")
+            print(f"[TELEGRAM_BOT]   ❌ Error sending search engine results: {e}", file=sys.stderr)
+            # Fallback: kirim tanpa HTML jika ada error
+            try:
+                # Remove HTML tags untuk fallback
+                import re
+                fallback_text = re.sub(r'<[^>]+>', '', search_engine_message)
+                await update.message.reply_text(fallback_text)
+            except Exception as e2:
+                logger.error(f"   ❌ Error sending fallback search engine results: {e2}")
+                print(f"[TELEGRAM_BOT]   ❌ Error sending fallback search engine results: {e2}", file=sys.stderr)
 
 
 async def send_search_results_from_people(update: Update, people: list):

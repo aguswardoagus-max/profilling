@@ -71,3 +71,4 @@ Contoh:
 - Tidak ada perubahan pada logic web yang sudah ada
 - Bot berjalan di thread terpisah sehingga tidak mengganggu Flask app
 
+

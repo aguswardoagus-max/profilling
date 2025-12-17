@@ -22,3 +22,4 @@ USE clearance_facesearch;
 -- - telegram_users (untuk whitelist Telegram bot)
 -- - cek_plat_data
 
+
