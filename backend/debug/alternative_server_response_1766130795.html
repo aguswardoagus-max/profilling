@@ -1,0 +1,95 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cari Berdasarkan Nomor NIK</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .search-form {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+        }
+        .search-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .search-form input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #aaa;
+            box-sizing: border-box;
+        }
+        .search-form button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .result-item {
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .result-item strong {
+            font-weight: bold;
+        }
+        .error-box {
+            border: 1px solid red;
+            background-color: #ffe0e0;
+            color: red;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .download-button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <p><a href="index.php" class="back-link">&larr; Kembali ke Menu Utama</a></p>
+        <h1>Cari Berdasarkan Nomor NIK</h1>
+        <form class="search-form" method="GET">
+            <label for="nomor_nik">Nomor NIK:</label>
+            <input type="text" id="nomor_nik" name="nomor_nik" placeholder="Masukkan Nomor NIK yang dicari">
+            <button type="submit">Cari</button>
+        </form>
+
+                    <p>Tidak ada hasil ditemukan untuk Nomor NIK "1502062047000010".</p>
+            </div>
+</body>
+</html>
