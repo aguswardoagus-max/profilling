@@ -54,7 +54,14 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '7348743638:AAFfeaHBvnCpLbZ2JnKng0iwq2FG6oF7eTw')
 
 # Telegram Bot Owner ID (untuk akses admin)
-TELEGRAM_OWNER_ID = os.getenv('TELEGRAM_OWNER_ID', '6743614528')  # Default owner ID
+# Support multiple admin IDs (comma-separated)
+_owner_ids_str = os.getenv('TELEGRAM_OWNER_ID', '6743614528,6984075501')  # Default owner IDs
+TELEGRAM_OWNER_IDS = [id.strip() for id in _owner_ids_str.split(',') if id.strip()]
+TELEGRAM_OWNER_ID = TELEGRAM_OWNER_IDS[0] if TELEGRAM_OWNER_IDS else '6743614528'  # Keep for backward compatibility
+
+# Log admin IDs saat bot dimulai
+logger.info(f"Admin IDs loaded: {TELEGRAM_OWNER_IDS}")
+print(f"[TELEGRAM_BOT] Admin IDs loaded: {TELEGRAM_OWNER_IDS}", file=sys.stderr)
 
 # Base URL untuk API (default localhost, bisa diubah via env)
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://127.0.0.1:5000')
@@ -105,8 +112,14 @@ def get_main_menu_keyboard(user_id: int = None):
     ]
     
     # Tambahkan menu admin jika owner
-    if user_id is not None and is_owner(user_id):
-        keyboard.append([KeyboardButton("🔐 Admin")])
+    if user_id is not None:
+        is_admin = is_owner(user_id)
+        logger.info(f"get_main_menu_keyboard: user_id={user_id}, is_admin={is_admin}, admin_ids={TELEGRAM_OWNER_IDS}")
+        print(f"[TELEGRAM_BOT] get_main_menu_keyboard: user_id={user_id}, is_admin={is_admin}, admin_ids={TELEGRAM_OWNER_IDS}", file=sys.stderr)
+        if is_admin:
+            keyboard.append([KeyboardButton("🔐 Admin")])
+            logger.info(f"✅ Admin menu added for user {user_id}")
+            print(f"[TELEGRAM_BOT] ✅ Admin menu added for user {user_id}", file=sys.stderr)
     
     keyboard.append([KeyboardButton("📋 Menu Utama")])
     
@@ -2262,14 +2275,13 @@ def format_phone_data_item(item):
 
 
 def is_owner(user_id: int) -> bool:
-    """Check if user is owner/admin"""
-    owner_id = TELEGRAM_OWNER_ID
-    # Convert both to string for comparison
+    """Check if user is owner/admin (supports multiple admin IDs)"""
+    # Convert user_id to string for comparison
     user_id_str = str(user_id)
-    owner_id_str = str(owner_id) if owner_id else ""
-    result = bool(owner_id_str and user_id_str == owner_id_str)
-    logger.info(f"is_owner check: user_id={user_id} ({type(user_id).__name__}), owner_id={owner_id} ({type(owner_id).__name__}), result={result}")
-    print(f"[TELEGRAM_BOT] is_owner check: user_id={user_id} ({type(user_id).__name__}), owner_id={owner_id} ({type(owner_id).__name__}), result={result}", file=sys.stderr)
+    # Check if user_id is in the list of admin IDs
+    result = user_id_str in TELEGRAM_OWNER_IDS
+    logger.info(f"is_owner check: user_id={user_id} ({type(user_id).__name__}), admin_ids={TELEGRAM_OWNER_IDS}, result={result}")
+    print(f"[TELEGRAM_BOT] is_owner check: user_id={user_id} ({type(user_id).__name__}), admin_ids={TELEGRAM_OWNER_IDS}, result={result}", file=sys.stderr)
     return result
 
 
