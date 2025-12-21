@@ -72,3 +72,4 @@ Contoh:
 - Bot berjalan di thread terpisah sehingga tidak mengganggu Flask app
 
 
+
