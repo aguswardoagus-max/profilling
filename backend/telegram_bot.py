@@ -59,6 +59,10 @@ _owner_ids_str = os.getenv('TELEGRAM_OWNER_ID', '6743614528,6984075501')  # Defa
 TELEGRAM_OWNER_IDS = [id.strip() for id in _owner_ids_str.split(',') if id.strip()]
 TELEGRAM_OWNER_ID = TELEGRAM_OWNER_IDS[0] if TELEGRAM_OWNER_IDS else '6743614528'  # Keep for backward compatibility
 
+# Log admin IDs saat bot dimulai
+logger.info(f"Admin IDs loaded: {TELEGRAM_OWNER_IDS}")
+print(f"[TELEGRAM_BOT] Admin IDs loaded: {TELEGRAM_OWNER_IDS}", file=sys.stderr)
+
 # Base URL untuk API (default localhost, bisa diubah via env)
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://127.0.0.1:5000')
 
@@ -108,8 +112,14 @@ def get_main_menu_keyboard(user_id: int = None):
     ]
     
     # Tambahkan menu admin jika owner
-    if user_id is not None and is_owner(user_id):
-        keyboard.append([KeyboardButton("🔐 Admin")])
+    if user_id is not None:
+        is_admin = is_owner(user_id)
+        logger.info(f"get_main_menu_keyboard: user_id={user_id}, is_admin={is_admin}, admin_ids={TELEGRAM_OWNER_IDS}")
+        print(f"[TELEGRAM_BOT] get_main_menu_keyboard: user_id={user_id}, is_admin={is_admin}, admin_ids={TELEGRAM_OWNER_IDS}", file=sys.stderr)
+        if is_admin:
+            keyboard.append([KeyboardButton("🔐 Admin")])
+            logger.info(f"✅ Admin menu added for user {user_id}")
+            print(f"[TELEGRAM_BOT] ✅ Admin menu added for user {user_id}", file=sys.stderr)
     
     keyboard.append([KeyboardButton("📋 Menu Utama")])
     
