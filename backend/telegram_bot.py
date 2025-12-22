@@ -102,7 +102,6 @@ def get_main_menu_keyboard(user_id: int = None):
             KeyboardButton("🆔 Cari NIK")
         ],
         [
-            KeyboardButton("📱 Cari Nomor HP"),
             KeyboardButton("🚗 Cek Plat")
         ],
         [
@@ -282,8 +281,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Selamat datang! Saya dapat membantu Anda untuk:\n\n"
         "🔍 *Cari Data Orang*\n"
         "   • Cari berdasarkan Nama\n"
-        "   • Cari berdasarkan NIK\n"
-        "   • Cari berdasarkan Nomor HP\n\n"
+        "   • Cari berdasarkan NIK\n\n"
         "🚗 *Cek Kendaraan*\n"
         "   • Cek data kendaraan berdasarkan nomor polisi\n\n"
         "📊 *Laporan*\n"
@@ -329,7 +327,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔹 *FITUR YANG TERSEDIA:*\n\n"
         "🔍 *Cari Nama* - Cari data berdasarkan nama lengkap\n"
         "🆔 *Cari NIK* - Cari data berdasarkan NIK (16 digit)\n"
-        "📱 *Cari Nomor HP* - Cari data berdasarkan nomor HP\n"
         "🚗 *Cek Plat* - Cek data kendaraan berdasarkan nomor polisi\n"
         "📊 *Laporan* - Lihat laporan profiling yang tersimpan\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -521,14 +518,11 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=get_main_menu_keyboard(user_id)
         )
     elif text == "📱 Cari Nomor HP":
-        user_search_state[user_id] = 'waiting_phone'
+        # Fitur pencarian nomor HP dinonaktifkan
         await update.message.reply_text(
-            "📱 *Cari Berdasarkan Nomor HP*\n\n"
-            "Ketik nomor HP yang ingin dicari:\n\n"
-            "Contoh: 081234567890\n"
-            "Atau: `/search phone 081234567890`\n\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            "Ketik nomor HP sekarang 👇",
+            "❌ *Fitur Tidak Tersedia*\n\n"
+            "Fitur pencarian nomor HP saat ini dinonaktifkan.\n\n"
+            "Silakan gunakan menu lain yang tersedia.",
             parse_mode='Markdown',
             reply_markup=get_main_menu_keyboard(user_id)
         )
@@ -824,12 +818,10 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     "❓ *Tidak mengerti perintah*\n\n"
                     "Gunakan tombol menu untuk memilih jenis pencarian:\n"
                     "• 🔍 Cari Nama\n"
-                    "• 🆔 Cari NIK\n"
-                    "• 📱 Cari Nomor HP\n\n"
+                    "• 🆔 Cari NIK\n\n"
                     "Atau ketik perintah:\n"
                     "`/search nama [nama]`\n"
-                    "`/search nik [nik]`\n"
-                    "`/search phone [nomor]`",
+                    "`/search nik [nik]`",
                     parse_mode='Markdown',
                     reply_markup=get_main_menu_keyboard(user_id)
                 )
